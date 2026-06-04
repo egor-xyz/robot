@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="956" height="346" alt="robot" src="https://github.com/user-attachments/assets/ef206562-3465-425b-b381-fbbfe5c5811e" />
+
 # robot 🤖
 
 ### A little robot lives in your terminal. It walks, dances, and plays slots.
