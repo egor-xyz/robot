@@ -1,6 +1,8 @@
 <div align="center">
 
-<img width="956" height="346" alt="robot" src="https://github.com/user-attachments/assets/ef206562-3465-425b-b381-fbbfe5c5811e" />
+<img width="800" height="197" alt="CleanShot 2026-06-04 at 17 50 43" src="https://github.com/user-attachments/assets/dd10b07b-96f8-4d6f-824d-78947dfc4b27" />
+
+
 
 # robot 🤖
 
