@@ -36,10 +36,12 @@ if [[ ${ROBOT_AUTO_UPDATE:-0} == 1 && -d $ROBOT_DIR/.git ]]; then
 fi
 
 # --- Settings ---------------------------------------------------------------
+# Tips = the hint line under the robot. On by default.
+: ${ROBOT_TIPS:=1}
 local -a settings_keys settings_labels settings_types
-settings_keys=(_ROBOT_CHECK_NOW ROBOT_AUTO_UPDATE)
-settings_labels=("Check for updates" "Auto-update")
-settings_types=(action bool)
+settings_keys=(_ROBOT_CHECK_NOW ROBOT_AUTO_UPDATE ROBOT_TIPS)
+settings_labels=("Check for updates" "Auto-update" "Show tips")
+settings_types=(action bool bool)
 local scount=${#settings_keys} ssel=1
 local _rbt_check_msg="" _rbt_pending_check=0
 
@@ -138,11 +140,15 @@ while true; do
     printf '\e[H'
     if [[ $mode == robot ]]; then
       local track=$(( cols - 2 )); (( track < 10 )) && track=10
-      local pad_top=$(( (rows - 6) / 2 )); (( pad_top < 0 )) && pad_top=0
+      # Reserve room for the tip line (blank + footer) only when tips are on.
+      local _body_h=4; [[ ${ROBOT_TIPS:-1} == 1 ]] && _body_h=6
+      local pad_top=$(( (rows - _body_h) / 2 )); (( pad_top < 0 )) && pad_top=0
       local _i; for ((_i=0; _i<pad_top; _i++)); do printf '\e[K\n'; done
       crazy-robot $track
-      printf '\e[K\n'
-      print -P "%F{244}↑↓ animations · → settings · space 🎰 · q quit%f"$'\e[K'
+      if [[ ${ROBOT_TIPS:-1} == 1 ]]; then
+        printf '\e[K\n'
+        print -P "%F{244}↑↓ animations · → settings · esc quit%f"$'\e[K'
+      fi
     else
       # Settings panel — version/update banner, then the toggle list.
       local sep_w=$(( cols - 2 ))

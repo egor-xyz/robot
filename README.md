@@ -121,6 +121,7 @@ sourcing the plugin.
 
 | Variable             | Default | Effect                                                              |
 | -------------------- | ------- | ------------------------------------------------------------------- |
+| `ROBOT_TIPS`         | `1`     | `0` hides the hint line under the robot for a cleaner screensaver.  |
 | `ROBOT_AUTO_UPDATE`  | `0`     | `1` fetches tags and checks out the latest GitHub Release in the background, once per launch. Visible on next launch. |
 
 Settings toggled in the panel persist to `~/.config/robot/settings`.
