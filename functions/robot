@@ -1,0 +1,254 @@
+#autoload
+# robot — animated terminal robot toy / screensaver.
+#   ↑↓ (or k/j) cycle animations · → settings · Space = 🎰 · q/Esc quit.
+# Renders one frame per tick via crazy-robot using the dynamically-scoped
+# _robot_* state vars declared below. Settings infra uses the _rbt_* prefix so
+# it never collides with crazy-robot's _robot_* animation state.
+
+emulate -L zsh
+setopt extended_glob no_xtrace no_verbose typeset_silent
+
+autoload -Uz crazy-robot
+
+local _ROBOT_RELEASES_API="https://api.github.com/repos/egor-xyz/robot/releases/latest"
+
+# Detect whether the installed copy is newer than the version this shell
+# loaded; if so, surface a "restart shell" hint in the settings panel.
+local _rbt_restart_tag=""
+if [[ -n $ROBOT_DIR && -d $ROBOT_DIR/.git ]]; then
+  local _rbt_installed=$(git -C "$ROBOT_DIR" describe --tags --abbrev=0 2>/dev/null)
+  _rbt_installed=${_rbt_installed#v}
+  if [[ -n $_rbt_installed && $_rbt_installed != ${ROBOT_VERSION%-*} && $_rbt_installed != $ROBOT_VERSION ]]; then
+    _rbt_restart_tag=$_rbt_installed
+  fi
+fi
+
+# One-shot background auto-update: fetch tags + checkout latest GitHub Release
+# once per launch. New version visible on next invocation.
+local _rbt_update_tag=""
+if [[ ${ROBOT_AUTO_UPDATE:-0} == 1 && -d $ROBOT_DIR/.git ]]; then
+  (
+    git -C "$ROBOT_DIR" fetch --quiet --tags --force origin 2>/dev/null || exit
+    local _lt=$(curl -fsSL --max-time 5 "$_ROBOT_RELEASES_API" 2>/dev/null \
+      | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+    [[ -n $_lt ]] && git -C "$ROBOT_DIR" checkout --quiet "$_lt" 2>/dev/null
+  ) &!
+fi
+
+# --- Settings ---------------------------------------------------------------
+local -a settings_keys settings_labels settings_types
+settings_keys=(_ROBOT_CHECK_NOW ROBOT_AUTO_UPDATE)
+settings_labels=("Check for updates" "Auto-update")
+settings_types=(action bool)
+local scount=${#settings_keys} ssel=1
+local _rbt_check_msg="" _rbt_pending_check=0
+
+_rbt_save_settings() {
+  local cfg_dir=${XDG_CONFIG_HOME:-$HOME/.config}/robot
+  mkdir -p "$cfg_dir" 2>/dev/null
+  {
+    local k i=0
+    for k in $settings_keys; do
+      (( i++ ))
+      [[ ${settings_types[i]} == action ]] && continue
+      printf '%s=%s\n' "$k" "${(P)k:-}"
+    done
+  } > "$cfg_dir/settings"
+}
+
+_rbt_setting_value() {
+  local k=$1 t=$2 v=${(P)1:-}
+  case $t in
+    bool)    [[ $v == 1 ]] && echo true || echo false ;;
+    action)
+      if [[ -n $_rbt_update_tag ]]; then
+        echo "${_rbt_update_tag} available"
+      elif [[ -n $_rbt_check_msg ]]; then
+        echo "$_rbt_check_msg"
+      else
+        echo "press enter"
+      fi ;;
+  esac
+}
+
+_rbt_check_now() {
+  local old_ver=$ROBOT_VERSION
+  git -C "$ROBOT_DIR" fetch --quiet --tags --force origin 2>/dev/null
+  local latest=$(curl -fsSL --max-time 5 "$_ROBOT_RELEASES_API" 2>/dev/null \
+    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+  if [[ -z $latest ]]; then
+    _rbt_check_msg="check failed"
+    return
+  fi
+  local clean=${latest#v}
+  if [[ $clean == $old_ver ]]; then
+    _rbt_update_tag=""
+    _rbt_check_msg="no updates"
+    return
+  fi
+  if git -C "$ROBOT_DIR" checkout --quiet "$latest" 2>/dev/null; then
+    _rbt_update_tag=""
+    ROBOT_VERSION=$clean
+    _rbt_check_msg="updated to v${ROBOT_VERSION}"
+    # Refresh autoload so the NEXT `robot` call runs the new code. The current
+    # invocation finishes with the body already in memory — safe.
+    unfunction robot crazy-robot 2>/dev/null
+    autoload -Uz robot crazy-robot
+    ROBOT_LOADED_AT=$(date +%s)
+  else
+    _rbt_update_tag=$latest
+    _rbt_check_msg="update available"
+  fi
+}
+
+_rbt_setting_toggle() {
+  local k=$1 t=$2 v=${(P)1:-}
+  case $t in
+    bool)
+      if [[ $v == 1 ]]; then eval "$k=0"; else eval "$k=1"; fi ;;
+    action)
+      [[ $k == _ROBOT_CHECK_NOW ]] && { _rbt_check_msg="checking..."; _rbt_pending_check=1; } ;;
+  esac
+}
+
+# --- Robot animation state --------------------------------------------------
+local _robot_state="walk" _robot_t=0 _robot_dur=6 _robot_pos=0 _robot_dir=1 _robot_mirror=0
+local -a robot_order=(walk static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo slot)
+local rcount=${#robot_order} rsel=1
+local _robot_lock_ts=$SECONDS
+
+# --- TUI loop ---------------------------------------------------------------
+local key seq focused=1 _prev_lines=0 _prev_cols=0 mode=robot
+printf '\e[?1049h\e[?25l\e[?1004h'
+trap 'printf "\e[?25h\e[?1049l\e[?1004l"' EXIT INT TERM
+while true; do
+  # Release a locked pose back to wander after 30s idle (robot mode only).
+  if [[ $mode == robot ]] && (( _robot_dur == 99999 && SECONDS - _robot_lock_ts >= 30 )); then
+    _robot_dur=6; _robot_t=99999
+  fi
+  if (( focused )) || [[ $mode == robot ]]; then
+    # Query terminal size directly; $LINES/$COLUMNS may not refresh inside a
+    # running zsh function on SIGWINCH.
+    local _sz="$(stty size 2>/dev/null)"
+    local rows=${${_sz%% *}:-${LINES:-24}}
+    local cols=${${_sz##* }:-${COLUMNS:-80}}
+    if (( cols != _prev_cols || rows != _prev_lines )); then
+      printf '\e[2J'; _prev_cols=$cols; _prev_lines=$rows
+    fi
+    printf '\e[H'
+    if [[ $mode == robot ]]; then
+      local track=$(( cols - 2 )); (( track < 10 )) && track=10
+      local pad_top=$(( (rows - 6) / 2 )); (( pad_top < 0 )) && pad_top=0
+      local _i; for ((_i=0; _i<pad_top; _i++)); do printf '\e[K\n'; done
+      crazy-robot $track
+      printf '\e[K\n'
+      print -P "%F{244}↑↓ animations · → settings · space 🎰 · q quit%f"$'\e[K'
+    else
+      # Settings panel — version/update banner, then the toggle list.
+      local sep_w=$(( cols - 2 ))
+      local vtag=""
+      [[ -n $ROBOT_VERSION ]] && vtag=" v${ROBOT_VERSION} "
+      local utag=""
+      [[ -n $_rbt_update_tag ]] && utag=" ↑ ${_rbt_update_tag} available "
+      local plain_w=$(( sep_w - ${#vtag} - ${#utag} - 2 )); (( plain_w < 0 )) && plain_w=0
+      local sep="" _s
+      for ((_s=0; _s<plain_w; _s++)); do sep+="─"; done
+      if [[ -n $utag ]]; then
+        print -P "%F{240}─%F{208}${utag}%F{240}${sep}%F{238}${vtag}%f"$'\e[K'
+      else
+        print -P "%F{240}─${sep}%F{238}${vtag}%f"$'\e[K'
+      fi
+      if [[ -n $_rbt_restart_tag ]]; then
+        print -P "%F{109}  ↻ v${_rbt_restart_tag} ready · restart shell to apply%f"$'\e[K'
+      fi
+      print -P ""$'\e[K'
+      print -P "%F{244}Settings%f"$'\e[K'
+      print -P ""$'\e[K'
+      local lw=$(( cols > 40 ? 30 : cols / 2 ))
+      local i
+      for ((i=1; i<=scount; i++)); do
+        local sk=${settings_keys[i]} sl=${settings_labels[i]} st=${settings_types[i]}
+        local sv=$(_rbt_setting_value $sk $st)
+        local pad="" need=$(( lw - ${#sl} )); (( need < 1 )) && need=1
+        local _p; for ((_p=0; _p<need; _p++)); do pad+=" "; done
+        local vcolor=244
+        case $sv in
+          "no updates"|"updated to "*)      vcolor=108 ;;
+          "update available"|*"available")  vcolor=214 ;;
+          "checking..."*)                   vcolor=109 ;;
+          true)                             vcolor=108 ;;
+          false)                            vcolor=244 ;;
+          "press enter")                    vcolor=244 ;;
+        esac
+        if (( i == ssel )); then
+          print -P "  %F{214}${sl}%f${pad}%F{${vcolor}}${sv}%f"$'\e[K'
+        else
+          print -P "  ${sl}${pad}%F{${vcolor}}${sv}%f"$'\e[K'
+        fi
+        if [[ ${settings_types[i]} == action && i -lt scount ]]; then
+          print -P ""$'\e[K'
+        fi
+      done
+      print -P ""$'\e[K'
+      print -P "%F{244}↑↓ navigate · Enter toggle · ←/Esc back to robot%f"$'\e[K'
+    fi
+    printf '\e[J'
+  fi
+  # Run a deferred update check now that "checking..." has been drawn.
+  if (( _rbt_pending_check )); then
+    _rbt_pending_check=0
+    _rbt_check_now
+    continue
+  fi
+  local _timeout
+  if (( focused )) || [[ $mode == robot ]]; then _timeout=0.25; else _timeout=5; fi
+  if ! read -t $_timeout -k1 -s key 2>/dev/null; then
+    continue
+  fi
+  seq=$key
+  if [[ $key == $'\e' ]]; then
+    local c
+    while read -t 0.05 -k1 -s c 2>/dev/null; do
+      seq+=$c
+      [[ ${#seq} -ge 3 ]] && break
+    done
+  fi
+  if [[ $mode == robot ]]; then
+    case $seq in
+      $'\e[I') focused=1 ;;
+      $'\e[O') focused=0 ;;
+      $'\e[A'|k)
+        (( rsel = rsel == 1 ? rcount : rsel - 1 ))
+        _robot_state=${robot_order[rsel]}; _robot_t=0; _robot_dur=99999
+        _robot_lock_ts=$SECONDS
+        _robot_pos=$(( (cols - 22) / 2 )); (( _robot_pos < 0 )) && _robot_pos=0
+        ;;
+      $'\e[B'|j)
+        (( rsel = rsel == rcount ? 1 : rsel + 1 ))
+        _robot_state=${robot_order[rsel]}; _robot_t=0; _robot_dur=99999
+        _robot_lock_ts=$SECONDS
+        _robot_pos=$(( (cols - 22) / 2 )); (( _robot_pos < 0 )) && _robot_pos=0
+        ;;
+      $'\e[C'|l) mode=settings; ssel=1; printf '\e[H\e[J' ;;
+      ' ') _robot_state=slot; _robot_t=0; _robot_dur=45 ;;
+      $'\e'|q|Q) break ;;
+    esac
+  else
+    case $seq in
+      $'\e[I') focused=1 ;;
+      $'\e[O') focused=0 ;;
+      $'\e[A'|k) (( ssel = ssel == 1 ? scount : ssel - 1 )) ;;
+      $'\e[B'|j) (( ssel = ssel == scount ? 1 : ssel + 1 )) ;;
+      $'\n'|$'\r'|' ')
+        _rbt_setting_toggle ${settings_keys[ssel]} ${settings_types[ssel]}
+        _rbt_save_settings
+        ;;
+      $'\e[D'|h) mode=robot; printf '\e[H\e[J' ;;
+      $'\e'|q|Q) mode=robot; printf '\e[H\e[J' ;;
+    esac
+  fi
+done
+# Leave alternate screen + show cursor + restore terminal.
+printf '\e[?25h\e[?1049l\e[?1004l'
+trap - EXIT INT TERM
+return 0
