@@ -10,7 +10,7 @@
 
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](#-install-in-claude-code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![zsh](https://img.shields.io/badge/shell-zsh-89e051.svg)](https://www.zsh.org/)
+[![zsh](https://img.shields.io/badge/terminal-zsh-89e051.svg)](https://www.zsh.org/)
 
 </div>
 
@@ -63,7 +63,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
-- 🪶 **Tiny.** No daemon, no network, nothing to install
+- 🪶 **Tiny.** No daemon, no network, nothing to install.
 
 ---
 
@@ -92,9 +92,9 @@ lives in [`claude-mod/`](claude-mod/):
    `zsh`, no other program. [`claude-mod/robot.ts`](claude-mod/robot.ts) is a
    TypeScript twin of [`functions/crazy-robot`](functions/crazy-robot): the
    same animations, timings and colours.
-2. It draws 1200 frames sized to your window and plays them on a loop,
-   4 frames a second, in the band above the prompt.
-3. When you resize the window, it draws new frames for the new width.
+2. It steps one frame per tick, 4 frames a second, in the band above the
+   prompt, sized to your window.
+3. When you resize the window, the next frame just uses the new width.
 
 A parity test (`claude plugin test .`) holds the twin to the real zsh frames,
 tick by tick, so the two stay in step. A new animation needs the same change in

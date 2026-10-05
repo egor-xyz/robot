@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { cellsOf, framesOf } from './frames'
+import { FRAME_SEPARATOR, cellsOf, framesOf } from './frames'
 import type { Frame } from './frames'
 import { CASES, POS, TRACK } from './parity.fixture'
 import { INITIAL, STATES, filmOf, step } from './robot'
@@ -49,10 +49,16 @@ test('every random state shows up in a long film', () => {
 test('every state draws what the real zsh draws', () => {
   expect(CASES.length).toBe(STATES.length * 24 * 2)
 
-  for (const { state, t, mirror, first, out } of CASES) {
+  for (const { state, t, mirror, draws, out } of CASES) {
     const from: RobotState = { state, t, dur: 99999, pos: POS, dir: 1, mirror }
-    const { frame } = step(from, TRACK, () => first)
+    let used = 0
+    const replay = () => {
+      const draw = draws[used++]
+      if (draw === undefined) throw new Error(`${state} t=${t} drew more than the ${draws.length} recorded values`)
+      return draw
+    }
+    const { frame } = step(from, TRACK, replay)
 
-    expect({ state, t, mirror, frame }).toEqual({ state, t, mirror, frame: framesOf(`${out}\x1e`)[0] })
+    expect({ state, t, mirror, frame }).toEqual({ state, t, mirror, frame: framesOf(`${out}${FRAME_SEPARATOR}`)[0] })
   }
 })

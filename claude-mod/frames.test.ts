@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { cellsOf, framesOf, hexOf, spansOf, widthOf } from './frames'
+import { FRAME_SEPARATOR, cellsOf, framesOf, hexOf, spansOf } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -14,15 +14,14 @@ test('a row splits into coloured spans without escape codes', () => {
 
 test('the generator output splits into four-row frames', () => {
   const frame = 'a\x1b[K\nb\x1b[K\nc\x1b[K\nd\x1b[K\n'
-  const frames = framesOf(`${frame}\x1e${frame}\x1e`)
+  const frames = framesOf(`${frame}${FRAME_SEPARATOR}${frame}${FRAME_SEPARATOR}`)
 
   expect(frames.length).toBe(2)
   expect(frames[0]?.map(row => row.map(span => span.text).join(''))).toEqual(['a', 'b', 'c', 'd'])
 })
 
-test('emoji take two cells and set the width', () => {
+test('emoji take two cells', () => {
   expect(cellsOf('o🏀')).toBe(3)
-  expect(widthOf(framesOf('  🌙\n\x1e'))).toBe(4)
 })
 
 test('greys and the colour cube map to hex', () => {

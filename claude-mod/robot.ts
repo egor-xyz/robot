@@ -1,4 +1,4 @@
-import { spansOf } from './frames'
+import { ORANGE_INDEX, spansOf } from './frames'
 import type { Frame } from './frames'
 
 // A TypeScript twin of functions/crazy-robot: the same states, timings,
@@ -128,7 +128,6 @@ const COLOR: Record<string, number> = {
 
 const RAINBOW = [208, 220, 46, 51, 75, 99, 165, 213]
 const MOON_PHASES = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘']
-const ORANGE = 208
 
 /** How many ticks a state plays; `random()` is rolled once, like `RANDOM` in zsh. */
 function durOf(state: string, random: () => number): number {
@@ -161,7 +160,7 @@ const idle = (n: number) => IDLE_FRAMES[n - 1] ?? ''
 function paint(raw: string, pos: number, color: number): Frame {
   const pad = sp(pos)
   const body = raw.replaceAll('\n', `\n${pad}`)
-  const orange = `\x1b[38;5;${ORANGE}m`
+  const orange = `\x1b[38;5;${ORANGE_INDEX}m`
   const accent = `\x1b[38;5;${color}m`
   const highlighted = body.replace(/\[([^\]]*)\]/g, (_, inner: string) => `[${accent}${inner}${orange}]`)
   const rows = `${orange}${pad}${highlighted}\x1b[39m`.split('\n')
@@ -227,7 +226,7 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
       const p = t % 12
       return { raw: idle(p < 8 ? base + Math.floor(p / 4) * 2 + (p % 2) : base + 4), pad: s.pos }
     }
-    case 'balloon': return balloonOf(s, track, reroll)
+    case 'balloon': reroll(); return balloonOf(s, track)
     case 'goal': {
       reroll()
       const base = s.mirror ? 66 : 62
@@ -242,9 +241,8 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
 }
 
 /** Balloon: held, lifted, then drifting off while the robot watches. */
-function balloonOf(s: RobotState, track: number, reroll: () => void): { raw: string; pad: number } {
+function balloonOf(s: RobotState, track: number): { raw: string; pad: number } {
   const { t } = s
-  reroll()
   const base = s.mirror ? 60 : 58
   if (t < 4) return { raw: idle(base + Math.floor(t / 2)), pad: s.pos }
   const drift = (t - 4) * 2
@@ -361,15 +359,18 @@ export function step(state: RobotState, track: number, random: () => number): { 
     s.dur = durOf(s.state, random)
   }
 
-  const color = s.state === 'dance' || s.state === 'jump' ? (RAINBOW[s.t % RAINBOW.length] ?? ORANGE) : (COLOR[s.state] ?? ORANGE)
+  const color = s.state === 'dance' || s.state === 'jump' ? (RAINBOW[s.t % RAINBOW.length] ?? ORANGE_INDEX) : (COLOR[s.state] ?? ORANGE_INDEX)
   const { raw, pad } = drawOf(s, width, random)
   const frame = paint(raw, pad, color)
   s.t += 1
   return { frame, state: s }
 }
 
+/** Like zsh $RANDOM: an int in 0..32767. */
+export const randomInt = (): number => Math.floor(Math.random() * 32768)
+
 /** `count` frames of the robot on a track this many cells wide. */
-export function filmOf(track: number, count: number, random: () => number = () => Math.floor(Math.random() * 32768)): Frame[] {
+export function filmOf(track: number, count: number, random: () => number = randomInt): Frame[] {
   const frames: Frame[] = []
   let state = INITIAL
   for (let i = 0; i < count; i++) {

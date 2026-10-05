@@ -1,9 +1,9 @@
-import type { EngineInterface, Register } from 'claude-code'
+import type { Register } from 'claude-code'
 
 import type { Frame } from './frames'
-import { filmOf } from './robot'
+import { INITIAL, randomInt, step } from './robot'
+import type { RobotState } from './robot'
 
-const FRAME_COUNT = 1200
 const TICK_MS = 250
 const ROWS = 4
 // The robot body is ten cells wide; keep it whole at the right edge.
@@ -14,16 +14,8 @@ const MIN_TRACK = 12
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
 
-/** The frames on loop and the track they were drawn for. */
-const film: { frames: Frame[]; track: number } = { frames: [], track: 0 }
-
-/** Draws a fresh frame set when the band is a new width. */
-function generate(columns: number): void {
-  const wanted = Math.max(MIN_TRACK, columns - BODY_CELLS)
-  if (wanted === film.track) return
-  film.frames = filmOf(wanted, FRAME_COUNT)
-  film.track = wanted
-}
+/** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
+const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -50,15 +42,22 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const columns = e.props.bodyColumns
-    generate(columns)
-
     const { value: at = 0 } = await $.state.get(TICK)
     const { value: hidden = false } = await $.state.get(IS_HIDDEN)
-    const frame = film.frames[at % film.frames.length]
-    const isQuiet = e.props.hasSurvey || e.props.maxRows < ROWS || !frame || hidden
+    const isQuiet = e.props.hasSurvey || e.props.maxRows < ROWS || hidden
     if (isQuiet) {
       return next(e)
     }
+
+    const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
+    if (at !== shown.at) {
+      const drawn = step(shown.state, track, randomInt)
+      shown.state = drawn.state
+      shown.frame = drawn.frame
+      shown.at = at
+    }
+    const frame = shown.frame
+    if (!frame) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
 

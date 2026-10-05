@@ -4,26 +4,29 @@
 // twin to it (the test sandbox cannot run zsh itself).
 // Usage: node scripts/gen-parity-fixture.mjs   (needs zsh)
 import { execFileSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const STATES = [
-  'static', 'blink', 'wave', 'sleep', 'surprise', 'smile', 'dance', 'jump', 'moon', 'catpeek',
-  'basketball', 'campfire', 'fishing', 'coffee', 'garden', 'balloon', 'goal', 'concert', 'ufo', 'photo',
-]
+// The states come from the zsh source itself, so the two cannot drift.
+const STATES = readFileSync(join(root, 'functions', 'crazy-robot'), 'utf8')
+  .match(/local -a states=\(([^)]*)\)/)[1]
+  .trim()
+  .split(/\s+/)
+const DRAWS = 8
 const POS = 5
 const TRACK = 60
 const TICKS = 24
 
 // $2 state, $3 t, $4 pos, $5 dir, $6 mirror, $7 track, $8 seed. The first
-// $RANDOM the seed gives is printed after the frame, for the TS side to replay.
+// DRAWS $RANDOM values the seed gives are printed after the frame; the seed is
+// then reset so crazy-robot consumes that same stream, and the TS side replays it.
 const SCRIPT = `fpath=($1 $fpath); autoload -Uz crazy-robot
 typeset _robot_state=$2 _robot_t=$3 _robot_dur=99999 _robot_pos=$4 _robot_dir=$5 _robot_mirror=$6 _robot_f _robot_s _robot_locked=0
-RANDOM=$8; first=$RANDOM; RANDOM=$8
+RANDOM=$8; draws=(); repeat ${DRAWS} draws+=($RANDOM); RANDOM=$8
 crazy-robot $7
-print -rn -- $'\\x1f'$first`
+print -rn -- $'\\x1f'"$draws"`
 
 const cases = []
 for (const state of STATES) {
@@ -33,8 +36,8 @@ for (const state of STATES) {
       const stdout = execFileSync('zsh', [
         '-fc', SCRIPT, 'robot', join(root, 'functions'), state, String(t), String(POS), '1', String(mirror), String(TRACK), String(seed),
       ], { encoding: 'utf8' })
-      const [out, first] = stdout.split('\x1f')
-      cases.push({ state, t, mirror, first: Number(first), out })
+      const [out, draws] = stdout.split('\x1f')
+      cases.push({ state, t, mirror, draws: draws.split(' ').map(Number), out })
     }
   }
 }
@@ -46,8 +49,8 @@ writeFileSync(
 export const POS = ${POS}
 export const TRACK = ${TRACK}
 
-/** What zsh printed for one tick, and the first $RANDOM it would draw. */
-export const CASES: { state: string; t: number; mirror: 0 | 1; first: number; out: string }[] = [
+/** What zsh printed for one tick, and the $RANDOM stream it drew from. */
+export const CASES: { state: string; t: number; mirror: 0 | 1; draws: number[]; out: string }[] = [
 ${body}
 ]
 `,

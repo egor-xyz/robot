@@ -7,7 +7,8 @@ export type Frame = Span[][]
 /** Separates frames in the generator's output. */
 export const FRAME_SEPARATOR = '\x1e'
 
-const ORANGE = '#ff8700'
+/** xterm index of the robot's orange body. */
+export const ORANGE_INDEX = 208
 const CUBE = [0, 95, 135, 175, 215, 255]
 const BASIC = [
   '#000000', '#800000', '#008000', '#808000', '#000080', '#800080', '#008080', '#c0c0c0',
@@ -16,7 +17,7 @@ const BASIC = [
 
 /** Maps an xterm 256-colour index to a hex colour. */
 export function hexOf(index: number): string {
-  if (index < 16) return BASIC[index] ?? ORANGE
+  if (index < 16) return BASIC[index] ?? hexOf(ORANGE_INDEX)
   const hex = (n: number | undefined) => (n ?? 0).toString(16).padStart(2, '0')
   if (index >= 232) {
     const grey = 8 + (index - 232) * 10
@@ -29,7 +30,7 @@ export function hexOf(index: number): string {
 /** Splits one ANSI-coloured row into spans; drops clear-line and column moves. */
 export function spansOf(row: string): Span[] {
   const spans: Span[] = []
-  let color = ORANGE
+  let color = hexOf(ORANGE_INDEX)
   let last = 0
   for (const match of row.matchAll(/\x1b\[(?:38;5;(\d+)m|39m|K|\d+G)/g)) {
     const at = match.index ?? 0
@@ -57,15 +58,4 @@ export function cellsOf(text: string): number {
     cells += code >= 0x1f000 || [0x2615, 0x26bd, 0x2728].includes(code) ? 2 : 1
   }
   return cells
-}
-
-/** The widest row across every frame, in cells. */
-export function widthOf(frames: Frame[]): number {
-  let widest = 0
-  for (const frame of frames) {
-    for (const row of frame) {
-      widest = Math.max(widest, cellsOf(row.map(span => span.text).join('')))
-    }
-  }
-  return widest
 }
