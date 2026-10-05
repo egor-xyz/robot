@@ -19,12 +19,16 @@ install.sh            curl one-liner installer (clones to ~/.robot, patches .zsh
 functions/robot       the TUI: screensaver loop + settings panel
 functions/crazy-robot animation component, called per frame by robot
 .claude-plugin/       Claude Code plugin + marketplace manifests (repo root = plugin root)
-claude-mod/           Claude Code mod: runs functions/crazy-robot, draws frames above the prompt
+claude-mod/           Claude Code mod: draws frames above the prompt in pure TypeScript
+claude-mod/robot.ts   TypeScript twin of functions/crazy-robot (no zsh needed)
+scripts/gen-parity-fixture.mjs  records the real zsh frames for the parity test
 ```
 
-The Claude Code mod reuses `functions/crazy-robot` as is — a new animation shows
-up there with no mod change. Check it with `claude plugin validate .` and
-`claude plugin test .`.
+The Claude Code mod does not run zsh: `claude-mod/robot.ts` is a TypeScript twin
+of `functions/crazy-robot`. A new animation needs the same change in
+`claude-mod/robot.ts`. Then run `node scripts/gen-parity-fixture.mjs` (records
+the real zsh frames into `claude-mod/parity.fixture.ts`), and check with
+`claude plugin validate .` and `claude plugin test .` — the test checks parity.
 
 Function files use zsh autoload convention: file name = function name, no
 `function foo()` wrapper, body is the function body. First line is the

@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { FRAME_SEPARATOR, framesOf } from './frames'
 import type { Frame } from './frames'
+import { filmOf } from './robot'
 
 const FRAME_COUNT = 1200
 const TICK_MS = 250
@@ -14,37 +14,14 @@ const MIN_TRACK = 12
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
 
-/**
- * The zsh that runs this repo's own functions/crazy-robot and records every
- * frame; $1 is the functions folder, $2 the track width.
- */
-const GENERATOR = `fpath=($1 $fpath); autoload -Uz crazy-robot
-typeset _robot_state=walk _robot_t=0 _robot_dur=6 _robot_pos=0 _robot_dir=1 _robot_mirror=0 _robot_f _robot_s _robot_locked=0
-for i in {1..${FRAME_COUNT}}; do crazy-robot $2; print -rn -- $'${FRAME_SEPARATOR}'; done`
+/** The frames on loop and the track they were drawn for. */
+const film: { frames: Frame[]; track: number } = { frames: [], track: 0 }
 
-/** The frames on loop, the track they were drawn for, and a track being drawn. */
-const film: { frames: Frame[]; track: number; pending: number } = { frames: [], track: 0, pending: 0 }
-
-/** Renders a fresh frame set for a band this many cells wide. */
-async function generate($: EngineInterface, columns: number): Promise<void> {
+/** Draws a fresh frame set when the band is a new width. */
+function generate(columns: number): void {
   const wanted = Math.max(MIN_TRACK, columns - BODY_CELLS)
-  if (wanted === film.track || wanted === film.pending) return
-  film.pending = wanted
-  const { exitCode, stdout, stderr } = await $.process.run([
-    'zsh',
-    '-fc',
-    GENERATOR,
-    'robot',
-    `${$.plugin.root}/functions`,
-    String(wanted),
-  ])
-  if (film.pending !== wanted) return
-  film.pending = 0
-  if (exitCode !== 0) {
-    $.ui.log(`robot: frame generator failed: ${stderr.slice(0, 200)}`, { to: 'debug' })
-    return
-  }
-  film.frames = framesOf(stdout)
+  if (wanted === film.track) return
+  film.frames = filmOf(wanted, FRAME_COUNT)
   film.track = wanted
 }
 
@@ -73,7 +50,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const columns = e.props.bodyColumns
-    void generate($, columns)
+    generate(columns)
 
     const { value: at = 0 } = await $.state.get(TICK)
     const { value: hidden = false } = await $.state.get(IS_HIDDEN)

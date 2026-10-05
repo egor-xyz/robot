@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",

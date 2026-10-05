@@ -8,7 +8,7 @@ description: Use when adding, editing, or removing a robot animation or state �
 ## Overview
 
 A robot "state" (e.g. `photo`, `basketball`) is wired across **two files** and
-**seven locations**. The frames live in `functions/crazy-robot`; the state must
+**seven locations** (plus the TypeScript twin in `claude-mod/robot.ts`). The frames live in `functions/crazy-robot`; the state must
 also be registered in the single `robot_order` list in `functions/robot` or it
 plays in the random rotation but is unreachable by manual ↑↓ stepping. Missing a
 touchpoint is the #1 bug — work the checklist top to bottom.
@@ -35,6 +35,14 @@ anchor, not line number. First, pick a state name not already in `states=(…)`
    **no `*)` default** — forget this and the accent escape breaks.
 6. **Render `case $_robot_state in`** — add a branch that sets `raw` for
    `_robot_t`. New branches go **before `slot)`** (the trailing easter egg).
+
+### `claude-mod/robot.ts`
+The Claude Code mod draws frames in TypeScript, not zsh. Mirror touchpoints 1-6
+here: the frame in `IDLE_FRAMES` (same index), the name in `STATES`, `WIDTH`,
+`durOf`, `COLOR` and a `case` in `drawOf`. Then run
+`node scripts/gen-parity-fixture.mjs` and `claude plugin test .` — the parity
+test fails if the TypeScript frames differ from the real zsh ones. Add the
+state to `STATES` in `scripts/gen-parity-fixture.mjs` too.
 
 ### `functions/robot`
 7. **`robot_order` list** — the single list the screensaver ↑↓ steps through.

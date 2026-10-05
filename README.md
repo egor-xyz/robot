@@ -53,7 +53,7 @@ claude plugin marketplace add egor-xyz/robot && claude plugin install robot@robo
 
 </details>
 
-You only need `zsh` — it's already there on macOS.
+Works on macOS, Linux and Windows — nothing else to install.
 
 ---
 
@@ -63,7 +63,7 @@ You only need `zsh` — it's already there on macOS.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
-- 🪶 **Tiny.** No daemon, no network, no dependencies beyond `zsh`.
+- 🪶 **Tiny.** No daemon, no network, nothing to install
 
 ---
 
@@ -88,14 +88,17 @@ You only need `zsh` — it's already there on macOS.
 A Claude Code mod is a small plugin that can draw inside Claude Code. This one
 lives in [`claude-mod/`](claude-mod/):
 
-1. When Claude Code starts, the mod runs this repo's own
-   [`functions/crazy-robot`](functions/crazy-robot) in `zsh` once and records
-   1200 frames sized to your window.
-2. It plays them on a loop, 4 frames a second, in the band above the prompt.
-3. When you resize the window, it records new frames for the new width.
+1. The mod computes its frames itself, in plain TypeScript — no shell, no
+   `zsh`, no other program. [`claude-mod/robot.ts`](claude-mod/robot.ts) is a
+   TypeScript twin of [`functions/crazy-robot`](functions/crazy-robot): the
+   same animations, timings and colours.
+2. It draws 1200 frames sized to your window and plays them on a loop,
+   4 frames a second, in the band above the prompt.
+3. When you resize the window, it draws new frames for the new width.
 
-Because it reuses `crazy-robot` as is, every new animation in the repo shows up
-in Claude Code with no change to the mod.
+A parity test (`claude plugin test .`) holds the twin to the real zsh frames,
+tick by tick, so the two stay in step. A new animation needs the same change in
+both files.
 
 ---
 
