@@ -156,6 +156,51 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
   })
 }
 
+// The robot packing itself into a box while the conversation compacts, one part at a time.
+const BOX_WIDTH = 9
+const BOX_COLOR = 180
+/** Stages of packing, in order; the last one holds until the compaction ends. */
+export const PACK_STAGES = 5
+// One loop, a stage a step: pack in, hold the closed (shaking) box, unpack, again.
+const PACK_LOOP = [0, 1, 2, 3, 4, 4, 4, 3, 2, 1]
+/** The packing stage `steps` steps into a compaction; it loops as long as the compaction runs. */
+export const packStage = (steps: number): number => PACK_LOOP[Math.max(0, steps) % PACK_LOOP.length] ?? 0
+// Each stage: what is left of the robot (rows 0–3, '' for packed parts) and the box (rows 0–3, '' for nothing).
+const PACKING: { robot: string[]; box: string[] }[] = [
+  { robot: ['  .-----.', '  [o   o]', '  /|━━━|\\', '   o   o'], box: ['', '│       │', '│       │', '└───────┘'] },
+  { robot: ['  .-----.', '  [o   o]', '  /|━━━|\\', ''], box: ['', '│       │', '│ o   o │', '└───────┘'] },
+  { robot: ['  .-----.', '  [o   o]', '', ''], box: ['', '│       │', '│o|━━━|o│', '└───────┘'] },
+  { robot: ['', '', '', ''], box: [' .-----. ', '│[^   ^]│', '│o|━━━|o│', '└───────┘'] },
+  { robot: ['', '', '', ''], box: ['┌───────┐', '│ robot │', '│ ↑ ↑ ↑ │', '└───────┘'] },
+]
+
+/**
+ * The robot at `pos` packing itself into a box beside it: legs, then body, then its head hops in and the lid
+ * closes; the closed box shakes with the tick. The box sits right of the robot, or left when it does not fit.
+ */
+export function packing(pos: number, columns: number, stage: number, tick: number): Frame {
+  const { robot, box } = PACKING[Math.min(Math.max(stage, 0), PACKING.length - 1)] ?? { robot: [], box: [] }
+  const right = pos + BODY_END + 2
+  const boxAt = (right + BOX_WIDTH <= columns || pos < BOX_WIDTH ? right : pos - BOX_WIDTH) + (stage >= PACKING.length - 1 ? tick % 2 : 0)
+  const orange = hexOf(ORANGE_INDEX)
+  const cardboard = hexOf(BOX_COLOR)
+  return [0, 1, 2, 3].map(row => {
+    const cells: Cell[] = []
+    const put = (at: number, text: string, color: string) => {
+      ;[...text].forEach((char, i) => {
+        if (char === ' ') return
+        while (cells.length <= at + i) cells.push({ char: ' ', color: DEFAULT_COLOR })
+        cells[at + i] = { char, color: /[│└┘┌─]/.test(char) || stage >= PACKING.length - 1 ? cardboard : orange }
+      })
+    }
+    put(pos, robot[row] ?? '', orange)
+    put(boxAt, box[row] ?? '', cardboard)
+    return spansOfCells(cells)
+  })
+}
+// The robot body ends this many cells after its position.
+const BODY_END = 9
+
 /** The colour that means "the surface's own text colour": Text leaves it unset, SVG draws DEFAULT_FILL. */
 export const DEFAULT_COLOR = ''
 /** Neutral grey for default-coloured text in SVG, readable on light and dark backgrounds. */

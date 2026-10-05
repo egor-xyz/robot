@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, heated, speech, svgOf, typedSoFar } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, heated, packStage, packing, speech, svgOf, typedSoFar } from './frames'
 import type { Frame, Span } from './frames'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
@@ -35,14 +35,26 @@ const sayOf = (percent: number): Span[][] => [
   [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
 ]
 
+/** What the robot says while the conversation compacts; the dots count up with the tick. */
+const compactingOf = (at: number): Span[][] => [
+  [{ text: `compacting${'.'.repeat(at % 4)}${' '.repeat(3 - (at % 4))}`, color: DEFAULT_COLOR }],
+  [{ text: 'hold on!', color: DEFAULT_COLOR }],
+]
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
 const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
+const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
+/** The tick the current compaction was first drawn at, or -1 when nothing compacts. */
+let packedFrom = -1
+// Ticks per packing stage: one part goes into the box each second.
+const PACK_TICKS = 4
+// Cells the packing scene takes: robot and box (20), then the four-cell gap and "compacting...".
+const PACK_SCENE = 37
 
 export const register: Register = (on, options) => {
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
@@ -74,6 +86,17 @@ export const register: Register = (on, options) => {
     return started
   })
 
+  // The main conversation compacting, by /compact, the threshold or a plugin: the robot cools down while it runs.
+  on('session.compact', async ($, e, next) => {
+    if (e.trigger === 'precompute' || e.agentId) return next(e)
+    await $.state.set(IS_COMPACTING, true)
+    try {
+      return await next(e)
+    } finally {
+      await $.state.set(IS_COMPACTING, false)
+    }
+  })
+
   on('command.run', { command: 'robot' }, async $ => {
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
@@ -92,10 +115,14 @@ export const register: Register = (on, options) => {
     }
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
+    const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
     const isHot = isFireOn && percent >= hotAt
+    if (!isCompacting) packedFrom = -1
+    else if (packedFrom < 0) packedFrom = at
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
-    if (at !== shown.at) {
+    // While compacting the robot stands still: it packs itself into a box in the middle of the band.
+    if (at !== shown.at && !isCompacting) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       const wanted = talkAt(at) >= 0 ? 'dance' : 'walk'
       if (isHot && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
@@ -110,9 +137,13 @@ export const register: Register = (on, options) => {
       }
       shown.at = at
     }
-    if (!shown.frame) return next(e)
-    const burning = heated(shown.frame, isHot, at)
-    const frame = isHot && talkAt(at) >= 0 ? speech(burning, typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns) : burning
+    const packed = packStage(Math.floor((at - packedFrom) / PACK_TICKS))
+    if (!shown.frame && !isCompacting) return next(e)
+    const frame = isCompacting || !shown.frame
+      ? speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
+      : isHot && talkAt(at) >= 0
+        ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
+        : heated(shown.frame, isHot, at)
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {

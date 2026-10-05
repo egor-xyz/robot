@@ -64,6 +64,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
+- 📦 **Packs itself while compacting.** During `/compact` it puts itself into a box, part by part — [see below](#-compacting).
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
 
 ---
@@ -94,6 +95,26 @@ normal animations.
 
 **Change when it catches fire:** open `/plugin` → **Installed** → **robot** → **Configure**, and set **Fire at (% context, default 25)**
 to any value from 1 to 100. To turn the fire off, switch **Context on fire** off there.
+
+---
+
+## 📦 Compacting
+
+While the conversation compacts — your `/compact`, or Claude Code's own
+auto-compact — the robot steps to the middle and packs itself into a box, one part a second:
+
+```text
+    .-----.
+    [o   o]  │       │          .-----.
+    /|━━━|\  │ o   o │   →→    │[^   ^]│   →→   ┌───────┐
+             └───────┘         │o|━━━|o│        │ robot │
+                               └───────┘        │ ↑ ↑ ↑ │
+                                                └───────┘
+```
+
+- 🦵 **Legs first**, then 🦾 **its body**, then its 🙂 **head hops in**.
+- 📦 **The lid closes**, the box shakes, then it climbs back out and packs again — a loop for as long as the compaction runs, while it says _"compacting… hold on!"_
+- When the compaction ends, it jumps out and goes back to what it did before.
 
 ---
 

@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Frame, Span } from './frames'
-import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, speech, svgOf, typedSoFar, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -141,4 +141,35 @@ test('typing reveals letters in order across the lines and keeps their width', (
 
   expect(typed.map(textOf)).toEqual(['context 31%', '/c          '])
   expect(typed[1]?.[0]?.color).toBe(COMMAND_COLOR)
+})
+
+test('the robot packs itself into a box part by part, then the closed box shakes', () => {
+  const rows = (stage: number, tick = 0) => packing(2, 60, stage, tick).map(textOf)
+
+  expect(rows(0)[3]).toContain('o   o')
+  expect(rows(0)[3]).toContain('└───────┘')
+  expect(rows(1)[3]?.trim()).toBe('└───────┘')
+  expect(rows(1)[2]).toContain('│ o   o │')
+  expect(rows(2)[2]?.trim()).toBe('│o|━━━|o│')
+  expect(rows(3)[1]?.trim()).toBe('│[^   ^]│')
+  const closed = rows(PACK_STAGES - 1)
+  expect(closed[0]?.trim()).toBe('┌───────┐')
+  expect(closed.join('')).not.toContain('[')
+  expect(rows(PACK_STAGES - 1, 1)[0]).not.toBe(closed[0])
+  expect(rows(PACK_STAGES + 3)).toEqual(closed)
+})
+
+test('the box goes left of the robot when the right side is too narrow', () => {
+  const rows = packing(30, 40, 0, 0).map(textOf)
+
+  expect(rows[3]?.indexOf('└')).toBe(21)
+  expect(rows[3]?.indexOf('o')).toBeGreaterThan(30)
+})
+
+test('packing loops while the compaction runs: in, closed, out, again', () => {
+  const stages = Array.from({ length: 20 }, (_, steps) => packStage(steps))
+
+  expect(stages.slice(0, 5)).toEqual([0, 1, 2, 3, PACK_STAGES - 1])
+  expect(stages.slice(10)).toEqual(stages.slice(0, 10))
+  for (const [i, stage] of stages.entries()) expect(Math.abs(stage - (stages[i + 1] ?? 0))).toBeLessThanOrEqual(1)
 })
