@@ -1,4 +1,3 @@
-import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import { FRAME_SEPARATOR, framesOf } from './frames'
@@ -11,8 +10,9 @@ const ROWS = 4
 const BODY_CELLS = 10
 const MIN_TRACK = 12
 
-const tick = atom({ plugin: 'robot', key: 'tick' } as const, 0)
-const isHidden = atom({ plugin: 'robot', key: 'isHidden' } as const, false)
+// Plain $.state calls: older engines refuse $ passed into imported helpers.
+const TICK = { plugin: 'robot', key: 'tick' } as const
+const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
 
 /**
  * The zsh that runs this repo's own functions/crazy-robot and records every
@@ -54,14 +54,19 @@ export const register: Register = on => {
     await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt' })
 
     $.clock.every(TICK_MS, async () => {
-      if (!(await read($, isHidden))) await update($, tick, n => n + 1)
+      const { value: hidden = false } = await $.state.get(IS_HIDDEN)
+      if (hidden) return
+      const { value: at = 0 } = await $.state.get(TICK)
+      await $.state.set(TICK, at + 1)
     })
 
     return started
   })
 
   on('command.run', { command: 'robot' }, async $ => {
-    const hidden = await update($, isHidden, was => !was)
+    const { value: was = false } = await $.state.get(IS_HIDDEN)
+    const hidden = !was
+    await $.state.set(IS_HIDDEN, hidden)
 
     return { text: hidden ? 'Robot hidden.' : 'Robot is back.' }
   })
@@ -70,8 +75,10 @@ export const register: Register = on => {
     const columns = e.props.bodyColumns
     void generate($, columns)
 
-    const frame = film.frames[(await read($, tick)) % film.frames.length]
-    const isQuiet = e.props.hasSurvey || e.props.maxRows < ROWS || !frame || (await read($, isHidden))
+    const { value: at = 0 } = await $.state.get(TICK)
+    const { value: hidden = false } = await $.state.get(IS_HIDDEN)
+    const frame = film.frames[at % film.frames.length]
+    const isQuiet = e.props.hasSurvey || e.props.maxRows < ROWS || !frame || hidden
     if (isQuiet) {
       return next(e)
     }
