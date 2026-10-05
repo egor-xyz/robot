@@ -102,6 +102,14 @@ practically turns the fire off).
 | -------- | ---------------------- |
 | `/robot` | Hide or show the robot |
 
+### Settings
+
+Open `/config` and find the robot plugin.
+
+| Setting               | Default | Effect                                                         |
+| --------------------- | ------- | -------------------------------------------------------------- |
+| Fire at (% context)   | `25`    | Context usage at which the head [catches fire](#-context-on-fire). `100` turns it off. |
+
 ### Update or remove
 
 ```text
