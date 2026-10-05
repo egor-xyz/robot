@@ -195,7 +195,10 @@ export const register: Register = (on, options) => {
       const robot = isHot && talkAt(at) >= 0
         ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
         : heated(shown.frame, isHot, at)
-      frame = withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk')
+      // The cat act fills both sides of the robot: the friends stay out of it.
+      frame = shown.state.state === 'catpeek'
+        ? robot
+        : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk')
     }
 
     const els = $.ui.resolve(e)
