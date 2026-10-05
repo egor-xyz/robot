@@ -63,6 +63,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
+- 🔥 **Feels the heat.** Past 25% context its head turns red and catches fire — time to /compact.
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
 
 ---

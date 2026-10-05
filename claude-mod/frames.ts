@@ -94,3 +94,32 @@ export function svgOf(frame: Frame, columns: number): string {
     `font-family="${FONT_FAMILY}" font-size="${FONT_SIZE}" xml:space="preserve">${texts.join('')}</svg>`
   )
 }
+
+const HEAD_TOP = '.-----.'
+const FLAMES = '(/\\)/\\('
+const FLAME_COLORS = [208, 226, 196].map(hexOf)
+
+/** Heats the head: turns its orange red and swaps the head top for flames of the same width. */
+export function heated(frame: Frame, isHot: boolean): Frame {
+  if (!isHot) return frame
+  const orange = hexOf(ORANGE_INDEX)
+  const red = hexOf(196)
+  return frame.map((row, rowIndex) => {
+    if (rowIndex > 1) return row
+    const recoloured = row.map(span => (span.color === orange ? { ...span, color: red } : span))
+    if (rowIndex !== 0) return recoloured
+    const cells = recoloured.flatMap(span => [...span.text].map(char => ({ char, color: span.color })))
+    const at = cells.map(cell => cell.char).join('').indexOf(HEAD_TOP)
+    if (at < 0) return recoloured
+    ;[...FLAMES].forEach((char, i) => {
+      cells[at + i] = { char, color: FLAME_COLORS[i % FLAME_COLORS.length] ?? red }
+    })
+    const spans: Span[] = []
+    for (const { char, color } of cells) {
+      const last = spans[spans.length - 1]
+      if (last && last.color === color) last.text += char
+      else spans.push({ text: char, color })
+    }
+    return spans
+  })
+}
