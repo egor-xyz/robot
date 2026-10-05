@@ -59,7 +59,7 @@ Follow the project skill: **`.claude/skills/add-robot-animation/SKILL.md`**.
 
 ## Testing
 
-No test suite — it's a TUI. Smoke-test:
+The zsh TUI has no test suite. Smoke-test:
 
 ```sh
 zsh -fc 'source ./robot.plugin.zsh; whence -w robot crazy-robot'
@@ -72,6 +72,48 @@ zsh -fc '
   _robot_state=jump _robot_t=0 _robot_dur=10 _robot_pos=0 _robot_dir=1
   fpath=(./functions $fpath); autoload -Uz crazy-robot; crazy-robot 30'
 ```
+
+### Test the Claude Code mod live
+
+Unit tests are not enough for the mod. Look at it in a real Claude Code
+session before you push:
+
+1. Run the checks: `claude plugin validate .` and `claude plugin test .`.
+2. Load the `plugin-authoring` skill (Skill tool). This starts the engine's
+   watch on the session's dev-mods folder:
+   `~/.claude/dev-mods/<session-id>/`.
+3. Turn off the installed robot, or you see two robots:
+   `claude plugin disable robot@robot`.
+4. Copy the mod into the dev-mods folder:
+
+   ```sh
+   D=~/.claude/dev-mods/<session-id>/robot
+   mkdir -p "$D/.claude-plugin"
+   cp -R claude-mod "$D/"
+   cp .claude-plugin/plugin.json "$D/.claude-plugin/"
+   ```
+
+5. The first write asks the user "Enable hot reloading for this session?".
+   The user picks **Enable for this session**. The mod loads when the turn
+   ends. Each later copy reloads it when that turn ends.
+6. Make the act happen and ask the user to look. For example:
+   - context fire: set `hotAt` low in `/plugin` → robot → Configure.
+   - compacting: `/compact`.
+   - git cheer: run a `git commit` or `git push` through the Bash tool.
+   - subagent friends: start 2–3 background agents.
+   - allow wait: run a tool that needs permission.
+   Check both the terminal and the desktop app (the desktop draws an `Svg`,
+   because its `Text` font is proportional).
+7. Clean up after the test. The permission check blocks `rm -rf` for
+   Claude, so the user runs it with `!`:
+
+   ```sh
+   rm -rf ~/.claude/dev-mods/<session-id>/robot && claude plugin enable robot@robot
+   ```
+
+8. After the push and the release, the user updates the installed copy:
+   `/plugin marketplace update robot`, `/plugin update robot@robot`,
+   `/reload-plugins`.
 
 ## Distribution
 
