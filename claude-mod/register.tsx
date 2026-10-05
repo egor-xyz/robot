@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, ROW_HEIGHT, heated, svgOf } from './frames'
+import { CELL_WIDTH, ROW_HEIGHT, heated, speech, svgOf } from './frames'
 import type { Frame } from './frames'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
@@ -13,11 +13,13 @@ const MIN_TRACK = 12
 const HEAT_MS = 2000
 // Context usage (percent) at which the head turns red and catches fire.
 const HOT_AT = 25
+// A walk that never ends by itself: how the robot is held walking while hot.
+const FOREVER = Number.MAX_SAFE_INTEGER
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
-const IS_HOT = { plugin: 'robot', key: 'isHot' } as const
+const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -37,9 +39,9 @@ export const register: Register = on => {
     $.clock.every(HEAT_MS, async () => {
       try {
         const { context } = await $.session.usage()
-        const isHot = (context.percent ?? 0) >= HOT_AT
-        const { value: was = false } = await $.state.get(IS_HOT)
-        if (isHot !== was) await $.state.set(IS_HOT, isHot)
+        const percent = Math.round(context.percent ?? 0)
+        const { value: was = 0 } = await $.state.get(CONTEXT_PERCENT)
+        if (percent !== was) await $.state.set(CONTEXT_PERCENT, percent)
       } catch (error) {
         $.ui.log(`robot: context usage unavailable: ${String(error)}`, { to: 'debug' })
       }
@@ -65,16 +67,25 @@ export const register: Register = on => {
       return next(e)
     }
 
+    const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
+    const isHot = percent >= HOT_AT
+
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     if (at !== shown.at) {
+      // Hot: drop everything and walk until it cools (a walk that never times out).
+      if (isHot && !(shown.state.state === 'walk' && shown.state.dur === FOREVER)) {
+        shown.state = { ...shown.state, state: 'walk', t: 0, dur: FOREVER }
+      } else if (!isHot && shown.state.state === 'walk' && shown.state.dur === FOREVER) {
+        shown.state = { ...shown.state, dur: shown.state.t }
+      }
       const drawn = step(shown.state, track, randomInt)
       shown.state = drawn.state
       shown.frame = drawn.frame
       shown.at = at
     }
     if (!shown.frame) return next(e)
-    const { value: isHot = false } = await $.state.get(IS_HOT)
-    const frame = heated(shown.frame, isHot)
+    const burning = heated(shown.frame, isHot, at)
+    const frame = isHot ? speech(burning, `context ${percent}% · /compact me!`, columns) : burning
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {

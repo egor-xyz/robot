@@ -2,6 +2,6 @@ export type Tick = number
 
 declare module 'claude-code' {
   interface PluginState {
-    robot: { tick: Tick; isHidden: boolean; isHot: boolean }
+    robot: { tick: Tick; isHidden: boolean; contextPercent: number }
   }
 }

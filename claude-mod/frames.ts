@@ -96,30 +96,83 @@ export function svgOf(frame: Frame, columns: number): string {
 }
 
 const HEAD_TOP = '.-----.'
-const FLAMES = '(/\\)/\\('
-const FLAME_COLORS = [208, 226, 196].map(hexOf)
+const EYES = '[o   o]'
+// Flames sit in the head top between its corner dots; every step is 7 cells, the width of HEAD_TOP.
+const HEAD_TOPS = ['.🔥 🔥.', '.🔥🔥-.', '.-🔥🔥.', '.🔥-🔥.']
+// A panicked face: the two eye characters swap each tick, keeping the block's 7 cells.
+const PANIC_EYES = [['O', 'O'], ['>', '<']] as const
+// Sparks beside the head top; a space leaves the spot dark so they pop.
+const SPARKS = ['*', ' ', '.', "'"]
 
-/** Heats the head: turns its orange red and swaps the head top for flames of the same width. */
-export function heated(frame: Frame, isHot: boolean): Frame {
+type Cell = { char: string; color: string }
+
+const cellsOfFrameRow = (row: Span[]): Cell[] => row.flatMap(span => [...span.text].map(char => ({ char, color: span.color })))
+
+function spansOfCells(cells: Cell[]): Span[] {
+  const spans: Span[] = []
+  for (const { char, color } of cells) {
+    const last = spans[spans.length - 1]
+    if (last && last.color === color) last.text += char
+    else spans.push({ text: char, color })
+  }
+  return spans
+}
+
+/** Heats the head: red, flames in the head top, sparks beside it and a panicked face, all moving with the tick. */
+export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
   if (!isHot) return frame
   const orange = hexOf(ORANGE_INDEX)
   const red = hexOf(196)
   return frame.map((row, rowIndex) => {
     if (rowIndex > 1) return row
     const recoloured = row.map(span => (span.color === orange ? { ...span, color: red } : span))
-    if (rowIndex !== 0) return recoloured
-    const cells = recoloured.flatMap(span => [...span.text].map(char => ({ char, color: span.color })))
-    const at = cells.map(cell => cell.char).join('').indexOf(HEAD_TOP)
-    if (at < 0) return recoloured
-    ;[...FLAMES].forEach((char, i) => {
-      cells[at + i] = { char, color: FLAME_COLORS[i % FLAME_COLORS.length] ?? red }
-    })
-    const spans: Span[] = []
-    for (const { char, color } of cells) {
-      const last = spans[spans.length - 1]
-      if (last && last.color === color) last.text += char
-      else spans.push({ text: char, color })
+    const cells = cellsOfFrameRow(recoloured)
+    const text = cells.map(cell => cell.char).join('')
+    if (rowIndex === 0) {
+      const at = text.indexOf(HEAD_TOP)
+      if (at < 0) return recoloured
+      const top = HEAD_TOPS[tick % HEAD_TOPS.length] ?? HEAD_TOP
+      cells.splice(at, HEAD_TOP.length, ...[...top].map(char => ({ char, color: red })))
+      // Sparks only replace existing spaces, left and right of the head top.
+      const sparks = [
+        { index: at - 1, side: 0 },
+        { index: at - 2, side: 1 },
+        { index: at + top.length, side: 2 },
+        { index: at + top.length + 1, side: 3 },
+      ]
+      for (const { index, side } of sparks) {
+        const cell = cells[index]
+        if (index < 0 || !cell || cell.char !== ' ') continue
+        cells[index] = { char: SPARKS[(tick + side) % SPARKS.length] ?? ' ', color: hexOf(side % 2 === 0 ? 226 : 208) }
+      }
+      return spansOfCells(cells)
     }
-    return spans
+    const at = text.indexOf(EYES)
+    if (at < 0) return recoloured
+    const [left, right] = PANIC_EYES[tick % PANIC_EYES.length] ?? PANIC_EYES[0]
+    cells[at + 1] = { char: left, color: red }
+    cells[at + 5] = { char: right, color: red }
+    return spansOfCells(cells)
   })
+}
+
+/** Row of the robot's eyes, where it speaks. */
+const SPEECH_ROW = 1
+
+/** Puts red speech beside the robot's eye row: to its right if it fits in `columns`, else to its left, else nowhere. */
+export function speech(frame: Frame, message: string, columns: number): Frame {
+  const row = frame[SPEECH_ROW]
+  if (!row) return frame
+  const color = hexOf(196)
+  const rowText = row.map(span => span.text).join('')
+  const right = `< ${message}`
+  if (cellsOf(rowText) + 1 + cellsOf(right) <= columns) {
+    return frame.map((r, i) => (i === SPEECH_ROW ? [...r, { text: ` ${right}`, color }] : r))
+  }
+  const left = `${message} >`
+  const lead = rowText.length - rowText.trimStart().length
+  const room = lead - 1 - cellsOf(left)
+  if (room < 0) return frame
+  const rest = spansOfCells(cellsOfFrameRow(row).slice(lead))
+  return frame.map((r, i) => (i === SPEECH_ROW ? [{ text: `${' '.repeat(room)}${left} `, color }, ...rest] : r))
 }
