@@ -20,6 +20,10 @@ A [Claude Code](https://claude.com/claude-code) mod with an ASCII robot mascot.
 It walks the full width of the band above your prompt, blinks, waves, naps under
 the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO.
 
+It also follows what Claude Code does. When the context gets too big, its head
+catches fire. When the conversation compacts, it packs itself into a box. When
+Claude asks you something, it steps aside.
+
 ```text
   .-----.  🐟
   [^   ^]━━/✨
@@ -66,6 +70,19 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 📦 **Packs itself while compacting.** During `/compact` it puts itself into a box, part by part — [see below](#-compacting).
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
+
+---
+
+## 👀 It follows Claude Code
+
+The robot listens to Claude Code events and acts on them:
+
+| When Claude Code…                         | The robot…                                              |
+| ----------------------------------------- | ------------------------------------------------------- |
+| fills the context past 25%                | catches fire and asks you to `/compact` — [more](#-context-on-fire) |
+| compacts the conversation (`/compact` or auto) | packs itself into a box until it ends — [more](#-compacting) |
+| asks you a question or shows a survey     | steps aside so it does not get in the way               |
+| clears or compacts a hot context          | cools down and goes back to play                        |
 
 ---
 
