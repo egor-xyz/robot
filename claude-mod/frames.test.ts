@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Frame, Span } from './frames'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, tapping, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -214,6 +214,73 @@ test('a celebration never passes the columns', () => {
       for (let t = 0; t < 12; t++) {
         for (const row of celebrating(x, columns, act, t)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
       }
+    }
+  }
+})
+
+const standing = (x: number): Frame =>
+  ['  .-----.', '  [o   o]', '  /|━━━|\\', '   o   o'].map(raw => [{ text: ' '.repeat(x) + raw, color: DEFAULT_COLOR }])
+const minisIn = (frame: Frame) => (rowsOf(frame)[3]?.match(/\/ \\/g) ?? []).length
+
+test('no running subagents leaves the frame as it was', () => {
+  const frame = standing(20)
+
+  expect(withFriends(frame, 20, 60, 0, 1)).toBe(frame)
+})
+
+test('two subagents bring two small robots and a ×2 label', () => {
+  const rows = rowsOf(withFriends(standing(20), 20, 60, 2, 1))
+
+  expect(minisIn(withFriends(standing(20), 20, 60, 2, 1))).toBe(2)
+  expect(rows[2]?.match(/\[•\]/g)).toHaveLength(2)
+  expect(rows[1]).toContain('×2')
+  expect(rows[1]?.indexOf('×2')).toBeLessThan(rows[1]?.indexOf('[') ?? 0)
+})
+
+test('seven subagents still draw three small robots, but the label counts all seven', () => {
+  const frame = withFriends(standing(20), 20, 60, 7, 1)
+
+  expect(minisIn(frame)).toBe(3)
+  expect(rowsOf(frame)[1]).toContain('×7')
+})
+
+test('the friends eyes blink as the ticks pass', () => {
+  expect(rowsOf(withFriends(standing(20), 20, 60, 1, 0))[2]).toContain('[-]')
+  expect(rowsOf(withFriends(standing(20), 20, 60, 1, 1))[2]).toContain('[•]')
+})
+
+test('the friends move to the right of the robot near the left edge, and vanish when nothing fits', () => {
+  const near = rowsOf(withFriends(standing(2), 2, 60, 2, 1))
+  expect(near[2]?.indexOf('[•]')).toBeGreaterThan(near[1]?.indexOf('[') ?? 99)
+
+  expect(rowsOf(withFriends(standing(2), 2, 14, 2, 1))).toEqual(rowsOf(standing(2)))
+})
+
+test('friends never pass the columns', () => {
+  for (const [x, columns] of [[0, 60], [2, 60], [20, 60], [40, 56], [45, 56], [2, 30]] as const) {
+    for (const count of [1, 3, 7, 12]) {
+      for (let t = 0; t < 8; t++) {
+        for (const row of withFriends(standing(x), x, columns, count, t)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
+      }
+    }
+  }
+})
+
+test('the waiting robot taps its foot every two ticks', () => {
+  const footAt = (t: number) => rowsOf(tapping(10, 60, t))[3]
+
+  expect(footAt(0)).toBe(footAt(1))
+  expect(footAt(2)).not.toBe(footAt(0))
+  expect(footAt(4)).toBe(footAt(0))
+})
+
+test('the waiting robot keeps its head width and never passes the columns', () => {
+  const eyes = rowsOf(tapping(10, 60, 0))[1] ?? ''
+
+  expect(eyes.slice(eyes.indexOf('['), eyes.indexOf(']') + 1)).toHaveLength(7)
+  for (const [x, columns] of [[0, 60], [30, 60], [46, 56]] as const) {
+    for (let t = 0; t < 6; t++) {
+      for (const row of tapping(x, columns, t)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
     }
   }
 })

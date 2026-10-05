@@ -302,3 +302,64 @@ export function celebrating(x: number, columns: number, act: 'commit' | 'push', 
     return spans
   })
 }
+
+// A friend is a three-cell, two-row mini robot; its eyes blink with the tick.
+const FRIEND_WIDTH = 3
+// Most friends drawn at once; the label still counts them all.
+const MAX_FRIENDS = 3
+// Empty cells between friends, and between the robot and its nearest friend.
+const FRIEND_GAP = 1
+const FRIEND_COLOR = 81
+
+/**
+ * Adds one small robot friend per running subagent (at most three) beside the robot at `x`, with a `×count` label
+ * above them: on its left, or on its right when the left has no room, or nowhere when neither fits `columns`.
+ * They only ever stand on empty cells, so speech and arms are never overwritten. No friends, no change.
+ */
+export function withFriends(frame: Frame, x: number, columns: number, count: number, tick: number): Frame {
+  if (count < 1) return frame
+  const friends = Math.min(count, MAX_FRIENDS)
+  const label = `×${count}`
+  const width = Math.max(friends * (FRIEND_WIDTH + FRIEND_GAP) - FRIEND_GAP, cellsOf(label))
+  const rows = frame.map(cellsOfFrameRow)
+  const isFree = (start: number): boolean =>
+    start >= 0 && start + width <= columns && [1, 2, 3].every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
+  const left = x - FRIEND_GAP - width
+  const right = x + BODY_END + 1 + FRIEND_GAP
+  const start = [left, right].find(isFree)
+  if (start === undefined || frame.length < 4) return frame
+
+  const color = hexOf(FRIEND_COLOR)
+  const put = (row: number, at: number, text: string, textColor: string) => {
+    const cells = rows[row] ?? []
+    while (cells.length < at + [...text].length) cells.push({ char: ' ', color: DEFAULT_COLOR })
+    ;[...text].forEach((char, i) => {
+      cells[at + i] = { char, color: textColor }
+    })
+  }
+  put(1, start, label, DEFAULT_COLOR)
+  for (let i = 0; i < friends; i++) {
+    const at = start + i * (FRIEND_WIDTH + FRIEND_GAP)
+    const isBlinking = (tick + 3 * i) % 8 === 0
+    put(2, at, isBlinking ? '[-]' : '[•]', color)
+    put(3, at, '/ \\', color)
+  }
+  return rows.map(spansOfCells)
+}
+
+/**
+ * The robot at `x` tapping its foot while it waits for you: it stands still, its eyes look down-right, one hand is on
+ * its hip, and the foot lifts every two ticks.
+ */
+export function tapping(x: number, columns: number, tick: number): Frame {
+  const orange = hexOf(ORANGE_INDEX)
+  const foot = Math.floor(Math.max(0, tick) / 2) % 2 === 0 ? '   o   o' : '   o  _o'
+  const body = ['  .-----.', '  [  ◕ ◕]', '  <|━━━|\\', foot]
+  return body.map(raw => {
+    const text = x + cellsOf(raw) > columns ? raw.slice(0, Math.max(0, columns - x)) : raw
+    return [
+      { text: ' '.repeat(x), color: DEFAULT_COLOR },
+      { text, color: orange },
+    ]
+  })
+}
