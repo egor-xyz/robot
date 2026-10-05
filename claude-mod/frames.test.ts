@@ -316,7 +316,7 @@ test('friends stand left of the robot when it walks right, and right of it when 
   expect(right[3]?.lastIndexOf(')')).toBeLessThan(right[3]?.indexOf('o   o') ?? 0)
   expect(right[3]?.match(/\(oOoO\)/g)).toHaveLength(2)
   expect(right[3]).not.toContain('×')
-  expect(right[3]?.indexOf('(oOoO)')).toBe(20 - 1 - 6 - 7)
+  expect(right[3]?.indexOf('(oOoO)')).toBe(20 - 4 - 6 - 7)
 
   const left = roll(standing(20), friends, CALM, 'normal', false, 20, -1)
   expect(left[3]?.match(/\(oOoO\)/g)).toHaveLength(2)
@@ -350,7 +350,7 @@ test('a friend still far from its slot is not drawn, and one rolling in is drawn
   expect(roll(standing(20), [still(1, 40)], CALM)).toEqual(rowsOf(standing(20)))
   expect(roll(standing(30), [still(1, 40)], CALM, 'normal', false, 30, -1)).toEqual(rowsOf(standing(30)))
   expect(roll(standing(20), [still(1, 3)], CALM)[3]).toContain('(')
-  expect(roll(standing(20), [still(1, 3)], CALM)[3]?.indexOf('(')).toBe(20 - 1 - 6 - 3)
+  expect(roll(standing(20), [still(1, 3)], CALM)[3]?.indexOf('(')).toBe(20 - 4 - 6 - 3)
 })
 
 test('friends stand at the back of a robot that fishes to its left, whatever dir says', () => {

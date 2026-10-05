@@ -308,8 +308,10 @@ export function celebrating(x: number, columns: number, act: 'commit' | 'push', 
 
 // A friend is a small WALL-E robot, six cells wide.
 const FRIEND_WIDTH = 6
-// Empty cells between friends, and between the robot's drawing and its nearest friend.
+// Empty cells between friends.
 const FRIEND_GAP = 1
+// Empty cells between the robot's drawing and its nearest friend.
+const BACK_GAP = 4
 const FRIEND_BODY_COLOR = hexOf(178)
 const FRIEND_TREADS_COLOR = hexOf(244)
 const FRIEND_EYES = { normal: '(o)(o)', blink: '(-)(-)', curious: '(O)(o)', wide: '(O)(O)' } as const
@@ -371,7 +373,7 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
       cells[at + i] = { char, color }
     })
   }
-  const slotOf = (index: number, lag: number): number => (isLeft ? first - FRIEND_GAP - FRIEND_WIDTH - index * (FRIEND_WIDTH + FRIEND_GAP) - lag : last + 1 + FRIEND_GAP + index * (FRIEND_WIDTH + FRIEND_GAP) + lag)
+  const slotOf = (index: number, lag: number): number => (isLeft ? first - BACK_GAP - FRIEND_WIDTH - index * (FRIEND_WIDTH + FRIEND_GAP) - lag : last + 1 + BACK_GAP + index * (FRIEND_WIDTH + FRIEND_GAP) + lag)
 
   let isLastDrawn = false
   friends.forEach((friend, index) => {
