@@ -22,7 +22,8 @@ the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO
 
 It also follows what Claude Code does. When the context gets too big, its head
 catches fire. When the conversation compacts, it packs itself into a box. When
-Claude asks you something, it steps aside.
+Claude asks you something, it steps aside. When Claude commits or pushes with
+git, it cheers.
 
 ```text
   .-----.  🐟
@@ -69,6 +70,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 📦 **Packs itself while compacting.** During `/compact` it puts itself into a box, part by part — [see below](#-compacting).
+- 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
 
 ---
@@ -83,6 +85,7 @@ The robot listens to Claude Code events and acts on them:
 | compacts the conversation (`/compact` or auto) | packs itself into a box until it ends — [more](#-compacting) |
 | asks you a question or shows a survey     | steps aside so it does not get in the way               |
 | clears or compacts a hot context          | cools down and goes back to play                        |
+| commits or pushes with git                | stamps a ✅ or waves off a 🚀 for 3 seconds             |
 
 ---
 

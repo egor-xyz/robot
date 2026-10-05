@@ -264,3 +264,41 @@ export function typedSoFar(lines: Span[][], count: number): Span[][] {
     return out
   })
 }
+
+// Ticks per rise of the rocket: it climbs one row every three ticks.
+const ROCKET_TICKS = 3
+// Empty cells between the robot's raised arm and the celebration beside it.
+const CHEER_GAP = 2
+
+/**
+ * The robot at `x` cheering a git act: a commit raises both arms and stamps a ✅, a push waves one arm and sends a
+ * 🚀 up a row every three ticks. The words sit right of the robot, or left when they do not fit in `columns`.
+ */
+export function celebrating(x: number, columns: number, act: 'commit' | 'push', t: number): Frame {
+  const orange = hexOf(ORANGE_INDEX)
+  const isCommit = act === 'commit'
+  const wave = t % 2 === 0
+  const body = isCommit
+    ? ['\\o.-----.o/', '  [^   ^]', '   |━━━|', '   o   o']
+    : [wave ? '  .-----.\\o' : '  .-----.', '  [^   ^]', wave ? '   |━━━|' : '  /|━━━|\\', '   o   o']
+  const mark = isCommit ? '✅' : '🚀'
+  const word = isCommit ? 'committed!' : 'pushed!'
+  // The mark's row: the ✅ bounces between the face row and the one above; the 🚀 climbs from row 3 to row 0.
+  const markRow = isCommit ? 1 - (t % 2) : Math.max(0, 3 - Math.floor(Math.max(0, t) / ROCKET_TICKS))
+  const width = cellsOf(mark) + 1 + cellsOf(word)
+  const right = x + BODY_END + 1 + CHEER_GAP
+  const at = right + width <= columns || x < width + CHEER_GAP ? right : x - CHEER_GAP - width
+  return body.map((raw, row) => {
+    const parts: { at: number; text: string; color: string }[] = [{ at: x, text: raw, color: orange }]
+    if (row === markRow) parts.push({ at, text: mark, color: DEFAULT_COLOR })
+    if (row === 1) parts.push({ at: at + cellsOf(mark) + 1, text: word, color: DEFAULT_COLOR })
+    const spans: Span[] = []
+    let cursor = 0
+    for (const part of parts.sort((a, b) => a.at - b.at)) {
+      if (part.at > cursor) spans.push({ text: ' '.repeat(part.at - cursor), color: DEFAULT_COLOR })
+      spans.push({ text: part.text, color: part.color })
+      cursor = part.at + cellsOf(part.text)
+    }
+    return spans
+  })
+}

@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Frame, Span } from './frames'
-import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -172,4 +172,48 @@ test('packing loops while the compaction runs: in, closed, out, again', () => {
   expect(stages.slice(0, 5)).toEqual([0, 1, 2, 3, PACK_STAGES - 1])
   expect(stages.slice(10)).toEqual(stages.slice(0, 10))
   for (const [i, stage] of stages.entries()) expect(Math.abs(stage - (stages[i + 1] ?? 0))).toBeLessThanOrEqual(1)
+})
+
+const rowsOf = (frame: Frame) => frame.map(textOf)
+
+test('a commit raises both arms and stamps a ✅ beside the robot with "committed!"', () => {
+  const rows = rowsOf(celebrating(2, 60, 'commit', 0))
+
+  expect(rows[0]).toContain('\\o.-----.o/')
+  expect(rows.join('\n')).toContain('✅')
+  expect(rows[1]).toContain('committed!')
+  expect(rows[1]?.indexOf('✅')).toBeGreaterThan(rows[1]?.indexOf(']') ?? 99)
+})
+
+test('the ✅ bounces between two rows as the ticks pass', () => {
+  const rowOfStamp = (t: number) => rowsOf(celebrating(2, 60, 'commit', t)).findIndex(row => row.includes('✅'))
+
+  expect(rowOfStamp(0)).not.toBe(rowOfStamp(1))
+  expect(rowOfStamp(2)).toBe(rowOfStamp(0))
+})
+
+test('a push waves an arm and its 🚀 rises one row every three ticks, with "pushed!"', () => {
+  const rowOfRocket = (t: number) => rowsOf(celebrating(2, 60, 'push', t)).findIndex(row => row.includes('🚀'))
+
+  expect([0, 3, 6, 9, 12].map(rowOfRocket)).toEqual([3, 2, 1, 0, 0])
+  expect(rowOfRocket(2)).toBe(rowOfRocket(0))
+  expect(rowsOf(celebrating(2, 60, 'push', 0))[1]).toContain('pushed!')
+  expect(rowsOf(celebrating(2, 60, 'push', 0))[0]).not.toBe(rowsOf(celebrating(2, 60, 'push', 1))[0])
+})
+
+test('the cheer goes to the left of the robot near the right edge', () => {
+  const rows = rowsOf(celebrating(40, 56, 'commit', 0))
+
+  expect(rows[1]?.indexOf('committed!')).toBeLessThan(rows[1]?.indexOf('[') ?? 0)
+  expect(rows[1]?.indexOf('✅')).toBeLessThan(rows[1]?.indexOf('[') ?? 0)
+})
+
+test('a celebration never passes the columns', () => {
+  for (const act of ['commit', 'push'] as const) {
+    for (const [x, columns] of [[0, 60], [30, 60], [40, 56], [45, 56]] as const) {
+      for (let t = 0; t < 12; t++) {
+        for (const row of celebrating(x, columns, act, t)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
+      }
+    }
+  }
 })

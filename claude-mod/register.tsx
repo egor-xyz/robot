@@ -1,7 +1,8 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, heated, packStage, packing, speech, svgOf, typedSoFar } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, packStage, packing, speech, svgOf, typedSoFar } from './frames'
 import type { Frame, Span } from './frames'
+import { gitActOf } from './git'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 
@@ -21,6 +22,8 @@ const TALK_EVERY = 120
 const TALK = 32
 const PACE = 48
 const PACE_WALK = 32
+// A git commit or push is celebrated for 3 seconds, at 4 ticks a second.
+const CELEBRATE_TICKS = 12
 
 /** Ticks into the current talk, or -1 outside it. */
 const talkAt = (at: number): number => (at % TALK_EVERY < TALK ? at % TALK_EVERY : -1)
@@ -46,6 +49,7 @@ const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
 const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
+const CELEBRATION = { plugin: 'robot', key: 'celebration' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -97,6 +101,18 @@ export const register: Register = (on, options) => {
     }
   })
 
+  // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS. Subagent commands count too.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const ran = await next(e)
+    if (ran.deny !== undefined || ran.isError === true) return ran
+    const act = gitActOf(e.command)
+    if (act) {
+      const { value: at = 0 } = await $.state.get(TICK)
+      await $.state.set(CELEBRATION, { act, at })
+    }
+    return ran
+  })
+
   on('command.run', { command: 'robot' }, async $ => {
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
@@ -116,13 +132,15 @@ export const register: Register = (on, options) => {
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
     const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
+    const { value: celebration } = await $.state.get(CELEBRATION)
+    const isCelebrating = !isCompacting && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
     const isHot = isFireOn && percent >= hotAt
     if (!isCompacting) packedFrom = -1
     else if (packedFrom < 0) packedFrom = at
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
-    // While compacting the robot stands still: it packs itself into a box in the middle of the band.
-    if (at !== shown.at && !isCompacting) {
+    // While compacting or celebrating the robot stands still: it packs itself into a box in the middle of the band.
+    if (at !== shown.at && !isCompacting && !isCelebrating) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       const wanted = talkAt(at) >= 0 ? 'dance' : 'walk'
       if (isHot && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
@@ -138,12 +156,19 @@ export const register: Register = (on, options) => {
       shown.at = at
     }
     const packed = packStage(Math.floor((at - packedFrom) / PACK_TICKS))
-    if (!shown.frame && !isCompacting) return next(e)
-    const frame = isCompacting || !shown.frame
-      ? speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
-      : isHot && talkAt(at) >= 0
+    // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
+    let frame: Frame
+    if (isCompacting) {
+      frame = speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
+    } else if (isCelebrating && celebration) {
+      frame = celebrating(shown.state.pos, columns, celebration.act, at - celebration.at)
+    } else if (!shown.frame) {
+      return next(e)
+    } else {
+      frame = isHot && talkAt(at) >= 0
         ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
         : heated(shown.frame, isHot, at)
+    }
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {
