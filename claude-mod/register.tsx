@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
 
+import { CELL_WIDTH, ROW_HEIGHT, svgOf } from './frames'
 import type { Frame } from './frames'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
@@ -59,7 +60,22 @@ export const register: Register = on => {
     const frame = shown.frame
     if (!frame) return next(e)
 
-    const { Box, Text } = $.ui.resolve(e)
+    const els = $.ui.resolve(e)
+    if (e.surface !== 'terminal' && 'Svg' in els) {
+      const { Box, Svg } = els
+      return (
+        <Box width={columns}>
+          <Svg
+            source={svgOf(frame, columns)}
+            alt="A little ASCII robot"
+            width={columns * CELL_WIDTH}
+            height={frame.length * ROW_HEIGHT}
+          />
+        </Box>
+      )
+    }
+
+    const { Box, Text } = els
 
     return (
       <Box flexDirection="column" width={columns}>

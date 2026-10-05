@@ -59,3 +59,38 @@ export function cellsOf(text: string): number {
   }
   return cells
 }
+
+/** Width of one terminal cell, in CSS px, when the robot is drawn as SVG. */
+export const CELL_WIDTH = 8.4
+/** Height of one row, in CSS px, when the robot is drawn as SVG. */
+export const ROW_HEIGHT = 17
+const FONT_SIZE = 14
+const FONT_FAMILY = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+
+function escapeXml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/** Draws a frame on a fixed cell grid, for surfaces whose text is proportional. */
+export function svgOf(frame: Frame, columns: number): string {
+  const texts: string[] = []
+  frame.forEach((row, rowIndex) => {
+    let cell = 0
+    for (const span of row) {
+      for (const char of span.text) {
+        if (char !== ' ') {
+          const x = +(cell * CELL_WIDTH).toFixed(2)
+          const y = rowIndex * ROW_HEIGHT + FONT_SIZE
+          texts.push(`<text x="${x}" y="${y}" fill="${span.color}">${escapeXml(char)}</text>`)
+        }
+        cell += cellsOf(char)
+      }
+    }
+  })
+  const width = +(columns * CELL_WIDTH).toFixed(2)
+  const height = frame.length * ROW_HEIGHT
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" ` +
+    `font-family="${FONT_FAMILY}" font-size="${FONT_SIZE}" xml:space="preserve">${texts.join('')}</svg>`
+  )
+}
