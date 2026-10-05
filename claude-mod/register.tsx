@@ -13,8 +13,29 @@ const MIN_TRACK = 12
 const HEAT_MS = 2000
 // Context usage (percent) at which the head turns red and catches fire.
 const HOT_AT = 25
-// A walk that never ends by itself: how the robot is held walking while hot.
+// An animation that never ends by itself: how the robot is held walking or dancing while hot.
 const FOREVER = Number.MAX_SAFE_INTEGER
+// Hot pace: in each cycle of ticks it walks for HOT_WALK ticks, then stops, waves its arms and talks.
+const HOT_CYCLE = 48
+const HOT_WALK = 16
+
+/** A hot robot moves every other tick, slower than usual; its fire still moves every tick. */
+const isHotStep = (at: number): boolean => at % 2 === 0
+/** Whether a hot robot is in its stop, when it waves its arms and talks. */
+const isHotStop = (at: number): boolean => at % HOT_CYCLE >= HOT_WALK
+// Letters typed per tick while it talks.
+const TYPE_SPEED = 2
+
+/** The lines as typed so far in this stop, letter by letter across the lines, padded so they never shift. */
+function typed(lines: string[], at: number): string[] {
+  let left = ((at % HOT_CYCLE) - HOT_WALK + 1) * TYPE_SPEED
+  return lines.map(line => {
+    const chars = [...line]
+    const shown = chars.slice(0, Math.max(0, left)).join('')
+    left -= chars.length
+    return shown + ' '.repeat(chars.length - [...shown].length)
+  })
+}
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
@@ -72,20 +93,23 @@ export const register: Register = on => {
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     if (at !== shown.at) {
-      // Hot: drop everything and walk until it cools (a walk that never times out).
-      if (isHot && !(shown.state.state === 'walk' && shown.state.dur === FOREVER)) {
-        shown.state = { ...shown.state, state: 'walk', t: 0, dur: FOREVER }
-      } else if (!isHot && shown.state.state === 'walk' && shown.state.dur === FOREVER) {
+      // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
+      const wanted = isHotStop(at) ? 'dance' : 'walk'
+      if (isHot && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
+        shown.state = { ...shown.state, state: wanted, t: 0, dur: FOREVER }
+      } else if (!isHot && shown.state.dur === FOREVER) {
         shown.state = { ...shown.state, dur: shown.state.t }
       }
-      const drawn = step(shown.state, track, randomInt)
-      shown.state = drawn.state
-      shown.frame = drawn.frame
+      if (!isHot || isHotStep(at) || !shown.frame) {
+        const drawn = step(shown.state, track, randomInt)
+        shown.state = drawn.state
+        shown.frame = drawn.frame
+      }
       shown.at = at
     }
     if (!shown.frame) return next(e)
     const burning = heated(shown.frame, isHot, at)
-    const frame = isHot ? speech(burning, `context ${percent}% · /compact me!`, columns) : burning
+    const frame = isHot && isHotStop(at) ? speech(burning, typed([`context ${percent}%`, '/compact me!'], at), columns) : burning
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {
@@ -112,7 +136,7 @@ export const register: Register = on => {
               <Text> </Text>
             ) : (
               row.map(span => (
-                <Text color={span.color} wrap="truncate">
+                <Text color={span.color || undefined} wrap="truncate">
                   {span.text}
                 </Text>
               ))

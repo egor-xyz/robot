@@ -81,7 +81,7 @@ export function svgOf(frame: Frame, columns: number): string {
         if (char !== ' ') {
           const x = +(cell * CELL_WIDTH).toFixed(2)
           const y = rowIndex * ROW_HEIGHT + FONT_SIZE
-          texts.push(`<text x="${x}" y="${y}" fill="${span.color}">${escapeXml(char)}</text>`)
+          texts.push(`<text x="${x}" y="${y}" fill="${span.color || DEFAULT_FILL}">${escapeXml(char)}</text>`)
         }
         cell += cellsOf(char)
       }
@@ -150,29 +150,53 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
     const at = text.indexOf(EYES)
     if (at < 0) return recoloured
     const [left, right] = PANIC_EYES[tick % PANIC_EYES.length] ?? PANIC_EYES[0]
-    cells[at + 1] = { char: left, color: red }
-    cells[at + 5] = { char: right, color: red }
+    cells[at + 1] = { char: left, color: cells[at + 1]?.color ?? red }
+    cells[at + 5] = { char: right, color: cells[at + 5]?.color ?? red }
     return spansOfCells(cells)
   })
 }
 
-/** Row of the robot's eyes, where it speaks. */
+/** The colour that means "the surface's own text colour": Text leaves it unset, SVG draws DEFAULT_FILL. */
+export const DEFAULT_COLOR = ''
+/** Neutral grey for default-coloured text in SVG, readable on light and dark backgrounds. */
+const DEFAULT_FILL = '#a8a8a8'
+/** First row of speech: the robot's eyes; each further line goes one row down. */
 const SPEECH_ROW = 1
+/** Empty cells between the robot and its speech. */
+const SPEECH_GAP = 4
 
-/** Puts red speech beside the robot's eye row: to its right if it fits in `columns`, else to its left, else nowhere. */
-export function speech(frame: Frame, message: string, columns: number): Frame {
-  const row = frame[SPEECH_ROW]
-  if (!row) return frame
-  const color = hexOf(196)
-  const rowText = row.map(span => span.text).join('')
-  const right = `< ${message}`
-  if (cellsOf(rowText) + 1 + cellsOf(right) <= columns) {
-    return frame.map((r, i) => (i === SPEECH_ROW ? [...r, { text: ` ${right}`, color }] : r))
+/**
+ * Puts speech lines beside the robot, one per row from its eyes down, in the default text colour:
+ * to its right if they fit in `columns`, else to its left, else nowhere.
+ */
+export function speech(frame: Frame, lines: string[], columns: number): Frame {
+  const rows = lines.map((_, i) => frame[SPEECH_ROW + i])
+  if (rows.some(row => !row)) return frame
+  const texts = rows.map(row => (row ?? []).map(span => span.text).join(''))
+  const longest = Math.max(...lines.map(cellsOf))
+  // Anchored on the eyes row, which arms never pass, so moving arms never shift the speech.
+  const eyes = texts[0] ?? ''
+  const anchor = eyes.length - eyes.trimStart().length
+  const end = Math.max(anchor + cellsOf(eyes.trimStart()), ...texts.map(cellsOf))
+  const say = (i: number): Span => ({ text: lines[i - SPEECH_ROW] ?? '', color: DEFAULT_COLOR })
+
+  if (end + SPEECH_GAP + longest <= columns) {
+    return frame.map((row, i) => {
+      const line = i - SPEECH_ROW
+      if (line < 0 || line >= lines.length) return row
+      const pad = end - cellsOf(texts[line] ?? '') + SPEECH_GAP
+      return [...row, { text: ' '.repeat(pad), color: DEFAULT_COLOR }, say(i)]
+    })
   }
-  const left = `${message} >`
-  const lead = rowText.length - rowText.trimStart().length
-  const room = lead - 1 - cellsOf(left)
-  if (room < 0) return frame
-  const rest = spansOfCells(cellsOfFrameRow(row).slice(lead))
-  return frame.map((r, i) => (i === SPEECH_ROW ? [{ text: `${' '.repeat(room)}${left} `, color }, ...rest] : r))
+
+  const lead = Math.min(anchor, ...texts.map(text => text.length - text.trimStart().length))
+  const start = lead - SPEECH_GAP - longest
+  if (start < 0) return frame
+  return frame.map((row, i) => {
+    const line = i - SPEECH_ROW
+    if (line < 0 || line >= lines.length) return row
+    const spoken = say(i)
+    const after = ' '.repeat(lead - start - cellsOf(spoken.text))
+    return [{ text: ' '.repeat(start), color: DEFAULT_COLOR }, spoken, { text: after, color: DEFAULT_COLOR }, ...spansOfCells(cellsOfFrameRow(row).slice(lead))]
+  })
 }

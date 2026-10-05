@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Frame } from './frames'
-import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, speech, svgOf } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, speech, svgOf, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -99,27 +99,29 @@ test('a hot face alternates its eyes by tick and keeps its width', () => {
   expect(cellsOf(even)).toBe(cellsOf(textOf(HEAD[1] ?? [])))
 })
 
-const SAY = 'context 31% · /compact me!'
+const SAY = ['context 31%', '/compact me!']
 
-test('speech goes to the right of the robot when it fits', () => {
+test('speech goes to the right of the robot in two lines, four cells out, in the default colour', () => {
   const out = speech(HEAD, SAY, 60)
 
-  expect(textOf(out[1] ?? [])).toBe(`  [o   o] < ${SAY}`)
-  expect(out[1]?.at(-1)?.color).toBe(hexOf(196))
-  expect(out.filter((_, i) => i !== 1)).toEqual(HEAD.filter((_, i) => i !== 1))
+  expect(textOf(out[1] ?? [])).toBe(`  [o   o]    ${SAY[0]}`)
+  expect(textOf(out[2] ?? [])).toBe(`  /|---|\\    ${SAY[1]}`)
+  expect(out[1]?.at(-1)?.color).toBe(DEFAULT_COLOR)
+  expect(out[0]).toEqual(HEAD[0])
+  expect(out[3]).toEqual(HEAD[3])
 })
 
 test('speech falls back to the left of the robot', () => {
   const shifted: Frame = HEAD.map(row => [{ text: ' '.repeat(40), color: '#ff8700' }, ...row])
   const out = speech(shifted, SAY, 52)
-  const row = textOf(out[1] ?? [])
+  const eyes = textOf(out[1] ?? [])
 
-  expect(row).toContain(`${SAY} > `)
-  expect(row.trimStart().startsWith('context')).toBe(true)
-  expect(row.endsWith('[o   o]')).toBe(true)
-  expect(cellsOf(row)).toBe(cellsOf(textOf(shifted[1] ?? [])))
+  expect(eyes.trimStart().startsWith('context 31%')).toBe(true)
+  expect(eyes.endsWith('[o   o]')).toBe(true)
+  expect(textOf(out[2] ?? []).trimStart().startsWith('/compact me!')).toBe(true)
+  expect(cellsOf(eyes)).toBe(cellsOf(textOf(shifted[1] ?? [])))
 })
 
 test('speech is skipped when it fits on neither side', () => {
-  expect(speech(HEAD, SAY, 30)).toEqual(HEAD)
+  expect(speech(HEAD, SAY, 20)).toEqual(HEAD)
 })
