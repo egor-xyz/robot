@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Frame, Span } from './frames'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, tapping, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -265,25 +265,6 @@ test('friends never pass the columns', () => {
       for (const count of [1, 3, 7, 12]) {
         for (const row of withFriends(standing(x), x, dir, columns, count, 0)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
       }
-    }
-  }
-})
-
-test('the waiting robot taps its foot every two ticks', () => {
-  const footAt = (t: number) => rowsOf(tapping(10, 60, t))[3]
-
-  expect(footAt(0)).toBe(footAt(1))
-  expect(footAt(2)).not.toBe(footAt(0))
-  expect(footAt(4)).toBe(footAt(0))
-})
-
-test('the waiting robot keeps its head width and never passes the columns', () => {
-  const eyes = rowsOf(tapping(10, 60, 0))[1] ?? ''
-
-  expect(eyes.slice(eyes.indexOf('['), eyes.indexOf(']') + 1)).toHaveLength(7)
-  for (const [x, columns] of [[0, 60], [30, 60], [46, 56]] as const) {
-    for (let t = 0; t < 6; t++) {
-      for (const row of tapping(x, columns, t)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
     }
   }
 })

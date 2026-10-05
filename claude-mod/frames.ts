@@ -349,20 +349,3 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
   for (let i = 0; i < placed.friends; i++) put(3, placed.start + placed.offset + i * (FRIEND_WIDTH + FRIEND_GAP), FRIEND)
   return rows.map(spansOfCells)
 }
-
-/**
- * The robot at `x` tapping its foot while it waits for you: it stands still, its eyes look down-right, one hand is on
- * its hip, and the foot lifts every two ticks.
- */
-export function tapping(x: number, columns: number, tick: number): Frame {
-  const orange = hexOf(ORANGE_INDEX)
-  const foot = Math.floor(Math.max(0, tick) / 2) % 2 === 0 ? '   o   o' : '   o  _o'
-  const body = ['  .-----.', '  [  ◕ ◕]', '  <|━━━|\\', foot]
-  return body.map(raw => {
-    const text = x + cellsOf(raw) > columns ? raw.slice(0, Math.max(0, columns - x)) : raw
-    return [
-      { text: ' '.repeat(x), color: DEFAULT_COLOR },
-      { text, color: orange },
-    ]
-  })
-}

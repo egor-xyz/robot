@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, packStage, packing, speech, svgOf, tapping, typedSoFar, withFriends } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, packStage, packing, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
 import { gitActOf } from './git'
 import { INITIAL, randomInt, step } from './robot'
@@ -46,12 +46,6 @@ const compactingOf = (at: number): Span[][] => [
   [{ text: 'hold on!', color: DEFAULT_COLOR }],
 ]
 
-/** What the robot says while Claude waits for your OK on a tool. */
-const askingOf: Span[][] = [
-  [{ text: 'waiting for you…', color: DEFAULT_COLOR }],
-  [{ text: 'allow?', color: COMMAND_COLOR }],
-]
-
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
@@ -59,7 +53,6 @@ const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
 const CELEBRATION = { plugin: 'robot', key: 'celebration' } as const
 const SUBAGENTS = { plugin: 'robot', key: 'subagents' } as const
-const IS_ASKING = { plugin: 'robot', key: 'isAsking' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -134,28 +127,6 @@ export const register: Register = (on, options) => {
     return ran
   })
 
-  // A permission prompt is up: the user is being waited for. Subagent prompts block the user too, so they count.
-  on('tool.check', async ($, e, next) => {
-    const checked = await next(e)
-    if (checked.decision === 'ask' && e.tool_use_id) await $.state.set(IS_ASKING, true)
-    return checked
-  })
-
-  // The tool ran (or was refused): the wait is over. Written only when it was on.
-  on('tool.call', async ($, e, next) => {
-    try {
-      return await next(e)
-    } finally {
-      const { value: isAsking = false } = await $.state.get(IS_ASKING)
-      if (isAsking) await $.state.set(IS_ASKING, false)
-    }
-  })
-
-  on('turn.abort', async ($, e, next) => {
-    await $.state.set(IS_ASKING, false)
-    return next(e)
-  })
-
   on('command.run', { command: 'robot' }, async $ => {
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
@@ -176,17 +147,15 @@ export const register: Register = (on, options) => {
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
     const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
     const { value: celebration } = await $.state.get(CELEBRATION)
-    const { value: asking = false } = await $.state.get(IS_ASKING)
     const { value: subagents = 0 } = await $.state.get(SUBAGENTS)
-    const isAsking = !isCompacting && asking
-    const isCelebrating = !isCompacting && !isAsking && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
+    const isCelebrating = !isCompacting && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
     const isHot = isFireOn && percent >= hotAt
     if (!isCompacting) packedFrom = -1
     else if (packedFrom < 0) packedFrom = at
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
-    // While compacting, asking or celebrating the robot stands still: it packs itself into a box in the middle of the band.
-    if (at !== shown.at && !isCompacting && !isAsking && !isCelebrating) {
+    // While compacting or celebrating the robot stands still: it packs itself into a box in the middle of the band.
+    if (at !== shown.at && !isCompacting && !isCelebrating) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       const wanted = talkAt(at) >= 0 ? 'dance' : 'walk'
       if (isHot && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
@@ -202,12 +171,10 @@ export const register: Register = (on, options) => {
       shown.at = at
     }
     const packed = packStage(Math.floor((at - packedFrom) / PACK_TICKS))
-    // Priority: compacting, then asking, then celebrating, then the robot as it walks (hot or not).
+    // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
     let frame: Frame
     if (isCompacting) {
       frame = speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
-    } else if (isAsking) {
-      frame = speech(tapping(shown.state.pos, columns, at), askingOf, columns)
     } else if (isCelebrating && celebration) {
       frame = celebrating(shown.state.pos, columns, celebration.act, at - celebration.at)
     } else if (!shown.frame) {
