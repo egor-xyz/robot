@@ -63,8 +63,32 @@ Works on macOS, Linux and Windows — nothing else to install.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
-- 🔥 **Feels the heat.** Past 25% context its head turns red and catches fire — time to /compact. It drops everything, paces with its head on fire, and stops to wave its arms and type the context back at you.
+- 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
+
+---
+
+## 🔥 Context on fire
+
+The robot watches your session's context window — the same number as the
+status line. Once it passes **25%**, the robot drops whatever it was doing:
+
+```text
+    .🔥-🔥.
+    [O   O]    context 31%
+    /|━━━|\    /compact me!
+     o   o
+```
+
+- 🔥 **Its head catches fire.** The head turns red, flames burn inside it and
+  sparks pop beside it.
+- 😱 **It panics.** Its eyes flick between `O O` and `> <`.
+- 🚶 **It paces.** It walks slowly back and forth, then stops.
+- 🙌 **It talks to you.** At each stop it waves its arms and types the live
+  context percentage, letter by letter: _"/compact me!"_
+
+Run `/compact` (or `/clear`) and it cools down at once and goes back to its
+normal animations.
 
 ---
 
