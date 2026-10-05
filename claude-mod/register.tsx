@@ -46,6 +46,8 @@ const shown: { state: RobotState; at: number; frame: Frame | undefined } = { sta
 
 export const register: Register = (on, options) => {
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
+  // The `contextFire` option turns the whole context-on-fire act off; on unless set to false.
+  const isFireOn = options.contextFire !== false
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
@@ -58,7 +60,7 @@ export const register: Register = (on, options) => {
       await $.state.set(TICK, at + 1)
     })
 
-    $.clock.every(HEAT_MS, async () => {
+    if (isFireOn) $.clock.every(HEAT_MS, async () => {
       try {
         const { context } = await $.session.usage()
         const percent = Math.round(context.percent ?? 0)
@@ -90,7 +92,7 @@ export const register: Register = (on, options) => {
     }
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
-    const isHot = percent >= hotAt
+    const isHot = isFireOn && percent >= hotAt
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     if (at !== shown.at) {

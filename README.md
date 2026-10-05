@@ -93,7 +93,7 @@ Run `/compact` (or `/clear`) and it cools down at once and goes back to its
 normal animations.
 
 **Change when it catches fire:** open `/plugin` → **Installed** → **robot** → **Configure**, and set **Fire at (% context, default 25)**
-to any value from 1 to 100 (`100` practically turns the fire off).
+to any value from 1 to 100. To turn the fire off, switch **Context on fire** off there.
 
 ---
 
@@ -109,7 +109,8 @@ Open `/plugin` → **Installed** → **robot** → **Configure**.
 
 | Setting               | Default | Effect                                                         |
 | --------------------- | ------- | -------------------------------------------------------------- |
-| Fire at (% context, default 25) | `25`    | Context usage at which the head [catches fire](#-context-on-fire). `100` turns it off. |
+| Context on fire (default on)    | on      | Off turns the [context-on-fire](#-context-on-fire) act off completely. |
+| Fire at (% context, default 25) | `25`    | Context usage at which the head catches fire. |
 
 ### Update or remove
 
