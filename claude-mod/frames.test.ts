@@ -238,7 +238,7 @@ test('a friend is six cells of ASCII robot: eyes, body, treads', () => {
 
   expect(rows[1]).toContain('(o)(o)')
   expect(rows[2]).toContain('=[##]=')
-  expect(rows[3]).toContain('(oOoO)')
+  expect(rows[3]).toContain('(oooo)')
   for (const row of rows) expect(row).toMatch(/^[\x20-\x7e━]*$/)
   expect(rows[2]?.indexOf('=[##]=')).toBe(rows[1]?.indexOf('(o)(o)'))
 })
@@ -257,16 +257,16 @@ test('friends are coloured: ochre body, grey treads, default eyes', () => {
 
   expect(colorOf(1, '(o)(o)')).toBe(DEFAULT_COLOR)
   expect(colorOf(2, '=[##]=')).toBe(hexOf(178))
-  expect(colorOf(3, '(oOoO)')).toBe(hexOf(244))
+  expect(colorOf(3, '(oooo)')).toBe(hexOf(244))
 })
 
 test('treads roll only when the friend moves or the robot walks', () => {
-  const treads = (friends: Friend[], isWalking: boolean, tick: number) => roll(standing(20), friends, tick, 'normal', isWalking)[3]?.match(/\((?:oOoO|OoOo)\)/)?.[0]
+  const treads = (friends: Friend[], isWalking: boolean, tick: number) => roll(standing(20), friends, tick, 'normal', isWalking)[3]?.match(/\((?:oooo|OOOO)\)/)?.[0]
 
-  expect([CALM, CALM + 1].map(tick => treads([still(1)], false, tick))).toEqual(['(oOoO)', '(oOoO)'])
-  expect([CALM, CALM + 1].map(tick => treads([still(1)], true, tick))).toEqual(['(oOoO)', '(OoOo)'])
-  expect([CALM, CALM + 1].map(tick => treads([still(1, 3)], false, tick))).toEqual(['(oOoO)', '(OoOo)'])
-  expect([CALM, CALM + 1].map(tick => treads([{ id: 1, lag: 0, leaving: true }], false, tick))).toEqual(['(oOoO)', '(OoOo)'])
+  expect([CALM, CALM + 1].map(tick => treads([still(1)], false, tick))).toEqual(['(oooo)', '(oooo)'])
+  expect([CALM, CALM + 1].map(tick => treads([still(1)], true, tick))).toEqual(['(oooo)', '(OOOO)'])
+  expect([CALM, CALM + 1].map(tick => treads([still(1, 3)], false, tick))).toEqual(['(oooo)', '(OOOO)'])
+  expect([CALM, CALM + 1].map(tick => treads([{ id: 1, lag: 0, leaving: true }], false, tick))).toEqual(['(oooo)', '(OOOO)'])
 })
 
 test('a friend now and then stretches its neck: eyes on row 0, neck on row 1', () => {
@@ -275,7 +275,7 @@ test('a friend now and then stretches its neck: eyes on row 0, neck on row 1', (
   expect(rows[0]).toContain('(o)(o)')
   expect(rows[1]).toContain('||')
   expect(rows[2]).toContain('=[##]=')
-  expect(rows[3]).toContain('(oOoO)')
+  expect(rows[3]).toContain('(oooo)')
   expect(roll(standing(20), [still(0)], CALM)[1]).not.toContain('||')
 })
 
@@ -304,30 +304,30 @@ test('cheering friends hop one row up on alternate ticks', () => {
 
   expect(hop[0]).toContain('(o)(o)')
   expect(hop[1]).toContain('=[##]=')
-  expect(hop[2]).toContain('(oOoO)')
+  expect(hop[2]).toContain('(oooo)')
   expect(hop[3]).not.toContain('(')
   expect(flat[1]).toContain('(o)(o)')
-  expect(flat[3]).toContain('(oOoO)')
+  expect(flat[3]).toContain('(oooo)')
 })
 
 test('friends stand left of the robot when it walks right, and right of it when it walks left', () => {
   const friends = [still(1), still(2)]
   const right = roll(standing(20), friends, CALM, 'normal', false, 20, 1)
   expect(right[3]?.lastIndexOf(')')).toBeLessThan(right[3]?.indexOf('o   o') ?? 0)
-  expect(right[3]?.match(/\(oOoO\)/g)).toHaveLength(2)
+  expect(right[3]?.match(/\(oooo\)/g)).toHaveLength(2)
   expect(right[3]).not.toContain('×')
-  expect(right[3]?.indexOf('(oOoO)')).toBe(20 - 4 - 6 - 7)
+  expect(right[3]?.indexOf('(oooo)')).toBe(20 - 4 - 6 - 7)
 
   const left = roll(standing(20), friends, CALM, 'normal', false, 20, -1)
-  expect(left[3]?.match(/\(oOoO\)/g)).toHaveLength(2)
-  expect(left[3]?.indexOf('(oOoO)')).toBeGreaterThan(left[3]?.lastIndexOf('o   o') ?? 99)
+  expect(left[3]?.match(/\(oooo\)/g)).toHaveLength(2)
+  expect(left[3]?.indexOf('(oooo)')).toBeGreaterThan(left[3]?.lastIndexOf('o   o') ?? 99)
 })
 
 test('the label comes after the last friend, and only when more subagents run than friends are drawn', () => {
   const three = [still(1), still(2), still(3)]
   for (const dir of [1, -1] as const) {
     const row = roll(standing(30), three, CALM, 'normal', false, 30, dir, 7, 100)[3] ?? ''
-    const treads = [...row.matchAll(/\(oOoO\)/g)].map(match => match.index ?? 0)
+    const treads = [...row.matchAll(/\(oooo\)/g)].map(match => match.index ?? 0)
 
     expect(treads).toHaveLength(3)
     expect(row).toContain('×7')
@@ -339,8 +339,8 @@ test('the label comes after the last friend, and only when more subagents run th
 
 test('friends never move to the front: near the back edge fewer or none are drawn', () => {
   const some = roll(standing(10), [still(1), still(2), still(3)], CALM, 'normal', false, 10)[3] ?? ''
-  expect(some.match(/\(oOoO\)/g)).toHaveLength(1)
-  expect(some.lastIndexOf('(oOoO)')).toBeLessThan(10)
+  expect(some.match(/\(oooo\)/g)).toHaveLength(1)
+  expect(some.lastIndexOf('(oooo)')).toBeLessThan(10)
 
   expect(roll(standing(2), [still(1), still(2)], CALM, 'normal', false, 2)).toEqual(rowsOf(standing(2)))
   expect(roll(standing(46), [still(1), still(2)], CALM, 'normal', false, 46, -1, 2, 56)).toEqual(rowsOf(standing(46)))
@@ -358,8 +358,8 @@ test('friends stand at the back of a robot that fishes to its left, whatever dir
   for (const dir of [1, -1] as const) {
     const row = roll(fishing, [still(1), still(2)], CALM, 'normal', false, 10, dir)[3] ?? ''
 
-    expect(row.match(/\(oOoO\)/g)).toHaveLength(2)
-    expect(row.indexOf('(oOoO)')).toBeGreaterThan(row.lastIndexOf('o   o'))
+    expect(row.match(/\(oooo\)/g)).toHaveLength(2)
+    expect(row.indexOf('(oooo)')).toBeGreaterThan(row.lastIndexOf('o   o'))
   }
 })
 
@@ -368,8 +368,8 @@ test('friends of a robot that fishes to its right stand on its left', () => {
   for (const dir of [1, -1] as const) {
     const row = roll(fishing, [still(1)], CALM, 'normal', false, 30, dir)[3] ?? ''
 
-    expect(row.match(/\(oOoO\)/g)).toHaveLength(1)
-    expect(row.indexOf('(oOoO)')).toBeLessThan(row.indexOf('o   o'))
+    expect(row.match(/\(oooo\)/g)).toHaveLength(1)
+    expect(row.indexOf('(oooo)')).toBeLessThan(row.indexOf('o   o'))
   }
 })
 

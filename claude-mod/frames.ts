@@ -317,7 +317,7 @@ const FRIEND_TREADS_COLOR = hexOf(244)
 const FRIEND_EYES = { normal: '(o)(o)', blink: '(-)(-)', curious: '(O)(o)', wide: '(O)(O)' } as const
 const FRIEND_NECK = '  ||  '
 const FRIEND_BODY = '=[##]='
-const FRIEND_TREADS = ['(oOoO)', '(OoOo)'] as const
+const FRIEND_TREADS = ['(oooo)', '(OOOO)'] as const
 
 /** What the friends feel: `hot` when the context is on fire, `cheer` while the robot celebrates a git act. */
 export type FriendMood = 'normal' | 'hot' | 'cheer'

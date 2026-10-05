@@ -151,6 +151,10 @@ missing release means users don't get the change.
 | `feat!:` / `fix!:` / `BREAKING CHANGE:` | major |
 | `chore:` / `docs:` / `refactor:` / `test:` / `ci:` / `build:` / `style:` | no release |
 
+**Bump `version` in `.claude-plugin/plugin.json` with every mod change.**
+Claude Code compares that field, not the release tag: if it stays the same,
+`/plugin update` keeps the old cached copy.
+
 **The squash-merge subject must carry the prefix** (GitHub uses the PR title).
 A PR-title lint workflow (`pr-title.yml`) enforces this. If a release you
 expected didn't cut, push an empty `feat:`/`fix:` commit to `main`.
