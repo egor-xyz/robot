@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import type { Frame } from './frames'
-import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, speech, svgOf, DEFAULT_COLOR } from './frames'
+import type { Frame, Span } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, cellsOf, framesOf, hexOf, heated, spansOf, speech, svgOf, typedSoFar, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -99,13 +99,17 @@ test('a hot face alternates its eyes by tick and keeps its width', () => {
   expect(cellsOf(even)).toBe(cellsOf(textOf(HEAD[1] ?? [])))
 })
 
-const SAY = ['context 31%', '/compact me!']
+const SAY_TEXT = ['context 31%', '/compact me!']
+const SAY: Span[][] = [
+  [{ text: 'context 31%', color: DEFAULT_COLOR }],
+  [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
+]
 
 test('speech goes to the right of the robot in two lines, four cells out, in the default colour', () => {
   const out = speech(HEAD, SAY, 60)
 
-  expect(textOf(out[1] ?? [])).toBe(`  [o   o]    ${SAY[0]}`)
-  expect(textOf(out[2] ?? [])).toBe(`  /|---|\\    ${SAY[1]}`)
+  expect(textOf(out[1] ?? [])).toBe(`  [o   o]    ${SAY_TEXT[0]}`)
+  expect(textOf(out[2] ?? [])).toBe(`  /|---|\\    ${SAY_TEXT[1]}`)
   expect(out[1]?.at(-1)?.color).toBe(DEFAULT_COLOR)
   expect(out[0]).toEqual(HEAD[0])
   expect(out[3]).toEqual(HEAD[3])
@@ -124,4 +128,17 @@ test('speech falls back to the left of the robot', () => {
 
 test('speech is skipped when it fits on neither side', () => {
   expect(speech(HEAD, SAY, 20)).toEqual(HEAD)
+})
+
+test('/compact is drawn in the command colour', () => {
+  const out = speech(HEAD, SAY, 60)
+
+  expect(out[2]?.find(span => span.text === '/compact')?.color).toBe(COMMAND_COLOR)
+})
+
+test('typing reveals letters in order across the lines and keeps their width', () => {
+  const typed = typedSoFar(SAY, 13)
+
+  expect(typed.map(textOf)).toEqual(['context 31%', '/c          '])
+  expect(typed[1]?.[0]?.color).toBe(COMMAND_COLOR)
 })

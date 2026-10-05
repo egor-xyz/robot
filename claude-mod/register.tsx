@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, ROW_HEIGHT, heated, speech, svgOf } from './frames'
-import type { Frame } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, heated, speech, svgOf, typedSoFar } from './frames'
+import type { Frame, Span } from './frames'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 
@@ -26,16 +26,12 @@ const isHotStop = (at: number): boolean => at % HOT_CYCLE >= HOT_WALK
 // Letters typed per tick while it talks.
 const TYPE_SPEED = 2
 
-/** The lines as typed so far in this stop, letter by letter across the lines, padded so they never shift. */
-function typed(lines: string[], at: number): string[] {
-  let left = ((at % HOT_CYCLE) - HOT_WALK + 1) * TYPE_SPEED
-  return lines.map(line => {
-    const chars = [...line]
-    const shown = chars.slice(0, Math.max(0, left)).join('')
-    left -= chars.length
-    return shown + ' '.repeat(chars.length - [...shown].length)
-  })
-}
+/** What the hot robot says: the live context, then /compact in Claude Code's command colour. */
+const sayOf = (percent: number): Span[][] => [
+  [{ text: `context ${percent}%`, color: DEFAULT_COLOR }],
+  [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
+]
+
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
@@ -109,7 +105,7 @@ export const register: Register = on => {
     }
     if (!shown.frame) return next(e)
     const burning = heated(shown.frame, isHot, at)
-    const frame = isHot && isHotStop(at) ? speech(burning, typed([`context ${percent}%`, '/compact me!'], at), columns) : burning
+    const frame = isHot && isHotStop(at) ? speech(burning, typedSoFar(sayOf(percent), ((at % HOT_CYCLE) - HOT_WALK + 1) * TYPE_SPEED), columns) : burning
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {

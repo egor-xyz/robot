@@ -81,7 +81,7 @@ export function svgOf(frame: Frame, columns: number): string {
         if (char !== ' ') {
           const x = +(cell * CELL_WIDTH).toFixed(2)
           const y = rowIndex * ROW_HEIGHT + FONT_SIZE
-          texts.push(`<text x="${x}" y="${y}" fill="${span.color || DEFAULT_FILL}">${escapeXml(char)}</text>`)
+          texts.push(`<text x="${x}" y="${y}" fill="${fillOf(span.color)}">${escapeXml(char)}</text>`)
         }
         cell += cellsOf(char)
       }
@@ -160,32 +160,37 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
 export const DEFAULT_COLOR = ''
 /** Neutral grey for default-coloured text in SVG, readable on light and dark backgrounds. */
 const DEFAULT_FILL = '#a8a8a8'
+/** Claude Code's theme colour for slash commands; Text resolves the key, SVG draws COMMAND_FILL. */
+export const COMMAND_COLOR = 'suggestion'
+const COMMAND_FILL = '#b1b9f9'
+const fillOf = (color: string): string => (color === COMMAND_COLOR ? COMMAND_FILL : color || DEFAULT_FILL)
 /** First row of speech: the robot's eyes; each further line goes one row down. */
 const SPEECH_ROW = 1
 /** Empty cells between the robot and its speech. */
 const SPEECH_GAP = 4
 
+const textOfSpans = (spans: Span[]): string => spans.map(span => span.text).join('')
+
 /**
- * Puts speech lines beside the robot, one per row from its eyes down, in the default text colour:
+ * Puts speech lines (each a list of coloured spans) beside the robot, one per row from its eyes down:
  * to its right if they fit in `columns`, else to its left, else nowhere.
  */
-export function speech(frame: Frame, lines: string[], columns: number): Frame {
+export function speech(frame: Frame, lines: Span[][], columns: number): Frame {
   const rows = lines.map((_, i) => frame[SPEECH_ROW + i])
   if (rows.some(row => !row)) return frame
-  const texts = rows.map(row => (row ?? []).map(span => span.text).join(''))
-  const longest = Math.max(...lines.map(cellsOf))
+  const texts = rows.map(row => textOfSpans(row ?? []))
+  const longest = Math.max(...lines.map(line => cellsOf(textOfSpans(line))))
   // Anchored on the eyes row, which arms never pass, so moving arms never shift the speech.
   const eyes = texts[0] ?? ''
   const anchor = eyes.length - eyes.trimStart().length
   const end = Math.max(anchor + cellsOf(eyes.trimStart()), ...texts.map(cellsOf))
-  const say = (i: number): Span => ({ text: lines[i - SPEECH_ROW] ?? '', color: DEFAULT_COLOR })
+  const blank = (cells: number): Span => ({ text: ' '.repeat(Math.max(0, cells)), color: DEFAULT_COLOR })
 
   if (end + SPEECH_GAP + longest <= columns) {
     return frame.map((row, i) => {
-      const line = i - SPEECH_ROW
-      if (line < 0 || line >= lines.length) return row
-      const pad = end - cellsOf(texts[line] ?? '') + SPEECH_GAP
-      return [...row, { text: ' '.repeat(pad), color: DEFAULT_COLOR }, say(i)]
+      const line = lines[i - SPEECH_ROW]
+      if (!line) return row
+      return [...row, blank(end - cellsOf(texts[i - SPEECH_ROW] ?? '') + SPEECH_GAP), ...line]
     })
   }
 
@@ -193,10 +198,24 @@ export function speech(frame: Frame, lines: string[], columns: number): Frame {
   const start = lead - SPEECH_GAP - longest
   if (start < 0) return frame
   return frame.map((row, i) => {
-    const line = i - SPEECH_ROW
-    if (line < 0 || line >= lines.length) return row
-    const spoken = say(i)
-    const after = ' '.repeat(lead - start - cellsOf(spoken.text))
-    return [{ text: ' '.repeat(start), color: DEFAULT_COLOR }, spoken, { text: after, color: DEFAULT_COLOR }, ...spansOfCells(cellsOfFrameRow(row).slice(lead))]
+    const line = lines[i - SPEECH_ROW]
+    if (!line) return row
+    const after = lead - start - cellsOf(textOfSpans(line))
+    return [blank(start), ...line, blank(after), ...spansOfCells(cellsOfFrameRow(row).slice(lead))]
+  })
+}
+
+/** The first `count` characters of the lines, read across them in order, each line padded to its full width. */
+export function typedSoFar(lines: Span[][], count: number): Span[][] {
+  let left = count
+  return lines.map(line => {
+    const out: Span[] = []
+    for (const span of line) {
+      const chars = [...span.text]
+      const shown = chars.slice(0, Math.max(0, left)).join('')
+      left -= chars.length
+      out.push({ ...span, text: shown + ' '.repeat(chars.length - [...shown].length) })
+    }
+    return out
   })
 }
