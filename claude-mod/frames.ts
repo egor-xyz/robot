@@ -342,7 +342,7 @@ function friendParts(friend: Friend, tick: number, mood: FriendMood, isWalking: 
 }
 
 /**
- * Adds one small WALL-E robot per friend (`friends` come from stepFriends) at the robot's back, and a `×count` label
+ * Adds one small WALL-E robot per friend (`friends` come from stepFriends) at the robot's back, and a `+extra` label (the subagents past the friends drawn)
  * after the last one only when more subagents run (`count`) than the most friends drawn. The back is the side of the
  * body the drawing reaches out the least (the fishing rod, the balloon, the cow are all in front); a tie, such as a
  * plain walk, falls back to `dir` (1 walks right, so the back is on the left). A friend sits at its slot plus its `lag`
@@ -386,7 +386,7 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
     for (const part of parts) put(feet - part.up, start, part.text, part.color)
   })
 
-  const label = `×${count}`
+  const label = `+${count - MAX_FRIENDS}`
   if (isLastDrawn && count > MAX_FRIENDS) {
     const lastFriend = friends[friends.length - 1]
     const lastStart = slotOf(friends.length - 1, lastFriend?.lag ?? 0)

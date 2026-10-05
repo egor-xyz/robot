@@ -315,7 +315,7 @@ test('friends stand left of the robot when it walks right, and right of it when 
   const right = roll(standing(20), friends, CALM, 'normal', false, 20, 1)
   expect(right[3]?.lastIndexOf(')')).toBeLessThan(right[3]?.indexOf('o   o') ?? 0)
   expect(right[3]?.match(/\(oooo\)/g)).toHaveLength(2)
-  expect(right[3]).not.toContain('×')
+  expect(right[3]).not.toContain('+')
   expect(right[3]?.indexOf('(oooo)')).toBe(20 - 4 - 6 - 7)
 
   const left = roll(standing(20), friends, CALM, 'normal', false, 20, -1)
@@ -330,10 +330,10 @@ test('the label comes after the last friend, and only when more subagents run th
     const treads = [...row.matchAll(/\(oooo\)/g)].map(match => match.index ?? 0)
 
     expect(treads).toHaveLength(3)
-    expect(row).toContain('×7')
-    if (dir === 1) expect(row.indexOf('×7')).toBeLessThan(Math.min(...treads))
-    else expect(row.indexOf('×7')).toBeGreaterThan(Math.max(...treads) + 6)
-    expect(roll(standing(30), three, CALM, 'normal', false, 30, dir, 3, 100)[3]).not.toContain('×')
+    expect(row).toContain('+4')
+    if (dir === 1) expect(row.indexOf('+4')).toBeLessThan(Math.min(...treads))
+    else expect(row.indexOf('+4')).toBeGreaterThan(Math.max(...treads) + 6)
+    expect(roll(standing(30), three, CALM, 'normal', false, 30, dir, 3, 100)[3]).not.toContain('+')
   }
 })
 
