@@ -13,8 +13,8 @@
   "userConfig": {
     "hotAt": {
       "type": "number",
-      "title": "Fire at (% context)",
-      "description": "Context usage, in percent, at which the robot's head catches fire. 100 turns it off.",
+      "title": "Fire at (% context, default 25)",
+      "description": "Context usage, in percent, at which the robot's head catches fire. Empty means 25; 100 turns it off.",
       "default": 25,
       "min": 1,
       "max": 100

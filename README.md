@@ -92,7 +92,7 @@ status line. Once it passes **25%**, the robot drops whatever it was doing:
 Run `/compact` (or `/clear`) and it cools down at once and goes back to its
 normal animations.
 
-**Change when it catches fire:** open `/config`, find **Fire at (% context)**
+**Change when it catches fire:** open `/config`, find **Fire at (% context, default 25)**
 under the robot plugin, and set any value from 1 to 100 (default `25`; `100`
 practically turns the fire off).
 
@@ -110,7 +110,7 @@ Open `/config` and find the robot plugin.
 
 | Setting               | Default | Effect                                                         |
 | --------------------- | ------- | -------------------------------------------------------------- |
-| Fire at (% context)   | `25`    | Context usage at which the head [catches fire](#-context-on-fire). `100` turns it off. |
+| Fire at (% context, default 25) | `25`    | Context usage at which the head [catches fire](#-context-on-fire). `100` turns it off. |
 
 ### Update or remove
 
