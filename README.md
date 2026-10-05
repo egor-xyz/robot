@@ -23,7 +23,7 @@ the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO
 It also follows what Claude Code does. When the context gets too big, its head
 catches fire. When the conversation compacts, it packs itself into a box. When
 Claude asks you something, it steps aside. When Claude commits or pushes with
-git, it cheers. When Claude runs subagents, it brings 🤖 friends that walk behind it.
+git, it cheers. When Claude runs subagents, it brings little WALL-E friends: one small robot per subagent.
 
 ```text
   .-----.  🐟
@@ -71,7 +71,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 📦 **Packs itself while compacting.** During `/compact` it puts itself into a box, part by part — [see below](#-compacting).
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
-- 👯 **Brings friends.** One 🤖 per running subagent, walking behind it, with a count when there are more than three.
+- 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. A count shows when there are more than three.
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
 
 ---
@@ -80,14 +80,14 @@ Works on macOS, Linux and Windows — nothing else to install.
 
 The robot listens to Claude Code events and acts on them:
 
-| When Claude Code…                         | The robot…                                              |
-| ----------------------------------------- | ------------------------------------------------------- |
-| fills the context past 25%                | catches fire and asks you to `/compact` — [more](#-context-on-fire) |
-| compacts the conversation (`/compact` or auto) | packs itself into a box until it ends — [more](#-compacting) |
-| asks you a question or shows a survey     | steps aside so it does not get in the way               |
-| clears or compacts a hot context          | cools down and goes back to play                        |
-| commits or pushes with git                | stamps a ✅ or waves off a 🚀 for 3 seconds             |
-| runs subagents                            | brings 🤖 friends that walk behind it, with a count if over 3 |
+| When Claude Code…                              | The robot…                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------- |
+| fills the context past 25%                     | catches fire and asks you to `/compact` — [more](#-context-on-fire)    |
+| compacts the conversation (`/compact` or auto) | packs itself into a box until it ends — [more](#-compacting)           |
+| asks you a question or shows a survey          | steps aside so it does not get in the way                              |
+| clears or compacts a hot context               | cools down and goes back to play                                       |
+| commits or pushes with git                     | stamps a ✅ or waves off a 🚀 for 3 seconds                              |
+| runs subagents                                 | rolls in a small WALL-E friend per agent, and rolls it away at the end |
 
 ---
 

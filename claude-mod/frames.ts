@@ -1,3 +1,6 @@
+import { MAX_FRIENDS } from './friends'
+import type { Friend } from './friends'
+
 /** One run of text in one colour. */
 export type Span = { text: string; color: string }
 
@@ -303,30 +306,54 @@ export function celebrating(x: number, columns: number, act: 'commit' | 'push', 
   })
 }
 
-// A friend is one 🤖, two cells wide, on the feet row.
-const FRIEND = '🤖'
-const FRIEND_WIDTH = 2
-// Most friends drawn at once; the label still counts them all.
-const MAX_FRIENDS = 3
-// Empty cells between friends, and between the robot and its nearest friend.
+// A friend is a small WALL-E robot, six cells wide.
+const FRIEND_WIDTH = 6
+// Empty cells between friends, and between the robot's drawing and its nearest friend.
 const FRIEND_GAP = 1
+const FRIEND_BODY_COLOR = hexOf(178)
+const FRIEND_TREADS_COLOR = hexOf(244)
+const FRIEND_EYES = { normal: '(o)(o)', blink: '(-)(-)', curious: '(O)(o)', wide: '(O)(O)' } as const
+const FRIEND_NECK = '  ||  '
+const FRIEND_BODY = '=[##]='
+const FRIEND_TREADS = ['(oOoO)', '(OoOo)'] as const
+
+/** What the friends feel: `hot` when the context is on fire, `cheer` while the robot celebrates a git act. */
+export type FriendMood = 'normal' | 'hot' | 'cheer'
+
+type FriendPart = { up: number; text: string; color: string }
+
+/** The parts of one friend, each `up` rows above the feet row. */
+function friendParts(friend: Friend, tick: number, mood: FriendMood, isWalking: boolean): FriendPart[] {
+  const isMoving = friend.leaving || friend.lag > 0
+  const isRolling = isMoving || isWalking
+  const treads = { up: 0, text: isRolling ? (FRIEND_TREADS[tick % 2] ?? FRIEND_TREADS[0]) : FRIEND_TREADS[0], color: FRIEND_TREADS_COLOR }
+  const body = (up: number): FriendPart => ({ up, text: FRIEND_BODY, color: FRIEND_BODY_COLOR })
+  const eyes = (up: number, text: string): FriendPart => ({ up, text, color: DEFAULT_COLOR })
+
+  if (mood === 'cheer' && tick % 2 === 0) return [eyes(3, FRIEND_EYES.normal), body(2), { ...treads, up: 1 }]
+  if (mood === 'hot') return [eyes(2, FRIEND_EYES.wide), body(1), treads]
+  const isBlinking = (tick + friend.id * 5) % 16 === 0
+  if (isRolling || mood === 'cheer') return [eyes(2, isBlinking ? FRIEND_EYES.blink : FRIEND_EYES.normal), body(1), treads]
+  if ((tick + friend.id * 8) % 24 < 4) return [eyes(3, FRIEND_EYES.normal), { up: 2, text: FRIEND_NECK, color: FRIEND_BODY_COLOR }, body(1), treads]
+  const isCurious = (tick + friend.id * 7) % 20 < 2
+  return [eyes(2, isBlinking ? FRIEND_EYES.blink : isCurious ? FRIEND_EYES.curious : FRIEND_EYES.normal), body(1), treads]
+}
 
 /**
- * Adds one 🤖 friend per running subagent (at most three) at the robot's back, with a `×count` label above them only
- * when more subagents run than friends are drawn. The back is the side of the body the drawing reaches out the least
- * (the fishing rod, the balloon, the cow are all in front); a tie, such as a plain walk, falls back to `dir` (1 walks
- * right, so the back is on the left). Behind only: when fewer fit before the edge of `columns` it draws fewer, and
- * none when not even one fits. They only ever stand on empty cells, so speech and arms are never overwritten.
- * No friends, no change. `tick` is unused: emoji do not blink.
+ * Adds one small WALL-E robot per friend (`friends` come from stepFriends) at the robot's back, and a `×count` label
+ * after the last one only when more subagents run (`count`) than the most friends drawn. The back is the side of the
+ * body the drawing reaches out the least (the fishing rod, the balloon, the cow are all in front); a tie, such as a
+ * plain walk, falls back to `dir` (1 walks right, so the back is on the left). A friend sits at its slot plus its `lag`
+ * cells further toward the back edge, and is drawn only when it fits whole inside `columns`. Friends only ever stand on
+ * empty cells, so speech and arms are never overwritten. No friends, no change.
  */
-export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, count: number, _tick: number): Frame {
-  if (count < 1 || frame.length < 4) return frame
-  const label = `×${count}`
+export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, isWalking: boolean): Frame {
+  if (friends.length === 0 || frame.length < 4) return frame
   // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
   const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
   // Mirrored acts pad the body to the right of `x`, so find it by its eyes: the head's `[` sits two cells in.
-  const eyes = rows.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
-  const bodyStart = eyes === undefined ? x : eyes - 2
+  const eyesAt = rows.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
+  const bodyStart = eyesAt === undefined ? x : eyesAt - 2
   const bodyEnd = bodyStart + BODY_END
   const inks = rows.flatMap(cells => cells.flatMap((cell, at) => (cell.char === ' ' || cell.char === '' ? [] : [at])))
   const first = Math.min(bodyStart, ...inks)
@@ -335,30 +362,34 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
   const reachRight = last - bodyEnd
   const isLeft = reachLeft === reachRight ? dir === 1 : reachLeft < reachRight
   const feet = rows.length - 1
-  const isFree = (start: number, width: number): boolean =>
-    start >= 0 && start + width <= columns && [feet - 2, feet - 1, feet].every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
-  const placed = Array.from({ length: Math.min(count, MAX_FRIENDS) }, (_, i) => Math.min(count, MAX_FRIENDS) - i)
-    .map(friends => {
-      const friendsWidth = friends * (FRIEND_WIDTH + FRIEND_GAP) - FRIEND_GAP
-      const hasLabel = count > friends
-      const width = Math.max(friendsWidth, hasLabel ? cellsOf(label) : 0)
-      const start = isLeft ? first - FRIEND_GAP - width : last + 1 + FRIEND_GAP
-      return { friends, hasLabel, width, start, offset: isLeft ? width - friendsWidth : 0 }
-    })
-    .find(({ start, width }) => isFree(start, width))
-  if (!placed) return frame
-
-  const put = (row: number, at: number, text: string) => {
+  const isFree = (start: number, width: number, upTo: number[]): boolean =>
+    start >= 0 && start + width <= columns && upTo.every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
+  const put = (row: number, at: number, text: string, color: string) => {
     const cells = rows[row] ?? []
-    while (cells.length < at + cellsOf(text)) cells.push({ char: ' ', color: DEFAULT_COLOR })
-    let cell = at
-    for (const char of text) {
-      cells[cell] = { char, color: DEFAULT_COLOR }
-      if (cellsOf(char) === 2) cells[cell + 1] = { char: '', color: DEFAULT_COLOR }
-      cell += cellsOf(char)
-    }
+    while (cells.length < at + text.length) cells.push({ char: ' ', color: DEFAULT_COLOR })
+    ;[...text].forEach((char, i) => {
+      cells[at + i] = { char, color }
+    })
   }
-  if (placed.hasLabel) put(feet - 1, placed.start, label)
-  for (let i = 0; i < placed.friends; i++) put(feet, placed.start + placed.offset + i * (FRIEND_WIDTH + FRIEND_GAP), FRIEND)
+  const slotOf = (index: number, lag: number): number => (isLeft ? first - FRIEND_GAP - FRIEND_WIDTH - index * (FRIEND_WIDTH + FRIEND_GAP) - lag : last + 1 + FRIEND_GAP + index * (FRIEND_WIDTH + FRIEND_GAP) + lag)
+
+  let isLastDrawn = false
+  friends.forEach((friend, index) => {
+    const start = slotOf(index, friend.lag)
+    const parts = friendParts(friend, tick, mood, isWalking)
+    const used = parts.map(part => feet - part.up)
+    const isDrawn = used.every(row => row >= 0) && isFree(start, FRIEND_WIDTH, used)
+    if (index === friends.length - 1) isLastDrawn = isDrawn
+    if (!isDrawn) return
+    for (const part of parts) put(feet - part.up, start, part.text, part.color)
+  })
+
+  const label = `×${count}`
+  if (isLastDrawn && count > MAX_FRIENDS) {
+    const lastFriend = friends[friends.length - 1]
+    const lastStart = slotOf(friends.length - 1, lastFriend?.lag ?? 0)
+    const at = isLeft ? lastStart - FRIEND_GAP - label.length : lastStart + FRIEND_WIDTH + FRIEND_GAP
+    if (isFree(at, label.length, [feet])) put(feet, at, label, DEFAULT_COLOR)
+  }
   return rows.map(spansOfCells)
 }

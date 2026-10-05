@@ -2,6 +2,8 @@ import type { Register } from 'claude-code'
 
 import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, packStage, packing, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
+import { stepFriends } from './friends'
+import type { Friend } from './friends'
 import { gitActOf } from './git'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
@@ -56,6 +58,11 @@ const SUBAGENTS = { plugin: 'robot', key: 'subagents' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
+/** The subagent friends as of the last tick they were stepped, and that tick. */
+let friends: Friend[] = []
+let friendsAt = -1
+let lastFriendId = 0
+const nextFriendId = (): number => ++lastFriendId
 /** The tick the current compaction was first drawn at, or -1 when nothing compacts. */
 let packedFrom = -1
 // Ticks per packing stage: one part goes into the box each second.
@@ -170,20 +177,25 @@ export const register: Register = (on, options) => {
       }
       shown.at = at
     }
+    // The friends roll one cell per new tick, whatever the robot does.
+    if (at !== friendsAt) {
+      friends = stepFriends(friends, subagents, nextFriendId)
+      friendsAt = at
+    }
     const packed = packStage(Math.floor((at - packedFrom) / PACK_TICKS))
     // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
     let frame: Frame
     if (isCompacting) {
       frame = speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
     } else if (isCelebrating && celebration) {
-      frame = celebrating(shown.state.pos, columns, celebration.act, at - celebration.at)
+      frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {
       return next(e)
     } else {
       const robot = isHot && talkAt(at) >= 0
         ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
         : heated(shown.frame, isHot, at)
-      frame = withFriends(robot, shown.state.pos, shown.state.dir, columns, subagents, at)
+      frame = withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk')
     }
 
     const els = $.ui.resolve(e)
