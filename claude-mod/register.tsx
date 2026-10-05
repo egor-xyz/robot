@@ -15,14 +15,17 @@ const HEAT_MS = 2000
 const HOT_AT = 25
 // An animation that never ends by itself: how the robot is held walking or dancing while hot.
 const FOREVER = Number.MAX_SAFE_INTEGER
-// Hot pace: in each cycle of ticks it walks for HOT_WALK ticks, then stops, waves its arms and talks.
-const HOT_CYCLE = 48
-const HOT_WALK = 16
+// Hot pace, in ticks (4 a second): once a minute it stops, waves its arms and talks for TALK ticks;
+// the rest of the minute it walks for PACE_WALK ticks, then stands still for the rest of PACE.
+const MINUTE = 240
+const TALK = 32
+const PACE = 48
+const PACE_WALK = 32
 
-/** A hot robot moves every other tick, slower than usual; its fire still moves every tick. */
-const isHotStep = (at: number): boolean => at % 2 === 0
-/** Whether a hot robot is in its stop, when it waves its arms and talks. */
-const isHotStop = (at: number): boolean => at % HOT_CYCLE >= HOT_WALK
+/** Ticks into this minute's talk, or -1 outside it. */
+const talkAt = (at: number): number => (at % MINUTE < TALK ? at % MINUTE : -1)
+/** A hot robot moves every other tick, slower than usual, and not while it stands still; its fire moves every tick. */
+const isHotStep = (at: number): boolean => at % 2 === 0 && (talkAt(at) >= 0 || (at % MINUTE - TALK) % PACE < PACE_WALK)
 // Letters typed per tick while it talks.
 const TYPE_SPEED = 2
 
@@ -92,7 +95,7 @@ export const register: Register = (on, options) => {
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     if (at !== shown.at) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
-      const wanted = isHotStop(at) ? 'dance' : 'walk'
+      const wanted = talkAt(at) >= 0 ? 'dance' : 'walk'
       if (isHot && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
         shown.state = { ...shown.state, state: wanted, t: 0, dur: FOREVER }
       } else if (!isHot && shown.state.dur === FOREVER) {
@@ -107,7 +110,7 @@ export const register: Register = (on, options) => {
     }
     if (!shown.frame) return next(e)
     const burning = heated(shown.frame, isHot, at)
-    const frame = isHot && isHotStop(at) ? speech(burning, typedSoFar(sayOf(percent), ((at % HOT_CYCLE) - HOT_WALK + 1) * TYPE_SPEED), columns) : burning
+    const frame = isHot && talkAt(at) >= 0 ? speech(burning, typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns) : burning
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {

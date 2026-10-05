@@ -83,9 +83,11 @@ status line. Once it passes **25%**, the robot drops whatever it was doing:
 - 🔥 **Its head catches fire.** The head turns red, flames burn inside it and
   sparks pop beside it.
 - 😱 **It panics.** Its eyes flick between `O O` and `> <`.
-- 🚶 **It paces.** It walks slowly back and forth, then stops.
-- 🙌 **It talks to you.** At each stop it waves its arms and types the live
-  context percentage, letter by letter: _"/compact me!"_
+- 🚶 **It paces.** It walks slowly back and forth with its head on fire,
+  stopping now and then to catch its breath.
+- 🙌 **It talks to you — once a minute.** It stops, waves its arms and types
+  the live context percentage, letter by letter: _"/compact me!"_ No nagging
+  in between.
 
 Run `/compact` (or `/clear`) and it cools down at once and goes back to its
 normal animations.
