@@ -259,6 +259,26 @@ test('friends never move to the front: near the back edge fewer or none are draw
   expect(rowsOf(withFriends(standing(46), 46, -1, 56, 2, 1))).toEqual(rowsOf(standing(46)))
 })
 
+test('friends stand at the back of a robot that fishes to its left, whatever dir says', () => {
+  const fishing: Frame = ['  ✨   .-----.', '🐟 ~  [o   o]', '~~~~~  /|━━━|\\', '       o   o'].map(raw => [{ text: ' '.repeat(10) + raw, color: DEFAULT_COLOR }])
+  for (const dir of [1, -1] as const) {
+    const row = rowsOf(withFriends(fishing, 10, dir, 60, 2, 1))[3] ?? ''
+
+    expect(robotsIn(withFriends(fishing, 10, dir, 60, 2, 1))).toBe(2)
+    expect(row.indexOf('🤖')).toBeGreaterThan(row.lastIndexOf('o'))
+  }
+})
+
+test('friends of a robot that fishes to its right stand on its left', () => {
+  const fishing: Frame = ['  .-----.  ✨', '  [o   o] ~ 🐟', '  /|━━━|\\  ~~~~~', '   o   o'].map(raw => [{ text: ' '.repeat(30) + raw, color: DEFAULT_COLOR }])
+  for (const dir of [1, -1] as const) {
+    const row = rowsOf(withFriends(fishing, 30, dir, 60, 1, 1))[3] ?? ''
+
+    expect(robotsIn(withFriends(fishing, 30, dir, 60, 1, 1))).toBe(1)
+    expect(row.indexOf('🤖')).toBeLessThan(row.indexOf('o'))
+  }
+})
+
 test('friends never pass the columns', () => {
   for (const [x, columns] of [[0, 60], [2, 60], [20, 60], [40, 56], [45, 56], [2, 30]] as const) {
     for (const dir of [1, -1] as const) {

@@ -312,25 +312,38 @@ const MAX_FRIENDS = 3
 const FRIEND_GAP = 1
 
 /**
- * Adds one 🤖 friend per running subagent (at most three) behind the robot at `x`, on the side opposite its walk
- * `dir` (1 walks right, so they stand on its left), and a `×count` label above them only when more subagents run than friends are drawn. Behind only: when fewer fit
- * before the edge of `columns` it draws fewer, and none when not even one fits. They only ever stand on empty cells,
- * so speech and arms are never overwritten. No friends, no change. `tick` is unused: emoji do not blink.
+ * Adds one 🤖 friend per running subagent (at most three) at the robot's back, with a `×count` label above them only
+ * when more subagents run than friends are drawn. The back is the side of the body the drawing reaches out the least
+ * (the fishing rod, the balloon, the cow are all in front); a tie, such as a plain walk, falls back to `dir` (1 walks
+ * right, so the back is on the left). Behind only: when fewer fit before the edge of `columns` it draws fewer, and
+ * none when not even one fits. They only ever stand on empty cells, so speech and arms are never overwritten.
+ * No friends, no change. `tick` is unused: emoji do not blink.
  */
 export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, count: number, _tick: number): Frame {
   if (count < 1 || frame.length < 4) return frame
   const label = `×${count}`
   // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
   const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
+  // Mirrored acts pad the body to the right of `x`, so find it by its eyes: the head's `[` sits two cells in.
+  const eyes = rows.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
+  const bodyStart = eyes === undefined ? x : eyes - 2
+  const bodyEnd = bodyStart + BODY_END
+  const inks = rows.flatMap(cells => cells.flatMap((cell, at) => (cell.char === ' ' || cell.char === '' ? [] : [at])))
+  const first = Math.min(bodyStart, ...inks)
+  const last = Math.max(bodyEnd, ...inks)
+  const reachLeft = bodyStart - first
+  const reachRight = last - bodyEnd
+  const isLeft = reachLeft === reachRight ? dir === 1 : reachLeft < reachRight
+  const feet = rows.length - 1
   const isFree = (start: number, width: number): boolean =>
-    start >= 0 && start + width <= columns && [1, 2, 3].every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
+    start >= 0 && start + width <= columns && [feet - 2, feet - 1, feet].every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
   const placed = Array.from({ length: Math.min(count, MAX_FRIENDS) }, (_, i) => Math.min(count, MAX_FRIENDS) - i)
     .map(friends => {
       const friendsWidth = friends * (FRIEND_WIDTH + FRIEND_GAP) - FRIEND_GAP
       const hasLabel = count > friends
       const width = Math.max(friendsWidth, hasLabel ? cellsOf(label) : 0)
-      const start = dir === 1 ? x - FRIEND_GAP - width : x + BODY_END + 1 + FRIEND_GAP
-      return { friends, hasLabel, width, start, offset: dir === 1 ? width - friendsWidth : 0 }
+      const start = isLeft ? first - FRIEND_GAP - width : last + 1 + FRIEND_GAP
+      return { friends, hasLabel, width, start, offset: isLeft ? width - friendsWidth : 0 }
     })
     .find(({ start, width }) => isFree(start, width))
   if (!placed) return frame
@@ -345,7 +358,7 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
       cell += cellsOf(char)
     }
   }
-  if (placed.hasLabel) put(2, placed.start, label)
-  for (let i = 0; i < placed.friends; i++) put(3, placed.start + placed.offset + i * (FRIEND_WIDTH + FRIEND_GAP), FRIEND)
+  if (placed.hasLabel) put(feet - 1, placed.start, label)
+  for (let i = 0; i < placed.friends; i++) put(feet, placed.start + placed.offset + i * (FRIEND_WIDTH + FRIEND_GAP), FRIEND)
   return rows.map(spansOfCells)
 }
