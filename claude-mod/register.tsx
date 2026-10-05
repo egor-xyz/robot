@@ -11,7 +11,7 @@ const ROWS = 4
 const BODY_CELLS = 10
 const MIN_TRACK = 12
 const HEAT_MS = 2000
-// Context usage (percent) at which the head turns red and catches fire.
+// Default context usage (percent) at which the head catches fire; the `hotAt` option overrides it.
 const HOT_AT = 25
 // An animation that never ends by itself: how the robot is held walking or dancing while hot.
 const FOREVER = Number.MAX_SAFE_INTEGER
@@ -41,7 +41,9 @@ const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
+
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt' })
@@ -85,7 +87,7 @@ export const register: Register = on => {
     }
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
-    const isHot = percent >= HOT_AT
+    const isHot = percent >= hotAt
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     if (at !== shown.at) {
