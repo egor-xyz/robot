@@ -216,7 +216,7 @@ export const register: Register = (on, options) => {
       const robot = isHot && talkAt(at) >= 0
         ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
         : heated(shown.frame, isHot, at)
-      frame = withFriends(robot, shown.state.pos, columns, subagents, at)
+      frame = withFriends(robot, shown.state.pos, shown.state.dir, columns, subagents, at)
     }
 
     const els = $.ui.resolve(e)

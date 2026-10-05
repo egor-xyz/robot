@@ -220,47 +220,50 @@ test('a celebration never passes the columns', () => {
 
 const standing = (x: number): Frame =>
   ['  .-----.', '  [o   o]', '  /|━━━|\\', '   o   o'].map(raw => [{ text: ' '.repeat(x) + raw, color: DEFAULT_COLOR }])
-const minisIn = (frame: Frame) => (rowsOf(frame)[3]?.match(/\/ \\/g) ?? []).length
+const robotsIn = (frame: Frame) => (rowsOf(frame)[3]?.match(/🤖/g) ?? []).length
 
 test('no running subagents leaves the frame as it was', () => {
   const frame = standing(20)
 
-  expect(withFriends(frame, 20, 60, 0, 1)).toBe(frame)
+  expect(withFriends(frame, 20, 1, 60, 0, 1)).toBe(frame)
 })
 
-test('two subagents bring two small robots and a ×2 label', () => {
-  const rows = rowsOf(withFriends(standing(20), 20, 60, 2, 1))
+test('friends stand left of the robot when it walks right, and right of it when it walks left', () => {
+  const right = rowsOf(withFriends(standing(20), 20, 1, 60, 2, 1))
+  expect(robotsIn(withFriends(standing(20), 20, 1, 60, 2, 1))).toBe(2)
+  expect(right[3]?.lastIndexOf('🤖')).toBeLessThan(right[3]?.indexOf('o') ?? 0)
+  expect(right[2]).not.toContain('×')
 
-  expect(minisIn(withFriends(standing(20), 20, 60, 2, 1))).toBe(2)
-  expect(rows[2]?.match(/\[•\]/g)).toHaveLength(2)
-  expect(rows[1]).toContain('×2')
-  expect(rows[1]?.indexOf('×2')).toBeLessThan(rows[1]?.indexOf('[') ?? 0)
+  const left = rowsOf(withFriends(standing(20), 20, -1, 60, 2, 1))
+  expect(robotsIn(withFriends(standing(20), 20, -1, 60, 2, 1))).toBe(2)
+  expect(left[3]?.indexOf('🤖')).toBeGreaterThan(left[3]?.lastIndexOf('o') ?? 99)
+  expect(left[2]).not.toContain('×')
 })
 
-test('seven subagents still draw three small robots, but the label counts all seven', () => {
-  const frame = withFriends(standing(20), 20, 60, 7, 1)
+test('seven subagents still draw three robots, and only then a label counts all seven', () => {
+  for (const dir of [1, -1] as const) {
+    const frame = withFriends(standing(20), 20, dir, 60, 7, 1)
 
-  expect(minisIn(frame)).toBe(3)
-  expect(rowsOf(frame)[1]).toContain('×7')
+    expect(robotsIn(frame)).toBe(3)
+    expect(rowsOf(frame)[2]).toContain('×7')
+  }
 })
 
-test('the friends eyes blink as the ticks pass', () => {
-  expect(rowsOf(withFriends(standing(20), 20, 60, 1, 0))[2]).toContain('[-]')
-  expect(rowsOf(withFriends(standing(20), 20, 60, 1, 1))[2]).toContain('[•]')
-})
+test('friends never move to the front: near the back edge fewer or none are drawn', () => {
+  const some = withFriends(standing(5), 5, 1, 60, 3, 1)
+  expect(robotsIn(some)).toBeGreaterThan(0)
+  expect(robotsIn(some)).toBeLessThan(3)
+  expect(rowsOf(some)[3]?.lastIndexOf('🤖')).toBeLessThan(5)
 
-test('the friends move to the right of the robot near the left edge, and vanish when nothing fits', () => {
-  const near = rowsOf(withFriends(standing(2), 2, 60, 2, 1))
-  expect(near[2]?.indexOf('[•]')).toBeGreaterThan(near[1]?.indexOf('[') ?? 99)
-
-  expect(rowsOf(withFriends(standing(2), 2, 14, 2, 1))).toEqual(rowsOf(standing(2)))
+  expect(rowsOf(withFriends(standing(2), 2, 1, 60, 2, 1))).toEqual(rowsOf(standing(2)))
+  expect(rowsOf(withFriends(standing(46), 46, -1, 56, 2, 1))).toEqual(rowsOf(standing(46)))
 })
 
 test('friends never pass the columns', () => {
   for (const [x, columns] of [[0, 60], [2, 60], [20, 60], [40, 56], [45, 56], [2, 30]] as const) {
-    for (const count of [1, 3, 7, 12]) {
-      for (let t = 0; t < 8; t++) {
-        for (const row of withFriends(standing(x), x, columns, count, t)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
+    for (const dir of [1, -1] as const) {
+      for (const count of [1, 3, 7, 12]) {
+        for (const row of withFriends(standing(x), x, dir, columns, count, 0)) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
       }
     }
   }

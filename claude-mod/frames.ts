@@ -303,47 +303,50 @@ export function celebrating(x: number, columns: number, act: 'commit' | 'push', 
   })
 }
 
-// A friend is a three-cell, two-row mini robot; its eyes blink with the tick.
-const FRIEND_WIDTH = 3
+// A friend is one 🤖, two cells wide, on the feet row.
+const FRIEND = '🤖'
+const FRIEND_WIDTH = 2
 // Most friends drawn at once; the label still counts them all.
 const MAX_FRIENDS = 3
 // Empty cells between friends, and between the robot and its nearest friend.
 const FRIEND_GAP = 1
-const FRIEND_COLOR = 81
 
 /**
- * Adds one small robot friend per running subagent (at most three) beside the robot at `x`, with a `×count` label
- * above them: on its left, or on its right when the left has no room, or nowhere when neither fits `columns`.
- * They only ever stand on empty cells, so speech and arms are never overwritten. No friends, no change.
+ * Adds one 🤖 friend per running subagent (at most three) behind the robot at `x`, on the side opposite its walk
+ * `dir` (1 walks right, so they stand on its left), and a `×count` label above them only when more subagents run than friends are drawn. Behind only: when fewer fit
+ * before the edge of `columns` it draws fewer, and none when not even one fits. They only ever stand on empty cells,
+ * so speech and arms are never overwritten. No friends, no change. `tick` is unused: emoji do not blink.
  */
-export function withFriends(frame: Frame, x: number, columns: number, count: number, tick: number): Frame {
-  if (count < 1) return frame
-  const friends = Math.min(count, MAX_FRIENDS)
+export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, count: number, _tick: number): Frame {
+  if (count < 1 || frame.length < 4) return frame
   const label = `×${count}`
-  const width = Math.max(friends * (FRIEND_WIDTH + FRIEND_GAP) - FRIEND_GAP, cellsOf(label))
-  const rows = frame.map(cellsOfFrameRow)
-  const isFree = (start: number): boolean =>
+  // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
+  const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
+  const isFree = (start: number, width: number): boolean =>
     start >= 0 && start + width <= columns && [1, 2, 3].every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
-  const left = x - FRIEND_GAP - width
-  const right = x + BODY_END + 1 + FRIEND_GAP
-  const start = [left, right].find(isFree)
-  if (start === undefined || frame.length < 4) return frame
-
-  const color = hexOf(FRIEND_COLOR)
-  const put = (row: number, at: number, text: string, textColor: string) => {
-    const cells = rows[row] ?? []
-    while (cells.length < at + [...text].length) cells.push({ char: ' ', color: DEFAULT_COLOR })
-    ;[...text].forEach((char, i) => {
-      cells[at + i] = { char, color: textColor }
+  const placed = Array.from({ length: Math.min(count, MAX_FRIENDS) }, (_, i) => Math.min(count, MAX_FRIENDS) - i)
+    .map(friends => {
+      const friendsWidth = friends * (FRIEND_WIDTH + FRIEND_GAP) - FRIEND_GAP
+      const hasLabel = count > friends
+      const width = Math.max(friendsWidth, hasLabel ? cellsOf(label) : 0)
+      const start = dir === 1 ? x - FRIEND_GAP - width : x + BODY_END + 1 + FRIEND_GAP
+      return { friends, hasLabel, width, start, offset: dir === 1 ? width - friendsWidth : 0 }
     })
+    .find(({ start, width }) => isFree(start, width))
+  if (!placed) return frame
+
+  const put = (row: number, at: number, text: string) => {
+    const cells = rows[row] ?? []
+    while (cells.length < at + cellsOf(text)) cells.push({ char: ' ', color: DEFAULT_COLOR })
+    let cell = at
+    for (const char of text) {
+      cells[cell] = { char, color: DEFAULT_COLOR }
+      if (cellsOf(char) === 2) cells[cell + 1] = { char: '', color: DEFAULT_COLOR }
+      cell += cellsOf(char)
+    }
   }
-  put(1, start, label, DEFAULT_COLOR)
-  for (let i = 0; i < friends; i++) {
-    const at = start + i * (FRIEND_WIDTH + FRIEND_GAP)
-    const isBlinking = (tick + 3 * i) % 8 === 0
-    put(2, at, isBlinking ? '[-]' : '[•]', color)
-    put(3, at, '/ \\', color)
-  }
+  if (placed.hasLabel) put(2, placed.start, label)
+  for (let i = 0; i < placed.friends; i++) put(3, placed.start + placed.offset + i * (FRIEND_WIDTH + FRIEND_GAP), FRIEND)
   return rows.map(spansOfCells)
 }
 
