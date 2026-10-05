@@ -85,16 +85,15 @@ status line. Once it passes **25%**, the robot drops whatever it was doing:
 - 😱 **It panics.** Its eyes flick between `O O` and `> <`.
 - 🚶 **It paces.** It walks slowly back and forth with its head on fire,
   stopping now and then to catch its breath.
-- 🙌 **It talks to you — once a minute.** It stops, waves its arms and types
+- 🙌 **It talks to you — every 30 seconds.** It stops, waves its arms and types
   the live context percentage, letter by letter: _"/compact me!"_ No nagging
   in between.
 
 Run `/compact` (or `/clear`) and it cools down at once and goes back to its
 normal animations.
 
-**Change when it catches fire:** open `/plugin` → **Installed** → **robot** → **Configure**, set **Fire at (% context, default 25)**
-under the robot plugin, and set any value from 1 to 100 (default `25`; `100`
-practically turns the fire off).
+**Change when it catches fire:** open `/plugin` → **Installed** → **robot** → **Configure**, and set **Fire at (% context, default 25)**
+to any value from 1 to 100 (`100` practically turns the fire off).
 
 ---
 

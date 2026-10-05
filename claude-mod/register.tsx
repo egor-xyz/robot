@@ -15,17 +15,17 @@ const HEAT_MS = 2000
 const HOT_AT = 25
 // An animation that never ends by itself: how the robot is held walking or dancing while hot.
 const FOREVER = Number.MAX_SAFE_INTEGER
-// Hot pace, in ticks (4 a second): once a minute it stops, waves its arms and talks for TALK ticks;
-// the rest of the minute it walks for PACE_WALK ticks, then stands still for the rest of PACE.
-const MINUTE = 240
+// Hot pace, in ticks (4 a second): every 30 seconds it stops, waves its arms and talks for TALK ticks;
+// the rest of the time it walks for PACE_WALK ticks, then stands still for the rest of PACE.
+const TALK_EVERY = 120
 const TALK = 32
 const PACE = 48
 const PACE_WALK = 32
 
-/** Ticks into this minute's talk, or -1 outside it. */
-const talkAt = (at: number): number => (at % MINUTE < TALK ? at % MINUTE : -1)
+/** Ticks into the current talk, or -1 outside it. */
+const talkAt = (at: number): number => (at % TALK_EVERY < TALK ? at % TALK_EVERY : -1)
 /** A hot robot moves every other tick, slower than usual, and not while it stands still; its fire moves every tick. */
-const isHotStep = (at: number): boolean => at % 2 === 0 && (talkAt(at) >= 0 || (at % MINUTE - TALK) % PACE < PACE_WALK)
+const isHotStep = (at: number): boolean => at % 2 === 0 && (talkAt(at) >= 0 || (at % TALK_EVERY - TALK) % PACE < PACE_WALK)
 // Letters typed per tick while it talks.
 const TYPE_SPEED = 2
 
