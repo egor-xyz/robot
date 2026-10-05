@@ -18,7 +18,13 @@ robot.plugin.zsh      plugin manager entry — sets fpath + autoloads
 install.sh            curl one-liner installer (clones to ~/.robot, patches .zshrc)
 functions/robot       the TUI: screensaver loop + settings panel
 functions/crazy-robot animation component, called per frame by robot
+.claude-plugin/       Claude Code plugin + marketplace manifests (repo root = plugin root)
+claude-mod/           Claude Code mod: runs functions/crazy-robot, draws frames above the prompt
 ```
+
+The Claude Code mod reuses `functions/crazy-robot` as is — a new animation shows
+up there with no mod change. Check it with `claude plugin validate .` and
+`claude plugin test .`.
 
 Function files use zsh autoload convention: file name = function name, no
 `function foo()` wrapper, body is the function body. First line is the

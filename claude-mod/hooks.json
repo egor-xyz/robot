@@ -1,0 +1,4 @@
+{
+  "description": "Draws crazy-robot frames across the AbovePrompt band; /robot toggles it",
+  "modules": ["./register.tsx"]
+}

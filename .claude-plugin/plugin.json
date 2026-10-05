@@ -1,0 +1,13 @@
+{
+  "name": "robot",
+  "version": "0.1.0",
+  "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
+  "author": {
+    "name": "egor-xyz",
+    "url": "https://github.com/egor-xyz"
+  },
+  "homepage": "https://github.com/egor-xyz/robot",
+  "license": "MIT",
+  "hooks": "./claude-mod/hooks.json",
+  "types": "./claude-mod/types/index.d.ts"
+}

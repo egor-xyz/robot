@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "robot",
+  "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
+  "owner": {
+    "name": "egor-xyz",
+    "url": "https://github.com/egor-xyz"
+  },
+  "plugins": [
+    {
+      "name": "robot",
+      "source": "./",
+      "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal"
+    }
+  ]
+}
