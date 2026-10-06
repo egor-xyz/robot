@@ -20,10 +20,13 @@ A [Claude Code](https://claude.com/claude-code) mod with an ASCII robot mascot.
 It walks the full width of the band above your prompt, blinks, waves, naps under
 the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO.
 
-It also follows what Claude Code does. When the context gets too big, its head
-catches fire. When the conversation compacts, it packs itself into a box. When
-Claude asks you something, it steps aside. When Claude commits or pushes with
-git, it cheers. When Claude runs subagents, it brings little WALL-E friends: one small robot per subagent.
+It also follows what Claude Code does:
+
+- 🔥 **Context too big?** Its head catches fire.
+- 📦 **Compacting?** It packs itself into a box.
+- 🙈 **Claude asks you something?** It steps aside.
+- ✅ **Git commit or push?** It cheers.
+- 👯 **Subagents running?** Little WALL-E friends roll in, one per agent.
 
 ```text
   .-----.  🐟
@@ -87,7 +90,7 @@ The robot listens to Claude Code events and acts on them:
 | asks you a question or shows a survey          | steps aside so it does not get in the way                              |
 | clears or compacts a hot context               | cools down and goes back to play                                       |
 | commits or pushes with git                     | stamps a ✅ or waves off a 🚀 for 3 seconds                              |
-| runs subagents                                 | rolls in a small WALL-E friend per agent, and rolls it away at the end |
+| runs subagents                                 | rolls in a WALL-E friend per agent — [more](#-subagent-friends)          |
 
 ---
 
@@ -137,6 +140,29 @@ auto-compact — the robot steps to the middle and packs itself into a box, one 
 - 🦵 **Legs first**, then 🦾 **its body**, then its 🙂 **head hops in**.
 - 📦 **The lid closes**, the box shakes, then it climbs back out and packs again — a loop for as long as the compaction runs, while it says _"compacting… hold on!"_
 - When the compaction ends, it jumps out and goes back to what it did before.
+
+---
+
+## 👯 Subagent friends
+
+When Claude runs subagents, each one is a small WALL-E robot at the robot's back:
+
+```text
+                           .-----.
+   (o)(o) (-)(-) (O)(o)    [o   o]
+   =[##]= =[##]= =[##]=    /|━━━|\
++2 (oooo) (oooo) (oooo)     o   o
+```
+
+- 🛞 **They roll in** from the edge when an agent starts. Their wheels pulse, the same as the robot's.
+- 👀 **They are alive.** They blink, look around and stretch their necks up now and then.
+- 🎉 **They hop** when the robot cheers a git commit or push.
+- 🔥 **They panic too.** When the context is on fire, their eyes go wide.
+- ➕ **Three at most.** With more agents, a `+1`, `+2`… shows how many more run.
+- 👋 **They roll away** when their agent ends.
+
+They always stand on the side away from what the robot does, so they never block the fishing rod or the
+balloon. They sit out the cat act.
 
 ---
 
