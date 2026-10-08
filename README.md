@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="800" height="197" alt="CleanShot 2026-06-04 at 17 50 43" src="https://github.com/user-attachments/assets/dd10b07b-96f8-4d6f-824d-78947dfc4b27" />
+<a href="docs/media/egor-xyz-robot-demo.mp4"><img width="800" alt="The robot chills above the Claude Code prompt" src="docs/media/egor-xyz-robot-demo.gif" /></a>
 
 
 
