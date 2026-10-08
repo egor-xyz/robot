@@ -296,7 +296,7 @@ function ufoOf(s: RobotState): { raw: string; pad: number } {
   if (ut === 1) {
     return rows(
       `${sp(meet)}🛸${sp(pos + 7 - meet)}.-----.`,
-      `${sp(meet - 1)}\\  /${sp(pos + 6 - meet)}[O   O]`,
+      `${sp(meet - 1)}/  \\${sp(pos + 6 - meet)}[O   O]`,
       body,
       `${sp(meet)}🐄${sp(pos + 8 - meet)}o   o`,
     )
@@ -304,7 +304,7 @@ function ufoOf(s: RobotState): { raw: string; pad: number } {
   if (ut === 2) {
     return rows(
       `${sp(meet)}🛸${sp(pos + 7 - meet)}.-----.`,
-      `${sp(meet - 1)}\\  /${sp(pos + 6 - meet)}[O   O]`,
+      `${sp(meet - 1)}/  \\${sp(pos + 6 - meet)}[O   O]`,
       `${sp(meet)}🐄${sp(pos + 7 - meet)}/|━━━|\\`,
       feet,
     )
