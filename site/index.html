@@ -92,15 +92,15 @@ pre { margin: 0; }
 /* ---------- type ---------- */
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
 .eyebrow { font-family: var(--mono); font-size: 13px; color: var(--c, var(--ufo)); letter-spacing: .03em; }
-h1, h2, h3 { margin: 0; letter-spacing: -0.035em; }
-h2 { font-size: clamp(2.2rem, 5.6vw, 4.3rem); line-height: 1.04; font-weight: 800; }
+h1, h2, h3 { margin: 0; letter-spacing: -0.03em; }
+h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 800; }
 .lead { color: var(--muted); font-size: clamp(1.1rem, 1.6vw, 1.35rem); line-height: 1.5; margin: 0; }
 .rb { background: var(--rainbow); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: slide 8s linear infinite; }
 @keyframes slide { to { background-position: 200% 0; } }
 
 /* ---------- hero ---------- */
 .hero { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 26px; padding: 96px 16px 64px; }
-.hero h1 { font-size: clamp(3.4rem, 12vw, 9rem); line-height: .95; font-weight: 800; }
+.hero h1 { font-size: clamp(3.4rem, 12vw, 9rem); line-height: 1.02; font-weight: 800; }
 .hero h1 .rb { filter: drop-shadow(0 3px 0 #6b2c00) drop-shadow(0 3px 0 #3d1900) drop-shadow(0 24px 40px rgba(255,135,0,.35)); }
 .hero .lead { max-width: 640px; }
 .pill { font-family: var(--mono); font-size: 13px; color: var(--fg); padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
@@ -185,6 +185,12 @@ h2 { font-size: clamp(2.2rem, 5.6vw, 4.3rem); line-height: 1.04; font-weight: 80
 .step-body code { font-size: 15px; color: var(--fg); white-space: nowrap; overflow-x: auto; padding-bottom: 2px; }
 .step-body code b { color: var(--c); font-weight: 400; }
 .step-body .plain { font-size: 16px; color: var(--fg); }
+/* Phone: the command gets the full row, the Copy button goes under it. */
+@media (max-width: 560px) {
+  .step { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px 14px; align-items: start; }
+  .step .copy { grid-column: 2; justify-self: start; min-height: 40px; }
+  .step-body code { font-size: 14px; white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+}
 .copy { flex: none; font-family: var(--mono); font-size: 13px; color: var(--fg); background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 999px; min-height: 44px; min-width: 92px; padding: 0 16px; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
 .copy:hover { background: color-mix(in srgb, var(--c) 22%, transparent); border-color: color-mix(in srgb, var(--c) 50%, transparent); }
 .copy.done { color: var(--goal); }
@@ -201,10 +207,10 @@ h2 { font-size: clamp(2.2rem, 5.6vw, 4.3rem); line-height: 1.04; font-weight: 80
 .keys dl > div { display: flex; align-items: center; gap: 18px; padding: 12px 0; border-top: 1px solid var(--line); }
 .keys dl > div:first-child { border-top: 0; }
 .keys dt { flex: none; width: 112px; display: flex; gap: 6px; }
+@media (max-width: 560px) { .keys { padding: 22px 18px; } .keys dt { width: 92px; } .keys dl > div { gap: 12px; } }
 .keys dd { margin: 0; color: var(--muted); font-size: 16px; }
 kbd { font-size: 14px; color: var(--fg); min-width: 34px; height: 34px; padding: 0 10px; display: inline-grid; place-items: center; border-radius: 9px;
   background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05)); border: 1px solid var(--line); box-shadow: inset 0 -3px 0 rgba(0,0,0,.45), 0 2px 0 rgba(0,0,0,.4); }
-.keys dd kbd { min-width: 26px; height: 26px; padding: 0 7px; font-size: 13px; }
 
 /* ---------- footer ---------- */
 footer { padding: 48px 0 64px; color: var(--faint); font-size: 15px; }
@@ -512,7 +518,7 @@ o|━━━|o   📸
       <div class="keys panel reveal" style="--c:var(--concert)">
         <h3>Keys</h3>
         <dl>
-          <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Next or previous animation. <kbd>k</kbd> <kbd>j</kbd> work too.</dd></div>
+          <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Next or previous animation. Also k and j.</dd></div>
           <div><dt><kbd>Space</kbd></dt><dd>Play the slot machine.</dd></div>
           <div><dt><kbd>→</kbd></dt><dd>Open the settings.</dd></div>
           <div><dt><kbd>←</kbd></dt><dd>Back to the robot.</dd></div>
