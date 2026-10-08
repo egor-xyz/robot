@@ -370,10 +370,10 @@ case $_robot_state in
       raw="$(_wt_sp $_um)🛸$(_wt_sp $(( _robot_pos + 7 - _um ))).-----."$'\n'"${_upr}[o   o]"$'\n'"${_body}"$'\n'"$(_wt_sp $_um)🐄$(_wt_sp $(( _robot_pos + 8 - _um )))o   o"
     elif (( _ut == 1 )); then
       # Beam on.
-      raw="$(_wt_sp $_um)🛸$(_wt_sp $(( _robot_pos + 7 - _um ))).-----."$'\n'"$(_wt_sp $(( _um - 1 )))\\  /$(_wt_sp $(( _robot_pos + 6 - _um )))[O   O]"$'\n'"${_body}"$'\n'"$(_wt_sp $_um)🐄$(_wt_sp $(( _robot_pos + 8 - _um )))o   o"
+      raw="$(_wt_sp $_um)🛸$(_wt_sp $(( _robot_pos + 7 - _um ))).-----."$'\n'"$(_wt_sp $(( _um - 1 )))/  \\$(_wt_sp $(( _robot_pos + 6 - _um )))[O   O]"$'\n'"${_body}"$'\n'"$(_wt_sp $_um)🐄$(_wt_sp $(( _robot_pos + 8 - _um )))o   o"
     elif (( _ut == 2 )); then
       # Cow halfway up.
-      raw="$(_wt_sp $_um)🛸$(_wt_sp $(( _robot_pos + 7 - _um ))).-----."$'\n'"$(_wt_sp $(( _um - 1 )))\\  /$(_wt_sp $(( _robot_pos + 6 - _um )))[O   O]"$'\n'"$(_wt_sp $_um)🐄$(_wt_sp $(( _robot_pos + 7 - _um )))/|━━━|\\"$'\n'"${_feet}"
+      raw="$(_wt_sp $_um)🛸$(_wt_sp $(( _robot_pos + 7 - _um ))).-----."$'\n'"$(_wt_sp $(( _um - 1 )))/  \\$(_wt_sp $(( _robot_pos + 6 - _um )))[O   O]"$'\n'"$(_wt_sp $_um)🐄$(_wt_sp $(( _robot_pos + 7 - _um )))/|━━━|\\"$'\n'"${_feet}"
     elif (( _ut == 3 )); then
       # Cow at the ship.
       raw="$(_wt_sp $_um)🛸$(_wt_sp $(( _robot_pos + 7 - _um ))).-----."$'\n'"$(_wt_sp $_um)🐄$(_wt_sp $(( _robot_pos + 7 - _um )))[O   O]"$'\n'"${_body}"$'\n'"${_feet}"
