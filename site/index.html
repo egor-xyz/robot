@@ -151,11 +151,10 @@ h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 80
 
 /* ---------- act previews: CSS-only marquee, tilted in 3D ---------- */
 .acts { padding-bottom: 80px; }
-.marquee { padding: 10px 0 60px; overflow: hidden; perspective: 1000px; }
+.marquee { padding: 40px 0 70px; overflow-x: clip; overflow-y: visible; perspective: 1000px; }
 .tilted { display: flex; flex-direction: column; gap: 22px; transform: rotateX(16deg) rotateZ(-3deg) scale(1.06); }
-.row { display: flex; gap: 20px; width: max-content; animation: run 60s linear infinite; }
-.row.rev { animation-direction: reverse; animation-duration: 70s; }
-.marquee:hover .row { animation-play-state: paused; }
+.row { display: flex; gap: 20px; width: max-content; animation: run 120s linear infinite; }
+.row.rev { animation-direction: reverse; animation-duration: 140s; }
 @keyframes run { to { transform: translateX(calc(-50% - 10px)); } }
 .act { --c: var(--walk); margin: 0; flex: none; min-width: 210px; padding: 18px 20px 14px; border-radius: 22px; display: flex; flex-direction: column; gap: 12px;
   background: linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, rgba(12,12,16,.85)), rgba(12,12,16,.85) 70%);
@@ -293,7 +292,7 @@ footer nav { display: flex; gap: 20px; }
       <div class="reveal"><article class="card panel tilt" style="--c:var(--fire)">
         <pre class="art">  .🔥-🔥.
   [O   O]   <span style="color:var(--fg)">context 31%</span>
-  /|━━━|\   <span style="color:var(--fg)">/compact me!</span>
+  /|───|\   <span style="color:var(--fg)">/compact me!</span>
    o   o</pre>
         <h3>Context too big?</h3>
         <p>Past 25% context, its head catches fire. It paces, panics and asks you to <code>/compact</code>.</p>
@@ -309,7 +308,7 @@ footer nav { display: flex; gap: 20px; }
       <div class="reveal"><article class="card panel tilt" style="--c:var(--ufo)">
         <pre class="art">(o)(o)    <span style="color:var(--walk)">.-----.</span>
 =[##]=    <span style="color:var(--walk)">[o   o]</span>
-(oooo)    <span style="color:var(--walk)">/|━━━|\</span></pre>
+(oooo)    <span style="color:var(--walk)">/|───|\</span></pre>
         <h3>Subagents running?</h3>
         <p>A WALL-E friend rolls in for each agent. Past three, a <code>+N</code>.</p>
       </article></div>
@@ -329,7 +328,7 @@ footer nav { display: flex; gap: 20px; }
       <div class="reveal"><article class="card panel tilt" style="--c:var(--ufo)">
         <pre class="art">  🛸       <span style="color:var(--walk)">.-----.</span>
  /  \      <span style="color:var(--walk)">[O   O]</span>
-  🐄       <span style="color:var(--walk)">/|━━━|\</span></pre>
+  🐄       <span style="color:var(--walk)">/|───|\</span></pre>
         <h3>Nothing going on?</h3>
         <p>It plays: 20+ hand-drawn acts, like a UFO taking a cow.</p>
       </article></div>
@@ -350,108 +349,214 @@ footer nav { display: flex; gap: 20px; }
     <div class="row">
       <figure class="act" style="--c:#ff8700"><pre>.-----.
 [o   o]
-/|━━━|\
+/|───|\
  o   o</pre><figcaption>walk</figcaption></figure><figure class="act" style="--c:#ffd700"><pre>.-----.\o
 [o   o]
- |━━━|
+ |───|
  o   o</pre><figcaption>wave</figcaption></figure><figure class="act" style="--c:#5f5fff"><pre>.-----.
 [- _ -]
-/|━━━|\
+/|───|\
  o   o</pre><figcaption>sleep</figcaption></figure><figure class="act" style="--c:#ff87ff"><pre>.-----.
 [o   o]
-/|━u━|\
+/|─u─|\
  o   o</pre><figcaption>smile</figcaption></figure><figure class="act" style="--c:#5fff00"><pre>.-----.
 [O   O]
- |━━━|
+ |───|
  '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff"><pre>.-----.     🌕
 [- - O]  ==o
-/|━━━|\  |
+/|───|\  |
  o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00"><pre>.-----.  🏀
 [⌐   ⌐]  --|_|
-/|━━━|━    |
+/|───|─    |
  o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f"><pre>.-----.
 [o   o]  ·
-/|━━━|━━o
+/|───|──o
  o   o  💥</pre><figcaption>campfire</figcaption></figure>
       <figure class="act" style="--c:#ff8700" aria-hidden="true"><pre>.-----.
 [o   o]
-/|━━━|\
+/|───|\
  o   o</pre><figcaption>walk</figcaption></figure><figure class="act" style="--c:#ffd700" aria-hidden="true"><pre>.-----.\o
 [o   o]
- |━━━|
+ |───|
  o   o</pre><figcaption>wave</figcaption></figure><figure class="act" style="--c:#5f5fff" aria-hidden="true"><pre>.-----.
 [- _ -]
-/|━━━|\
+/|───|\
  o   o</pre><figcaption>sleep</figcaption></figure><figure class="act" style="--c:#ff87ff" aria-hidden="true"><pre>.-----.
 [o   o]
-/|━u━|\
+/|─u─|\
  o   o</pre><figcaption>smile</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>.-----.
 [O   O]
- |━━━|
+ |───|
  '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff" aria-hidden="true"><pre>.-----.     🌕
 [- - O]  ==o
-/|━━━|\  |
+/|───|\  |
  o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00" aria-hidden="true"><pre>.-----.  🏀
 [⌐   ⌐]  --|_|
-/|━━━|━    |
+/|───|─    |
  o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f" aria-hidden="true"><pre>.-----.
 [o   o]  ·
-/|━━━|━━o
+/|───|──o
+ o   o  💥</pre><figcaption>campfire</figcaption></figure>
+      <figure class="act" aria-hidden="true" style="--c:#ff8700"><pre>.-----.
+[o   o]
+/|───|\
+ o   o</pre><figcaption>walk</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffd700"><pre>.-----.\o
+[o   o]
+ |───|
+ o   o</pre><figcaption>wave</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5f5fff"><pre>.-----.
+[- _ -]
+/|───|\
+ o   o</pre><figcaption>sleep</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ff87ff"><pre>.-----.
+[o   o]
+/|─u─|\
+ o   o</pre><figcaption>smile</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fff00"><pre>.-----.
+[O   O]
+ |───|
+ '   '</pre><figcaption>jump</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fafff"><pre>.-----.     🌕
+[- - O]  ==o
+/|───|\  |
+ o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffaf00"><pre>.-----.  🏀
+[⌐   ⌐]  --|_|
+/|───|─    |
+ o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ff5f5f"><pre>.-----.
+[o   o]  ·
+/|───|──o
+ o   o  💥</pre><figcaption>campfire</figcaption></figure>
+      <figure class="act" style="--c:#ff8700" aria-hidden="true"><pre>.-----.
+[o   o]
+/|───|\
+ o   o</pre><figcaption>walk</figcaption></figure><figure class="act" style="--c:#ffd700" aria-hidden="true"><pre>.-----.\o
+[o   o]
+ |───|
+ o   o</pre><figcaption>wave</figcaption></figure><figure class="act" style="--c:#5f5fff" aria-hidden="true"><pre>.-----.
+[- _ -]
+/|───|\
+ o   o</pre><figcaption>sleep</figcaption></figure><figure class="act" style="--c:#ff87ff" aria-hidden="true"><pre>.-----.
+[o   o]
+/|─u─|\
+ o   o</pre><figcaption>smile</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>.-----.
+[O   O]
+ |───|
+ '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff" aria-hidden="true"><pre>.-----.     🌕
+[- - O]  ==o
+/|───|\  |
+ o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00" aria-hidden="true"><pre>.-----.  🏀
+[⌐   ⌐]  --|_|
+/|───|─    |
+ o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f" aria-hidden="true"><pre>.-----.
+[o   o]  ·
+/|───|──o
  o   o  💥</pre><figcaption>campfire</figcaption></figure>
     </div>
     <div class="row rev">
       <figure class="act" style="--c:#00afff"><pre>.-----.
 [-   -]
-/|━━━|━━━\
+/|───|───\
  o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" style="--c:#d7875f"><pre>.-----.
 [-   -] ~
-/|━━━|━☕
+/|───|─☕
  o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" style="--c:#87d787"><pre>.-----.
 [o   o]
-/|━━━|━o
+/|───|─o
  o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff"><pre>.-----.\o  🎈
 [O   O]
- |━━━|
+ |───|
  o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00"><pre>\.-----./
  [^   ^]  ______
-  |━━━|   |: : :|
+  |───|   |: : :|
   o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff"><pre>    .-----.
 🎵  [o   o]
-  🎤━|━━━|\
+  🎤─|───|\
      o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7"><pre>.-----.
 [O   O]   ✨
-o|━━━|o   📸
+o|───|o   📸
  o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff"><pre> 🛸      .-----.
 /  \     [O   O]
- 🐄      /|━━━|\
+ 🐄      /|───|\
           o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" style="--c:#ff87ff"><pre>/\   /\
 .-----.
 [- - -]
 </pre><figcaption>cat peek</figcaption></figure>
       <figure class="act" style="--c:#00afff" aria-hidden="true"><pre>.-----.
 [-   -]
-/|━━━|━━━\
+/|───|───\
  o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" style="--c:#d7875f" aria-hidden="true"><pre>.-----.
 [-   -] ~
-/|━━━|━☕
+/|───|─☕
  o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" style="--c:#87d787" aria-hidden="true"><pre>.-----.
 [o   o]
-/|━━━|━o
+/|───|─o
  o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff" aria-hidden="true"><pre>.-----.\o  🎈
 [O   O]
- |━━━|
+ |───|
  o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>\.-----./
  [^   ^]  ______
-  |━━━|   |: : :|
+  |───|   |: : :|
   o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff" aria-hidden="true"><pre>    .-----.
 🎵  [o   o]
-  🎤━|━━━|\
+  🎤─|───|\
      o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7" aria-hidden="true"><pre>.-----.
 [O   O]   ✨
-o|━━━|o   📸
+o|───|o   📸
  o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff" aria-hidden="true"><pre> 🛸      .-----.
 /  \     [O   O]
- 🐄      /|━━━|\
+ 🐄      /|───|\
+          o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" style="--c:#ff87ff" aria-hidden="true"><pre>/\   /\
+.-----.
+[- - -]
+</pre><figcaption>cat peek</figcaption></figure>
+      <figure class="act" aria-hidden="true" style="--c:#00afff"><pre>.-----.
+[-   -]
+/|───|───\
+ o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#d7875f"><pre>.-----.
+[-   -] ~
+/|───|─☕
+ o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#87d787"><pre>.-----.
+[o   o]
+/|───|─o
+ o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffafff"><pre>.-----.\o  🎈
+[O   O]
+ |───|
+ o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fff00"><pre>\.-----./
+ [^   ^]  ______
+  |───|   |: : :|
+  o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#af5fff"><pre>    .-----.
+🎵  [o   o]
+  🎤─|───|\
+     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#f5f5f7"><pre>.-----.
+[O   O]   ✨
+o|───|o   📸
+ o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#00ffff"><pre> 🛸      .-----.
+/  \     [O   O]
+ 🐄      /|───|\
+          o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ff87ff"><pre>/\   /\
+.-----.
+[- - -]
+</pre><figcaption>cat peek</figcaption></figure>
+      <figure class="act" style="--c:#00afff" aria-hidden="true"><pre>.-----.
+[-   -]
+/|───|───\
+ o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" style="--c:#d7875f" aria-hidden="true"><pre>.-----.
+[-   -] ~
+/|───|─☕
+ o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" style="--c:#87d787" aria-hidden="true"><pre>.-----.
+[o   o]
+/|───|─o
+ o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff" aria-hidden="true"><pre>.-----.\o  🎈
+[O   O]
+ |───|
+ o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>\.-----./
+ [^   ^]  ______
+  |───|   |: : :|
+  o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff" aria-hidden="true"><pre>    .-----.
+🎵  [o   o]
+  🎤─|───|\
+     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7" aria-hidden="true"><pre>.-----.
+[O   O]   ✨
+o|───|o   📸
+ o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff" aria-hidden="true"><pre> 🛸      .-----.
+/  \     [O   O]
+ 🐄      /|───|\
           o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" style="--c:#ff87ff" aria-hidden="true"><pre>/\   /\
 .-----.
 [- - -]
@@ -470,7 +575,7 @@ o|━━━|o   📸
     <div class="split">
       <div class="float"><pre class="big-art panel reveal" style="--c:var(--ufo)">                       <span style="color:var(--walk)">.-----.</span>
 (o)(o) (-)(-) (O)(o)   <span style="color:var(--walk)">[o   o]</span>
-=[##]= =[##]= =[##]=   <span style="color:var(--walk)">/|━━━|\</span>
+=[##]= =[##]= =[##]=   <span style="color:var(--walk)">/|───|\</span>
 <span style="color:var(--walk)">+2</span> (oooo) (oooo) (oooo) <span style="color:var(--walk)">o   o</span></pre></div>
       <div class="facts">
         <div class="fact panel reveal" style="--c:var(--ufo)"><h3>They roll in</h3><p>When an agent starts. Their wheels pulse.</p></div>
@@ -610,14 +715,14 @@ o|━━━|o   📸
     const up = cheer && t % 2 === 0 ? 0 : 1;   // cheering: hop up a row
     if (scene.act === 'fish') {
       rows[1].push([pos, span(col, '.-----.  🐟'), 11]);
-      rows[2].push([pos, span(col, '[') + span(C.eye, '^   ^') + span(col, ']━━/✨'), 14]);
-      rows[3].push([pos, span(col, '/|━━━|'), 6]);
+      rows[2].push([pos, span(col, '[') + span(C.eye, '^   ^') + span(col, ']──/✨'), 14]);
+      rows[3].push([pos, span(col, '/|───|'), 6]);
       rows[4].push([pos, span(col, ' o   o  ') + span(C.eye, '~~~~~'), 13]);
     } else {
       const eyes = t % 22 === 0 ? '-   -' : cheer ? '^   ^' : 'o   o';
       rows[up].push([pos, span(col, '.-----.'), 7]);
       rows[up + 1].push([pos, span(col, '[') + span(C.eye, eyes) + span(col, ']'), 7]);
-      rows[up + 2].push([pos, span(col, cheer ? '\\|━━━|/' : '/|━━━|\\'), 7]);
+      rows[up + 2].push([pos, span(col, cheer ? '\\|───|/' : '/|───|\\'), 7]);
       rows[up + 3].push([pos, span(col, ' o   o '), 7]);
     }
     // Friends ride at the robot's back.
