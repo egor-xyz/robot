@@ -11,6 +11,7 @@
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](#-install-in-claude-code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![zsh](https://img.shields.io/badge/terminal-zsh-89e051.svg)](https://www.zsh.org/)
+[![Website](https://img.shields.io/badge/website-egor--xyz.github.io%2Frobot-ff9d3c.svg)](https://egor-xyz.github.io/robot/)
 
 </div>
 
