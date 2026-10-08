@@ -8,6 +8,8 @@
 
 ### A little robot lives above your Claude Code prompt. It walks, dances, and goes fishing while Claude works.
 
+**🌐 [egor-xyz.github.io/robot](https://egor-xyz.github.io/robot/)** — see it move
+
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](#-install-in-claude-code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![zsh](https://img.shields.io/badge/terminal-zsh-89e051.svg)](https://www.zsh.org/)
