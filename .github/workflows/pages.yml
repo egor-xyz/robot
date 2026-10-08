@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir -p _site/media
           cp -R site/. _site/
-          cp docs/media/egor-xyz-robot-demo.gif _site/media/
+          cp docs/media/egor-xyz-robot-demo.gif docs/media/egor-xyz-robot-demo.mp4 _site/media/
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
