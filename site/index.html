@@ -160,6 +160,8 @@ h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 80
   background: linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, rgba(12,12,16,.85)), rgba(12,12,16,.85) 70%);
   border: 1px solid color-mix(in srgb, var(--c) 38%, transparent); box-shadow: 0 24px 50px -28px color-mix(in srgb, var(--c) 70%, transparent); }
 .act pre { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--c); min-height: calc(4 * 1.3em); text-shadow: 0 0 14px color-mix(in srgb, var(--c) 50%, transparent); }
+/* An emoji is 2 cells wide in a terminal. Give it exactly 2 cells here too, so the art lines up. */
+.em { display: inline-block; width: 2ch; text-align: center; font-style: normal; }
 .act figcaption { font-family: var(--mono); font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 8px; }
 .act figcaption::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
 
@@ -290,7 +292,7 @@ footer nav { display: flex; gap: 20px; }
     </div>
     <div class="bento">
       <div class="reveal"><article class="card panel tilt" style="--c:var(--fire)">
-        <pre class="art">  .🔥-🔥.
+        <pre class="art">  .<i class="em">🔥</i>-<i class="em">🔥</i>.
   [O   O]   <span style="color:var(--fg)">context 31%</span>
   /|───|\   <span style="color:var(--fg)">/compact me!</span>
    o   o</pre>
@@ -326,9 +328,9 @@ footer nav { display: flex; gap: 20px; }
         <p>It steps aside. It never blocks your answer.</p>
       </article></div>
       <div class="reveal"><article class="card panel tilt" style="--c:var(--ufo)">
-        <pre class="art">  🛸       <span style="color:var(--walk)">.-----.</span>
+        <pre class="art">  <i class="em">🛸</i>       <span style="color:var(--walk)">.-----.</span>
  /  \      <span style="color:var(--walk)">[O   O]</span>
-  🐄       <span style="color:var(--walk)">/|───|\</span></pre>
+  <i class="em">🐄</i>       <span style="color:var(--walk)">/|───|\</span></pre>
         <h3>Nothing going on?</h3>
         <p>It plays: 20+ hand-drawn acts, like a UFO taking a cow.</p>
       </article></div>
@@ -362,16 +364,16 @@ footer nav { display: flex; gap: 20px; }
  o   o</pre><figcaption>smile</figcaption></figure><figure class="act" style="--c:#5fff00"><pre>.-----.
 [O   O]
  |───|
- '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff"><pre>.-----.     🌕
-[- - O]  ==o
-/|───|\  |
- o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00"><pre>.-----.  🏀
-[⌐   ⌐]  --|_|
-/|───|─    |
- o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f"><pre>.-----.
+ '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff"><pre>.-----.         <i class="em">🌙</i>
+[- - O]    ==o
+/|───|\    |
+ o   o    / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00"><pre>.-----.  <i class="em">🏀</i>
+[⌐   ⌐]    --|_|
+/|───|─       |
+ o   o        |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f"><pre>.-----.
 [o   o]  ·
 /|───|──o
- o   o  💥</pre><figcaption>campfire</figcaption></figure>
+ o   o  <i class="em">💥</i></pre><figcaption>campfire</figcaption></figure>
       <figure class="act" style="--c:#ff8700" aria-hidden="true"><pre>.-----.
 [o   o]
 /|───|\
@@ -387,16 +389,16 @@ footer nav { display: flex; gap: 20px; }
  o   o</pre><figcaption>smile</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>.-----.
 [O   O]
  |───|
- '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff" aria-hidden="true"><pre>.-----.     🌕
-[- - O]  ==o
-/|───|\  |
- o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00" aria-hidden="true"><pre>.-----.  🏀
-[⌐   ⌐]  --|_|
-/|───|─    |
- o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f" aria-hidden="true"><pre>.-----.
+ '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff" aria-hidden="true"><pre>.-----.         <i class="em">🌙</i>
+[- - O]    ==o
+/|───|\    |
+ o   o    / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00" aria-hidden="true"><pre>.-----.  <i class="em">🏀</i>
+[⌐   ⌐]    --|_|
+/|───|─       |
+ o   o        |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f" aria-hidden="true"><pre>.-----.
 [o   o]  ·
 /|───|──o
- o   o  💥</pre><figcaption>campfire</figcaption></figure>
+ o   o  <i class="em">💥</i></pre><figcaption>campfire</figcaption></figure>
       <figure class="act" aria-hidden="true" style="--c:#ff8700"><pre>.-----.
 [o   o]
 /|───|\
@@ -412,16 +414,16 @@ footer nav { display: flex; gap: 20px; }
  o   o</pre><figcaption>smile</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fff00"><pre>.-----.
 [O   O]
  |───|
- '   '</pre><figcaption>jump</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fafff"><pre>.-----.     🌕
-[- - O]  ==o
-/|───|\  |
- o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffaf00"><pre>.-----.  🏀
-[⌐   ⌐]  --|_|
-/|───|─    |
- o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ff5f5f"><pre>.-----.
+ '   '</pre><figcaption>jump</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fafff"><pre>.-----.         <i class="em">🌙</i>
+[- - O]    ==o
+/|───|\    |
+ o   o    / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffaf00"><pre>.-----.  <i class="em">🏀</i>
+[⌐   ⌐]    --|_|
+/|───|─       |
+ o   o        |</pre><figcaption>hoops</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ff5f5f"><pre>.-----.
 [o   o]  ·
 /|───|──o
- o   o  💥</pre><figcaption>campfire</figcaption></figure>
+ o   o  <i class="em">💥</i></pre><figcaption>campfire</figcaption></figure>
       <figure class="act" style="--c:#ff8700" aria-hidden="true"><pre>.-----.
 [o   o]
 /|───|\
@@ -437,129 +439,129 @@ footer nav { display: flex; gap: 20px; }
  o   o</pre><figcaption>smile</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>.-----.
 [O   O]
  |───|
- '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff" aria-hidden="true"><pre>.-----.     🌕
-[- - O]  ==o
-/|───|\  |
- o   o  / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00" aria-hidden="true"><pre>.-----.  🏀
-[⌐   ⌐]  --|_|
-/|───|─    |
- o   o     |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f" aria-hidden="true"><pre>.-----.
+ '   '</pre><figcaption>jump</figcaption></figure><figure class="act" style="--c:#5fafff" aria-hidden="true"><pre>.-----.         <i class="em">🌙</i>
+[- - O]    ==o
+/|───|\    |
+ o   o    / \</pre><figcaption>moon nap</figcaption></figure><figure class="act" style="--c:#ffaf00" aria-hidden="true"><pre>.-----.  <i class="em">🏀</i>
+[⌐   ⌐]    --|_|
+/|───|─       |
+ o   o        |</pre><figcaption>hoops</figcaption></figure><figure class="act" style="--c:#ff5f5f" aria-hidden="true"><pre>.-----.
 [o   o]  ·
 /|───|──o
- o   o  💥</pre><figcaption>campfire</figcaption></figure>
+ o   o  <i class="em">💥</i></pre><figcaption>campfire</figcaption></figure>
     </div>
     <div class="row rev">
-      <figure class="act" style="--c:#00afff"><pre>.-----.
-[-   -]
-/|───|───\
+      <figure class="act" style="--c:#00afff"><pre>.-----.  <i class="em">🐟</i>
+[^   ^]──/<i class="em">✨</i>
+/|───|
  o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" style="--c:#d7875f"><pre>.-----.
 [-   -] ~
-/|───|─☕
+/|───|─<i class="em">☕</i>
  o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" style="--c:#87d787"><pre>.-----.
 [o   o]
 /|───|─o
- o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff"><pre>.-----.\o  🎈
-[O   O]
- |───|
- o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00"><pre>\.-----./
- [^   ^]  ______
-  |───|   |: : :|
-  o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff"><pre>    .-----.
-🎵  [o   o]
-  🎤─|───|\
-     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7"><pre>.-----.
-[O   O]   ✨
-o|───|o   📸
- o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff"><pre> 🛸      .-----.
+ o   o  <i class="em">🌱</i></pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff"><pre>.-----.  <i class="em">🎈</i>
+[o   o] /
+/|───|─o
+ o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00"><pre>.-----.
+[o   o]    ______
+/|───|\    |: : :|
+ o   o     | <i class="em">⚽</i>  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff"><pre>    .-----.
+<i class="em">🎵</i>  [o   o]
+  <i class="em">🎤</i>─|───|\
+     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7"><pre>.-----.\o
+[O   O]   <i class="em">✨</i>
+ |───|    <i class="em">📸</i>
+ o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff"><pre> <i class="em">🛸</i>      .-----.
 /  \     [O   O]
- 🐄      /|───|\
+ <i class="em">🐄</i>      /|───|\
           o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" style="--c:#ff87ff"><pre>/\   /\
 .-----.
-[- - -]
+[o   o]
 </pre><figcaption>cat peek</figcaption></figure>
-      <figure class="act" style="--c:#00afff" aria-hidden="true"><pre>.-----.
-[-   -]
-/|───|───\
+      <figure class="act" style="--c:#00afff" aria-hidden="true"><pre>.-----.  <i class="em">🐟</i>
+[^   ^]──/<i class="em">✨</i>
+/|───|
  o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" style="--c:#d7875f" aria-hidden="true"><pre>.-----.
 [-   -] ~
-/|───|─☕
+/|───|─<i class="em">☕</i>
  o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" style="--c:#87d787" aria-hidden="true"><pre>.-----.
 [o   o]
 /|───|─o
- o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff" aria-hidden="true"><pre>.-----.\o  🎈
-[O   O]
- |───|
- o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>\.-----./
- [^   ^]  ______
-  |───|   |: : :|
-  o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff" aria-hidden="true"><pre>    .-----.
-🎵  [o   o]
-  🎤─|───|\
-     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7" aria-hidden="true"><pre>.-----.
-[O   O]   ✨
-o|───|o   📸
- o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff" aria-hidden="true"><pre> 🛸      .-----.
+ o   o  <i class="em">🌱</i></pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff" aria-hidden="true"><pre>.-----.  <i class="em">🎈</i>
+[o   o] /
+/|───|─o
+ o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>.-----.
+[o   o]    ______
+/|───|\    |: : :|
+ o   o     | <i class="em">⚽</i>  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff" aria-hidden="true"><pre>    .-----.
+<i class="em">🎵</i>  [o   o]
+  <i class="em">🎤</i>─|───|\
+     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7" aria-hidden="true"><pre>.-----.\o
+[O   O]   <i class="em">✨</i>
+ |───|    <i class="em">📸</i>
+ o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff" aria-hidden="true"><pre> <i class="em">🛸</i>      .-----.
 /  \     [O   O]
- 🐄      /|───|\
+ <i class="em">🐄</i>      /|───|\
           o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" style="--c:#ff87ff" aria-hidden="true"><pre>/\   /\
 .-----.
-[- - -]
+[o   o]
 </pre><figcaption>cat peek</figcaption></figure>
-      <figure class="act" aria-hidden="true" style="--c:#00afff"><pre>.-----.
-[-   -]
-/|───|───\
+      <figure class="act" aria-hidden="true" style="--c:#00afff"><pre>.-----.  <i class="em">🐟</i>
+[^   ^]──/<i class="em">✨</i>
+/|───|
  o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#d7875f"><pre>.-----.
 [-   -] ~
-/|───|─☕
+/|───|─<i class="em">☕</i>
  o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#87d787"><pre>.-----.
 [o   o]
 /|───|─o
- o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffafff"><pre>.-----.\o  🎈
-[O   O]
- |───|
- o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fff00"><pre>\.-----./
- [^   ^]  ______
-  |───|   |: : :|
-  o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#af5fff"><pre>    .-----.
-🎵  [o   o]
-  🎤─|───|\
-     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#f5f5f7"><pre>.-----.
-[O   O]   ✨
-o|───|o   📸
- o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#00ffff"><pre> 🛸      .-----.
+ o   o  <i class="em">🌱</i></pre><figcaption>garden</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ffafff"><pre>.-----.  <i class="em">🎈</i>
+[o   o] /
+/|───|─o
+ o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#5fff00"><pre>.-----.
+[o   o]    ______
+/|───|\    |: : :|
+ o   o     | <i class="em">⚽</i>  |</pre><figcaption>goal</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#af5fff"><pre>    .-----.
+<i class="em">🎵</i>  [o   o]
+  <i class="em">🎤</i>─|───|\
+     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#f5f5f7"><pre>.-----.\o
+[O   O]   <i class="em">✨</i>
+ |───|    <i class="em">📸</i>
+ o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#00ffff"><pre> <i class="em">🛸</i>      .-----.
 /  \     [O   O]
- 🐄      /|───|\
+ <i class="em">🐄</i>      /|───|\
           o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" aria-hidden="true" style="--c:#ff87ff"><pre>/\   /\
 .-----.
-[- - -]
+[o   o]
 </pre><figcaption>cat peek</figcaption></figure>
-      <figure class="act" style="--c:#00afff" aria-hidden="true"><pre>.-----.
-[-   -]
-/|───|───\
+      <figure class="act" style="--c:#00afff" aria-hidden="true"><pre>.-----.  <i class="em">🐟</i>
+[^   ^]──/<i class="em">✨</i>
+/|───|
  o   o  ~~~~~</pre><figcaption>fishing</figcaption></figure><figure class="act" style="--c:#d7875f" aria-hidden="true"><pre>.-----.
 [-   -] ~
-/|───|─☕
+/|───|─<i class="em">☕</i>
  o   o</pre><figcaption>coffee</figcaption></figure><figure class="act" style="--c:#87d787" aria-hidden="true"><pre>.-----.
 [o   o]
 /|───|─o
- o   o  🌱</pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff" aria-hidden="true"><pre>.-----.\o  🎈
-[O   O]
- |───|
- o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>\.-----./
- [^   ^]  ______
-  |───|   |: : :|
-  o   o   | ⚽  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff" aria-hidden="true"><pre>    .-----.
-🎵  [o   o]
-  🎤─|───|\
-     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7" aria-hidden="true"><pre>.-----.
-[O   O]   ✨
-o|───|o   📸
- o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff" aria-hidden="true"><pre> 🛸      .-----.
+ o   o  <i class="em">🌱</i></pre><figcaption>garden</figcaption></figure><figure class="act" style="--c:#ffafff" aria-hidden="true"><pre>.-----.  <i class="em">🎈</i>
+[o   o] /
+/|───|─o
+ o   o</pre><figcaption>balloon</figcaption></figure><figure class="act" style="--c:#5fff00" aria-hidden="true"><pre>.-----.
+[o   o]    ______
+/|───|\    |: : :|
+ o   o     | <i class="em">⚽</i>  |</pre><figcaption>goal</figcaption></figure><figure class="act" style="--c:#af5fff" aria-hidden="true"><pre>    .-----.
+<i class="em">🎵</i>  [o   o]
+  <i class="em">🎤</i>─|───|\
+     o   o</pre><figcaption>concert</figcaption></figure><figure class="act" style="--c:#f5f5f7" aria-hidden="true"><pre>.-----.\o
+[O   O]   <i class="em">✨</i>
+ |───|    <i class="em">📸</i>
+ o   o    /|</pre><figcaption>photoshoot</figcaption></figure><figure class="act" style="--c:#00ffff" aria-hidden="true"><pre> <i class="em">🛸</i>      .-----.
 /  \     [O   O]
- 🐄      /|───|\
+ <i class="em">🐄</i>      /|───|\
           o   o</pre><figcaption>UFO</figcaption></figure><figure class="act" style="--c:#ff87ff" aria-hidden="true"><pre>/\   /\
 .-----.
-[- - -]
+[o   o]
 </pre><figcaption>cat peek</figcaption></figure>
     </div>
   </div>
@@ -735,7 +737,7 @@ o|───|o   📸
       const row = (k) => Array.from({ length: shown }, (_, i) => [eyesF[(i + (t >> 3)) % 3], '=[##]=', tread][k]).join(' ');
       [0, 1, 2].forEach((k) => rows[fUp + k].push([fx, span(C.friend, row(k)), fw]));
     }
-    stage.innerHTML = render(rows);
+    stage.innerHTML = render(rows).replace(/\p{Emoji_Presentation}\uFE0F?/gu, '<i class="em">$&</i>');
   };
 
   const step = () => {
