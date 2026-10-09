@@ -2,7 +2,8 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Frame, FriendMood, Span } from './frames'
 import type { Friend } from './friends'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, narrowed, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { filmOf } from './robot'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -391,4 +392,92 @@ test('friends never pass the columns', () => {
       }
     }
   }
+})
+
+const ROBOT: Frame = [
+  [{ text: '  .-----.', color: '#ff8700' }],
+  [{ text: '  [o   o]', color: '#ff8700' }],
+  [{ text: '  /|━━━|\\', color: '#ff8700' }],
+  [{ text: '   o   o', color: '#ff8700' }],
+]
+
+test('the narrow robot is two cells narrower in every row', () => {
+  expect(narrowed(ROBOT).map(textOf)).toEqual(['  .---.', '  [o o]', '  /|━|\\', '   o o'])
+})
+
+test('the narrow robot keeps what stands beside it in place against it', () => {
+  const scene: Frame = [
+    [{ text: '  .-----.  🏀', color: '#ff8700' }],
+    [{ text: '  [⌐   ⌐]    --|_|', color: '#ff8700' }],
+    [{ text: '  /|━━━|━       |', color: '#ff8700' }],
+    [{ text: '   o   o        |', color: '#ff8700' }],
+  ]
+
+  expect(narrowed(scene).map(textOf)).toEqual(['  .---.  🏀', '  [⌐ ⌐]    --|_|', '  /|━|━       |', '   o o        |'])
+})
+
+test('a mirrored act is narrowed where its eyes are, not where it starts', () => {
+  const mirrored: Frame = [
+    [{ text: '     🏀  .-----.', color: '#ff8700' }],
+    [{ text: '|_|--    [⌐   ⌐]', color: '#ff8700' }],
+    [{ text: ' |       ━|━━━|\\', color: '#ff8700' }],
+    [{ text: ' |        o   o', color: '#ff8700' }],
+  ]
+
+  expect(narrowed(mirrored).map(textOf)).toEqual(['     🏀  .---.', '|_|--    [⌐ ⌐]', ' |       ━|━|\\', ' |        o o'])
+})
+
+test('a frame without eyes stays as it was', () => {
+  const blank: Frame = [[], [], [], []]
+
+  expect(narrowed(blank)).toEqual(blank)
+})
+
+test('the narrow robot packs into a box as narrow as it, beside it as far as the full one', () => {
+  // The box bottom: the full one starts 11 cells in and is 9 wide; the narrow one starts 9 in and is 7 wide.
+  for (let stage = 0; stage < PACK_STAGES - 1; stage++) {
+    expect(textOf(packing(0, 60, stage, 0)[3] ?? []).trimEnd()).toMatch(/ └─{7}┘$/)
+    expect(textOf(packing(0, 60, stage, 0, true)[3] ?? []).trimEnd()).toMatch(/ └─{5}┘$/)
+  }
+  expect(packing(0, 60, 2, 0, true).map(textOf)).toEqual(['  .---.', '  [o o]  │     │', '         │o|━|o│', '         └─────┘'])
+})
+
+test('narrowing a long film never cuts an emoji', () => {
+  const emojiOf = (frame: Frame) => frame.map(textOf).join('').match(/\p{Extended_Pictographic}/gu)?.length ?? 0
+
+  let x = 3
+  const seeded = () => {
+    x = (Math.imul(x, 1103515245) + 12345) & 0x7fffffff
+    return (x >>> 8) % 32768
+  }
+  for (const frame of filmOf(60, 4000, seeded)) {
+    expect(emojiOf(narrowed(frame))).toBe(emojiOf(frame))
+  }
+})
+
+test('the narrow head top still catches fire, with flames of its own width', () => {
+  const narrow = narrowed(ROBOT)
+  for (const tick of [0, 1, 2, 3]) {
+    const top = textOf(heated(narrow, true, tick, true)[0] ?? [])
+
+    expect(top).toContain('🔥')
+    expect(cellsOf(top)).toBe(cellsOf(textOf(narrow[0] ?? [])))
+  }
+  expect(textOf(heated(narrow, true, 1, true)[1] ?? [])).toBe('  [> <]')
+})
+
+test('friends stand off the narrow body as far as off the full one', () => {
+  // Walking left, the back is on the right, where the narrow body ends two cells sooner.
+  const startOf = (frame: Frame, isNarrow: boolean) => rowsOf(withFriends(frame, 20, -1, 60, [still(1)], 1, CALM, 'normal', false, isNarrow))[3]?.indexOf('(')
+
+  expect((startOf(standing(20), false) ?? 0) - (startOf(narrowed(standing(20)), true) ?? 0)).toBe(2)
+})
+
+test('a scaled SVG keeps its grid and changes only its size', () => {
+  const full = svgOf(ROBOT, 20)
+  const small = svgOf(ROBOT, 20, 0.5)
+
+  expect(small).toContain(`width="${(20 * CELL_WIDTH) / 2}"`)
+  expect(small).toContain(`viewBox="0 0 ${20 * CELL_WIDTH} `)
+  expect(small.replace(/<svg[^>]*>/, '')).toBe(full.replace(/<svg[^>]*>/, ''))
 })

@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -24,6 +24,13 @@
       "default": 25,
       "min": 1,
       "max": 100
+    },
+    "size": {
+      "type": "string",
+      "title": "Robot size (default L)",
+      "description": "L is the full robot. M and S draw it two cells narrower; in the desktop app M also scales it to 80% and S to 65%.",
+      "options": ["L", "M", "S"],
+      "default": "L"
     }
   }
 }

@@ -183,6 +183,7 @@ Open `/plugin` → **Installed** → **robot** → **Configure**.
 | --------------------- | ------- | -------------------------------------------------------------- |
 | Context on fire (default on)    | on      | Off turns the [context-on-fire](#-context-on-fire) act off completely. |
 | Fire at (% context, default 25) | `25`    | Context usage at which the head catches fire. |
+| Robot size (default L)          | `L`     | `M` and `S` draw the robot two cells narrower (`[o o]`). In the desktop app, `M` also scales it to 80% and `S` to 65%. Needs Claude Code 2.1.271 or later. |
 
 ### Update or remove
 
