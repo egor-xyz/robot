@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, packStage, packing, speech, svgOf, typedSoFar, withFriends } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, NARROW_CELLS, ROW_HEIGHT, celebrating, heated, narrowed, packStage, packing, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
@@ -16,6 +16,12 @@ const MIN_TRACK = 12
 const HEAT_MS = 2000
 // Default context usage (percent) at which the head catches fire; the `hotAt` option overrides it.
 const HOT_AT = 25
+// The `size` option: M and S draw the narrow robot; the desktop app also scales its drawing down.
+const SIZES = {
+  L: { isNarrow: false, scale: 1 },
+  M: { isNarrow: true, scale: 0.8 },
+  S: { isNarrow: true, scale: 0.65 },
+} as const
 // An animation that never ends by itself: how the robot is held walking or dancing while hot.
 const FOREVER = Number.MAX_SAFE_INTEGER
 // Hot pace, in ticks (4 a second): every 30 seconds it stops, waves its arms and talks for TALK ticks;
@@ -74,6 +80,10 @@ export const register: Register = (on, options) => {
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
   // The `contextFire` option turns the whole context-on-fire act off; on unless set to false.
   const isFireOn = options.contextFire !== false
+  // Anything but M or S, unset included, is the full-size robot.
+  const size = options.size === 'M' || options.size === 'S' ? SIZES[options.size] : SIZES.L
+  /** The frame at the chosen size. */
+  const sized = (frame: Frame): Frame => (size.isNarrow ? narrowed(frame) : frame)
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
@@ -143,7 +153,10 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const columns = e.props.bodyColumns
+    const els = $.ui.resolve(e)
+    const isSvg = e.surface !== 'terminal' && 'Svg' in els
+    // A scaled-down SVG lays out on more columns, so after scaling it still fills the band.
+    const columns = isSvg ? Math.floor(e.props.bodyColumns / size.scale) : e.props.bodyColumns
     const { value: at = 0 } = await $.state.get(TICK)
     const { value: hidden = false } = await $.state.get(IS_HIDDEN)
     const isQuiet = e.props.hasSurvey || e.props.maxRows < ROWS || hidden
@@ -160,7 +173,8 @@ export const register: Register = (on, options) => {
     if (!isCompacting) packedFrom = -1
     else if (packedFrom < 0) packedFrom = at
 
-    const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
+    // The narrow robot can walk the cells it saves further right.
+    const track = Math.max(MIN_TRACK, columns - BODY_CELLS + (size.isNarrow ? NARROW_CELLS : 0))
     // While compacting or celebrating the robot stands still: it packs itself into a box in the middle of the band.
     if (at !== shown.at && !isCompacting && !isCelebrating) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
@@ -173,7 +187,7 @@ export const register: Register = (on, options) => {
       if (!isHot || isHotStep(at) || !shown.frame) {
         const drawn = step(shown.state, track, randomInt)
         shown.state = drawn.state
-        shown.frame = drawn.frame
+        shown.frame = sized(drawn.frame)
       }
       shown.at = at
     }
@@ -186,31 +200,34 @@ export const register: Register = (on, options) => {
     // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
     let frame: Frame
     if (isCompacting) {
-      frame = speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
+      // The narrow robot and its box each save NARROW_CELLS.
+      const scene = PACK_SCENE - (size.isNarrow ? 2 * NARROW_CELLS : 0)
+      const packAt = Math.max(0, Math.floor((columns - scene) / 2))
+      frame = speech(packing(packAt, columns, packed, at, size.isNarrow), compactingOf(at), columns)
     } else if (isCelebrating && celebration) {
-      frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
+      const cheering = sized(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at))
+      frame = withFriends(cheering, shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false, size.isNarrow)
     } else if (!shown.frame) {
       return next(e)
     } else {
       const robot = isHot && talkAt(at) >= 0
-        ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
-        : heated(shown.frame, isHot, at)
+        ? speech(heated(shown.frame, true, at, size.isNarrow), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
+        : heated(shown.frame, isHot, at, size.isNarrow)
       // The cat act fills both sides of the robot: the friends stay out of it.
       frame = shown.state.state === 'catpeek'
         ? robot
-        : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk')
+        : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk', size.isNarrow)
     }
 
-    const els = $.ui.resolve(e)
-    if (e.surface !== 'terminal' && 'Svg' in els) {
+    if (isSvg && 'Svg' in els) {
       const { Box, Svg } = els
       return (
-        <Box width={columns}>
+        <Box width={e.props.bodyColumns}>
           <Svg
-            source={svgOf(frame, columns)}
+            source={svgOf(frame, columns, size.scale)}
             alt="A little ASCII robot"
-            width={columns * CELL_WIDTH}
-            height={frame.length * ROW_HEIGHT}
+            width={columns * CELL_WIDTH * size.scale}
+            height={frame.length * ROW_HEIGHT * size.scale}
           />
         </Box>
       )

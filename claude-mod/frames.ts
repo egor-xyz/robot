@@ -74,8 +74,8 @@ function escapeXml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-/** Draws a frame on a fixed cell grid, for surfaces whose text is proportional. */
-export function svgOf(frame: Frame, columns: number): string {
+/** Draws a frame on a fixed cell grid, for surfaces whose text is proportional; `scale` shrinks or grows the drawing. */
+export function svgOf(frame: Frame, columns: number, scale = 1): string {
   const texts: string[] = []
   frame.forEach((row, rowIndex) => {
     let cell = 0
@@ -93,15 +93,20 @@ export function svgOf(frame: Frame, columns: number): string {
   const width = +(columns * CELL_WIDTH).toFixed(2)
   const height = frame.length * ROW_HEIGHT
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" ` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${+(width * scale).toFixed(2)}" height="${+(height * scale).toFixed(2)}" viewBox="0 0 ${width} ${height}" ` +
     `font-family="${FONT_FAMILY}" font-size="${FONT_SIZE}" xml:space="preserve">${texts.join('')}</svg>`
   )
 }
 
 const HEAD_TOP = '.-----.'
 const EYES = '[o   o]'
+// The narrow robot's head top and eyes: NARROW_CELLS fewer.
+const NARROW_HEAD_TOP = '.---.'
+const NARROW_EYES = '[o o]'
 // Flames sit in the head top between its corner dots; every step is 7 cells, the width of HEAD_TOP.
 const HEAD_TOPS = ['.🔥 🔥.', '.🔥🔥-.', '.-🔥🔥.', '.🔥-🔥.']
+// The same flames for the narrow head top, 5 cells each.
+const NARROW_HEAD_TOPS = ['.🔥 .', '.-🔥.', '. 🔥.', '.🔥-.']
 // A panicked face: the two eye characters swap each tick, keeping the block's 7 cells.
 const PANIC_EYES = [['O', 'O'], ['>', '<']] as const
 // Sparks beside the head top; a space leaves the spot dark so they pop.
@@ -121,8 +126,46 @@ function spansOfCells(cells: Cell[]): Span[] {
   return spans
 }
 
-/** Heats the head: red, flames in the head top, sparks beside it and a panicked face, all moving with the tick. */
-export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
+/** A frame as rows of cells: a wide char takes two, the char then an empty continuation cell, so an index is a screen column. */
+const gridOf = (frame: Frame): Cell[][] =>
+  frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
+
+/** The screen column of the robot's eyes `[`, on the first row that has one. */
+const eyesAtOf = (rows: Cell[][]): number | undefined => rows.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
+
+// The columns the narrow robot drops, counted from the body start (two cells left of the eyes `[`).
+const NARROW_DROPS = [4, 6]
+/** Cells the narrow robot saves: one each side of the middle of its head, eyes, body and wheels. */
+export const NARROW_CELLS = NARROW_DROPS.length
+
+/**
+ * The robot drawn two cells narrower: `.---.`, `[o o]`, `/|━|\`, `o o`. The same two columns go from every row, so
+ * whatever stands beside the robot keeps its place against it. The eyes find the body, so mirrored acts work too.
+ * A wide char caught in a dropped column turns into spaces. No eyes, no change.
+ */
+export function narrowed(frame: Frame): Frame {
+  const rows = gridOf(frame)
+  const eyesAt = eyesAtOf(rows)
+  if (eyesAt === undefined) return frame
+  const drops = NARROW_DROPS.map(drop => eyesAt - 2 + drop)
+  return rows.map(cells => {
+    for (const drop of drops) {
+      const cell = cells[drop]
+      if (!cell || cellsOf(cell.char) === 1) continue
+      // Half of a wide char: blank both of its cells.
+      const head = cell.char === '' ? drop - 1 : drop
+      cells[head] = { char: ' ', color: DEFAULT_COLOR }
+      cells[head + 1] = { char: ' ', color: DEFAULT_COLOR }
+    }
+    return spansOfCells(cells.filter((_, at) => !drops.includes(at)))
+  })
+}
+
+/**
+ * Heats the head: red, flames in the head top, sparks beside it and a panicked face, all moving with the tick.
+ * `isNarrow` says the frame holds the narrow robot.
+ */
+export function heated(frame: Frame, isHot: boolean, tick: number, isNarrow = false): Frame {
   if (!isHot) return frame
   const orange = hexOf(ORANGE_INDEX)
   const red = hexOf(196)
@@ -132,10 +175,12 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
     const cells = cellsOfFrameRow(recoloured)
     const text = cells.map(cell => cell.char).join('')
     if (rowIndex === 0) {
-      const at = text.indexOf(HEAD_TOP)
+      const head = isNarrow ? NARROW_HEAD_TOP : HEAD_TOP
+      const tops = isNarrow ? NARROW_HEAD_TOPS : HEAD_TOPS
+      const at = text.indexOf(head)
       if (at < 0) return recoloured
-      const top = HEAD_TOPS[tick % HEAD_TOPS.length] ?? HEAD_TOP
-      cells.splice(at, HEAD_TOP.length, ...[...top].map(char => ({ char, color: red })))
+      const top = tops[tick % tops.length] ?? head
+      cells.splice(at, head.length, ...[...top].map(char => ({ char, color: red })))
       // Sparks only replace existing spaces, left and right of the head top.
       const sparks = [
         { index: at - 1, side: 0 },
@@ -150,11 +195,12 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
       }
       return spansOfCells(cells)
     }
-    const at = text.indexOf(EYES)
+    const eyes = isNarrow ? NARROW_EYES : EYES
+    const at = text.indexOf(eyes)
     if (at < 0) return recoloured
     const [left, right] = PANIC_EYES[tick % PANIC_EYES.length] ?? PANIC_EYES[0]
     cells[at + 1] = { char: left, color: cells[at + 1]?.color ?? red }
-    cells[at + 5] = { char: right, color: cells[at + 5]?.color ?? red }
+    cells[at + eyes.length - 2] = { char: right, color: cells[at + eyes.length - 2]?.color ?? red }
     return spansOfCells(cells)
   })
 }
@@ -177,14 +223,26 @@ const PACKING: { robot: string[]; box: string[] }[] = [
   { robot: ['', '', '', ''], box: ['┌───────┐', '│ robot │', '│ ↑ ↑ ↑ │', '└───────┘'] },
 ]
 
+// The same stages for the narrow robot, in a box NARROW_CELLS narrower.
+const NARROW_PACKING: { robot: string[]; box: string[] }[] = [
+  { robot: ['  .---.', '  [o o]', '  /|━|\\', '   o o'], box: ['', '│     │', '│     │', '└─────┘'] },
+  { robot: ['  .---.', '  [o o]', '  /|━|\\', ''], box: ['', '│     │', '│ o o │', '└─────┘'] },
+  { robot: ['  .---.', '  [o o]', '', ''], box: ['', '│     │', '│o|━|o│', '└─────┘'] },
+  { robot: ['', '', '', ''], box: [' .---. ', '│[^ ^]│', '│o|━|o│', '└─────┘'] },
+  { robot: ['', '', '', ''], box: ['┌─────┐', '│robot│', '│↑ ↑ ↑│', '└─────┘'] },
+]
+
 /**
  * The robot at `pos` packing itself into a box beside it: legs, then body, then its head hops in and the lid
  * closes; the closed box shakes with the tick. The box sits right of the robot, or left when it does not fit.
+ * `isNarrow` packs the narrow robot into a narrower box.
  */
-export function packing(pos: number, columns: number, stage: number, tick: number): Frame {
-  const { robot, box } = PACKING[Math.min(Math.max(stage, 0), PACKING.length - 1)] ?? { robot: [], box: [] }
-  const right = pos + BODY_END + 2
-  const boxAt = (right + BOX_WIDTH <= columns || pos < BOX_WIDTH ? right : pos - BOX_WIDTH) + (stage >= PACKING.length - 1 ? tick % 2 : 0)
+export function packing(pos: number, columns: number, stage: number, tick: number, isNarrow = false): Frame {
+  const stages = isNarrow ? NARROW_PACKING : PACKING
+  const { robot, box } = stages[Math.min(Math.max(stage, 0), stages.length - 1)] ?? { robot: [], box: [] }
+  const boxWidth = BOX_WIDTH - (isNarrow ? NARROW_CELLS : 0)
+  const right = pos + BODY_END - (isNarrow ? NARROW_CELLS : 0) + 2
+  const boxAt = (right + boxWidth <= columns || pos < boxWidth ? right : pos - boxWidth) + (stage >= stages.length - 1 ? tick % 2 : 0)
   const orange = hexOf(ORANGE_INDEX)
   const cardboard = hexOf(BOX_COLOR)
   return [0, 1, 2, 3].map(row => {
@@ -193,7 +251,7 @@ export function packing(pos: number, columns: number, stage: number, tick: numbe
       ;[...text].forEach((char, i) => {
         if (char === ' ') return
         while (cells.length <= at + i) cells.push({ char: ' ', color: DEFAULT_COLOR })
-        cells[at + i] = { char, color: /[│└┘┌─]/.test(char) || stage >= PACKING.length - 1 ? cardboard : orange }
+        cells[at + i] = { char, color: /[│└┘┌─]/.test(char) || stage >= stages.length - 1 ? cardboard : orange }
       })
     }
     put(pos, robot[row] ?? '', orange)
@@ -349,14 +407,13 @@ function friendParts(friend: Friend, tick: number, mood: FriendMood, isWalking: 
  * cells further toward the back edge, and is drawn only when it fits whole inside `columns`. Friends only ever stand on
  * empty cells, so speech and arms are never overwritten. No friends, no change.
  */
-export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, isWalking: boolean): Frame {
+export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, isWalking: boolean, isNarrow = false): Frame {
   if (friends.length === 0 || frame.length < 4) return frame
-  // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
-  const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
+  const rows = gridOf(frame)
   // Mirrored acts pad the body to the right of `x`, so find it by its eyes: the head's `[` sits two cells in.
-  const eyesAt = rows.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
+  const eyesAt = eyesAtOf(rows)
   const bodyStart = eyesAt === undefined ? x : eyesAt - 2
-  const bodyEnd = bodyStart + BODY_END
+  const bodyEnd = bodyStart + BODY_END - (isNarrow ? NARROW_CELLS : 0)
   const inks = rows.flatMap(cells => cells.flatMap((cell, at) => (cell.char === ' ' || cell.char === '' ? [] : [at])))
   const first = Math.min(bodyStart, ...inks)
   const last = Math.max(bodyEnd, ...inks)
