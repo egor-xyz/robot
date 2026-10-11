@@ -78,6 +78,10 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
 - 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. Past three, a `+1`, `+2`… shows how many more run.
+- 📊 **Status line.** A colored line under the prompt: account, model, effort, branch, usage limits, cost and context — [see below](#-status-line).
+- 🙋 **Needs you.** When Claude ends its turn with a question, the robot dances and says _"need a human"_ in a comic bubble.
+- 💬 **Robot spinner words.** One robot word per turn: _"Beaming…"_, _"Recharging…"_.
+- ⚙️ **Every part has a switch.** Turn each act on or off — [see settings](#settings).
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
 
 ---
@@ -94,6 +98,7 @@ The robot listens to Claude Code events and acts on them:
 | clears or compacts a hot context               | cools down and goes back to play                                       |
 | commits or pushes with git                     | stamps a ✅ or waves off a 🚀 for 3 seconds                              |
 | runs subagents                                 | rolls in a WALL-E friend per agent — [more](#-subagent-friends)          |
+| ends its turn with a question for you          | dances and says "need a human" until you answer                        |
 
 ---
 
@@ -121,8 +126,8 @@ status line. Once it passes **25%**, the robot drops whatever it was doing:
 Run `/compact` (or `/clear`) and it cools down at once and goes back to its
 normal animations.
 
-**Change when it catches fire:** open `/plugin` → **Installed** → **robot** → **Configure**, and set **Fire at (% context, default 25)**
-to any value from 1 to 100. To turn the fire off, switch **Context on fire** off there.
+**Change when it catches fire:** set **Fire at (% context)** to any value from 1 to 100, or switch
+**Context on fire** off — [how to change settings](#settings).
 
 ---
 
@@ -168,6 +173,31 @@ balloon. They sit out the cat act.
 
 ---
 
+## 📊 Status line
+
+Under the prompt, the robot draws one colored line. Claude Code's own hint line stays under it.
+
+<img width="800" alt="The robot status line: calm in grey, and with limits, cost and context that need attention in yellow and red" src="docs/media/statusline.svg" />
+
+```text
+Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
+```
+
+| Part | Shows | Color |
+| --- | --- | --- |
+| `Acme Team` | your account | grey |
+| `Opus 5.5` | the model | 🟠 Opus · 🔵 Sonnet · 🟢 Haiku · 🩷 Fable |
+| `[high]` | the effort | grey up to `medium`, then `high` yellow → `xhigh` orange → `max` red |
+| `my-app` | the project folder | light blue |
+| `feat/login` | the git branch | purple. A worktree folder named like its branch shows once. |
+| `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
+| `$21.97` | session cost | grey → 🟡 above $100 |
+| `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
+
+**Grey means calm.** A part gets a color only when it needs your attention.
+
+---
+
 ## 🎮 Use it
 
 | Command  | Action                 |
@@ -176,12 +206,28 @@ balloon. They sit out the cat act.
 
 ### Settings
 
-Open `/plugin` → **Installed** → **robot** → **Configure**.
+Every act has a switch. To change one:
 
-| Setting               | Default | Effect                                                         |
-| --------------------- | ------- | -------------------------------------------------------------- |
-| Context on fire (default on)    | on      | Off turns the [context-on-fire](#-context-on-fire) act off completely. |
-| Fire at (% context, default 25) | `25`    | Context usage at which the head catches fire. |
+1. In Claude Code, type `/plugin`.
+2. Open **Installed**, pick **robot**, then choose **Configure**.
+3. Change a value and save.
+4. Run `/reload-plugins`, or start a new session.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| Robot | on | Off hides the robot above the prompt. |
+| Status line | on | Off hides the [status line](#-status-line) under the prompt. |
+| Context on fire | on | Off turns the [burning head](#-context-on-fire) off. |
+| Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
+| Compacting factory line | on | Off turns the [factory line](#-compacting) off. |
+| Git cheer | on | Off stops the ✅ / 🚀 on commit and push. |
+| Subagent friends | on | Off hides the [WALL-E friends](#-subagent-friends). |
+| Limits shown | `both` | Which limits the status line shows: `both`, `5h` or `7d`. |
+| Limits from (% used) | `0` | A limit shows only from this %. `0` shows it always. |
+| Needs you | on | Off stops the "need a human" bubble. |
+| Robot spinner words | on | Off keeps Claude Code's own spinner words. |
+
+`/robot` hides or shows the robot for this session only.
 
 ### Update or remove
 
