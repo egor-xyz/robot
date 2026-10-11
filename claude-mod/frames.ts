@@ -159,48 +159,6 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
   })
 }
 
-// The robot packing itself into a box while the conversation compacts, one part at a time.
-const BOX_WIDTH = 9
-const BOX_COLOR = 180
-/** Stages of packing, in order; the last one holds until the compaction ends. */
-export const PACK_STAGES = 5
-// One loop, a stage a step: pack in, hold the closed (shaking) box, unpack, again.
-const PACK_LOOP = [0, 1, 2, 3, 4, 4, 4, 3, 2, 1]
-/** The packing stage `steps` steps into a compaction; it loops as long as the compaction runs. */
-export const packStage = (steps: number): number => PACK_LOOP[Math.max(0, steps) % PACK_LOOP.length] ?? 0
-// Each stage: what is left of the robot (rows 0–3, '' for packed parts) and the box (rows 0–3, '' for nothing).
-const PACKING: { robot: string[]; box: string[] }[] = [
-  { robot: ['  .-----.', '  [o   o]', '  /|━━━|\\', '   o   o'], box: ['', '│       │', '│       │', '└───────┘'] },
-  { robot: ['  .-----.', '  [o   o]', '  /|━━━|\\', ''], box: ['', '│       │', '│ o   o │', '└───────┘'] },
-  { robot: ['  .-----.', '  [o   o]', '', ''], box: ['', '│       │', '│o|━━━|o│', '└───────┘'] },
-  { robot: ['', '', '', ''], box: [' .-----. ', '│[^   ^]│', '│o|━━━|o│', '└───────┘'] },
-  { robot: ['', '', '', ''], box: ['┌───────┐', '│ robot │', '│ ↑ ↑ ↑ │', '└───────┘'] },
-]
-
-/**
- * The robot at `pos` packing itself into a box beside it: legs, then body, then its head hops in and the lid
- * closes; the closed box shakes with the tick. The box sits right of the robot, or left when it does not fit.
- */
-export function packing(pos: number, columns: number, stage: number, tick: number): Frame {
-  const { robot, box } = PACKING[Math.min(Math.max(stage, 0), PACKING.length - 1)] ?? { robot: [], box: [] }
-  const right = pos + BODY_END + 2
-  const boxAt = (right + BOX_WIDTH <= columns || pos < BOX_WIDTH ? right : pos - BOX_WIDTH) + (stage >= PACKING.length - 1 ? tick % 2 : 0)
-  const orange = hexOf(ORANGE_INDEX)
-  const cardboard = hexOf(BOX_COLOR)
-  return [0, 1, 2, 3].map(row => {
-    const cells: Cell[] = []
-    const put = (at: number, text: string, color: string) => {
-      ;[...text].forEach((char, i) => {
-        if (char === ' ') return
-        while (cells.length <= at + i) cells.push({ char: ' ', color: DEFAULT_COLOR })
-        cells[at + i] = { char, color: /[│└┘┌─]/.test(char) || stage >= PACKING.length - 1 ? cardboard : orange }
-      })
-    }
-    put(pos, robot[row] ?? '', orange)
-    put(boxAt, box[row] ?? '', cardboard)
-    return spansOfCells(cells)
-  })
-}
 // The robot body ends this many cells after its position.
 const BODY_END = 9
 
@@ -392,6 +350,151 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
     const lastStart = slotOf(friends.length - 1, lastFriend?.lag ?? 0)
     const at = isLeft ? lastStart - FRIEND_GAP - label.length : lastStart + FRIEND_WIDTH + FRIEND_GAP
     if (isFree(at, label.length, [feet])) put(feet, at, label, DEFAULT_COLOR)
+  }
+  return rows.map(spansOfCells)
+}
+
+// The compaction factory line: one robot or WALL-E at a time walks up to the station in the middle, packs itself into a box, the box rides a short belt to its end and drops out of sight, and only then the next one walks in.
+/** Who rides the line: our robot or a WALL-E. */
+export type FactoryUnit = 'robot' | 'walle'
+type PackStep = { unit: string[]; box: string[] }
+// Ticks a unit takes to walk in to the station.
+const WALK_TICKS = 13
+// Ticks a new open box takes to lower in, one row per tick.
+const DROP_TICKS = 4
+// Ticks per packing stage 1, 2 and 3.
+const STAGE_TICKS = 3
+// Ticks the closed box shakes at the station.
+const CLOSED_TICKS = 5
+// Ticks the belt runs to carry the closed box to its end; the next unit waits for it.
+const SHIP_TICKS = 24
+const SHIP_START = WALK_TICKS + DROP_TICKS + 3 * STAGE_TICKS + CLOSED_TICKS
+/** Ticks per unit on the line. */
+export const FACTORY_CYCLE = SHIP_START + SHIP_TICKS
+// Cells per tick a walking unit moves.
+const MOVE = 1
+// Fewest cells per tick a shipped box moves; a longer belt ships faster, so the box is always gone in SHIP_TICKS.
+const SHIP_SPEED = 1
+// Cells per tick the belt marks move while the belt runs.
+const BELT_SPEED = 2
+// A `>` every this many belt cells, the rest `=`.
+const BELT_MARK = 6
+// Box widths in cells: the robot packs upright in a small box; a WALL-E lies side by side, wall to wall, in a wide one.
+const ROBOT_BOX = 9
+const WALLE_BOX = 15
+// Ticks the closed box takes to hop from the station onto the belt.
+const HOP_TICKS = 2
+const BOX_COLOR = 180
+const BELT_COLOR = FRIEND_TREADS_COLOR
+
+// Each stage: what is left of the unit (rows 0-3, '' for packed parts) and the box (rows 0-3, '' for nothing).
+const ROBOT_PACKING: PackStep[] = [
+  { unit: ['  .-----.', '  [o   o]', '  /|━━━|\\', '   o   o'], box: ['', '│       │', '│       │', '└───────┘'] },
+  { unit: ['  .-----.', '  [o   o]', '  /|━━━|\\', ''], box: ['', '│       │', '│ o   o │', '└───────┘'] },
+  { unit: ['  .-----.', '  [o   o]', '', ''], box: ['', '│       │', '│o|━━━|o│', '└───────┘'] },
+  { unit: ['', '', '', ''], box: [' .-----. ', '│[^   ^]│', '│o|━━━|o│', '└───────┘'] },
+  { unit: ['', '', '', ''], box: ['┌───────┐', '│ robot │', '│ ↑ ↑ ↑ │', '└───────┘'] },
+]
+const WALLE_EYES = `  ${FRIEND_EYES.normal}`
+const WALLE_BODY = `  ${FRIEND_BODY}`
+const boxRow = (text: string) => `│${text.padEnd(WALLE_BOX - 2)}│`
+const BOX_EMPTY = boxRow('')
+const BOX_BOTTOM = `└${'─'.repeat(WALLE_BOX - 2)}┘`
+// Cells of a WALL-E box row, wall included, up to the gap after the treads; the body and eyes sit right of it.
+const TREADS_END = 7
+const WALLE_LYING = boxRow(`${FRIEND_TREADS[0]} ${FRIEND_BODY}`)
+// Declared after the friend constants it reads.
+const WALLE_PACKING: PackStep[] = [
+  { unit: ['', WALLE_EYES, WALLE_BODY, `  ${FRIEND_TREADS[0]}`], box: ['', BOX_EMPTY, BOX_EMPTY, BOX_BOTTOM] },
+  { unit: ['', WALLE_EYES, WALLE_BODY, ''], box: ['', BOX_EMPTY, boxRow(FRIEND_TREADS[0]), BOX_BOTTOM] },
+  { unit: ['', WALLE_EYES, '', ''], box: ['', BOX_EMPTY, WALLE_LYING, BOX_BOTTOM] },
+  { unit: ['', '', '', ''], box: ['', boxRow(`   ${FRIEND_EYES.normal}`), WALLE_LYING, BOX_BOTTOM] },
+  { unit: ['', '', '', ''], box: [`┌${'─'.repeat(WALLE_BOX - 2)}┐`, boxRow('    agent'), boxRow('    ↑ ↑ ↑'), BOX_BOTTOM] },
+]
+
+/** Unit `index` in a line started with `seed`: robots and WALL-Es take turns; the seed picks who goes first. */
+export const unitOf = (index: number, seed = 0): FactoryUnit => ((((index + seed) % 2) + 2) % 2 === 0 ? 'robot' : 'walle')
+const CLOSED_STAGE = 4
+const packingOf = (unit: FactoryUnit): PackStep[] => (unit === 'robot' ? ROBOT_PACKING : WALLE_PACKING)
+
+// A unit walking up the line: its stage-0 rows, with the feet on the alternate frame on odd ticks.
+function walking(unit: FactoryUnit, tick: number): string[] {
+  const rows = [...(packingOf(unit)[0]?.unit ?? [])]
+  if (tick % 2 === 1) rows[3] = unit === 'robot' ? '   O   O' : `  ${FRIEND_TREADS[1]}`
+  // A WALL-E stretches its neck up and down as it rolls, as it does at the robot's back.
+  if (unit === 'walle' && Math.floor(tick / 4) % 2 === 1) [rows[0], rows[1]] = [WALLE_EYES, `  ${FRIEND_NECK}`]
+  return rows
+}
+
+/**
+ * The compaction factory line, `steps` ticks into a compaction, sized to `columns`: one robot or WALL-E walks up to the
+ * station in the middle, a box drops in, the unit packs itself part by part, the closed box shakes, then rides a short belt to its end and drops out of sight; then
+ * the next unit walks in. Always four rows; never draws a cell outside 0..columns-1. Pure: the same (columns, steps) gives
+ * the same frame. `seed` picks whether a robot or a WALL-E goes first; then they take turns.
+ */
+export function factory(columns: number, steps: number, seed = 0): Frame {
+  const rows: Cell[][] = [[], [], [], []]
+  const put = (row: number, at: number, text: string, colorOf: (char: string, i: number) => string, end = columns) => {
+    const cells = rows[row] ?? []
+    ;[...text].forEach((char, i) => {
+      const x = at + i
+      if (char === ' ' || x < 0 || x >= Math.min(end, columns)) return
+      while (cells.length <= x) cells.push({ char: ' ', color: DEFAULT_COLOR })
+      cells[x] = { char, color: colorOf(char, i) }
+    })
+  }
+  const orange = hexOf(ORANGE_INDEX)
+  const cardboard = hexOf(BOX_COLOR)
+  const unitColorOf = (unit: FactoryUnit, row: number): string =>
+    unit === 'robot' ? orange : row <= 1 ? DEFAULT_COLOR : row === 2 ? FRIEND_BODY_COLOR : FRIEND_TREADS_COLOR
+  // A packed WALL-E keeps its own colours: eyes on row 1, treads then body on row 2.
+  const boxColorOf = (unit: FactoryUnit, stage: number, row: number) => (char: string, i: number) =>
+    stage >= CLOSED_STAGE || /[│└┘┌┐─]/.test(char) ? cardboard
+      : unit === 'robot' ? orange : row === 1 ? DEFAULT_COLOR : i < TREADS_END ? FRIEND_TREADS_COLOR : FRIEND_BODY_COLOR
+
+  const tick = Math.max(0, steps)
+  const cycle = Math.floor(tick / FACTORY_CYCLE)
+  const phase = tick % FACTORY_CYCLE
+  const isWalking = phase < WALK_TICKS
+  const unit = unitOf(cycle, seed)
+  // The box packs in the middle of the band, the unit to its left; the belt starts one cell right of the box.
+  const boxWidth = unit === 'robot' ? ROBOT_BOX : WALLE_BOX
+  const boxX = Math.max(BODY_END + 2, Math.floor((columns - boxWidth) / 2))
+  const stationX = boxX - BODY_END - 2
+  const beltX = boxX + boxWidth + 1
+  // The belt runs half the way from the station to the right edge; the box drops out of sight at its end.
+  const beltEnd = beltX + Math.floor((columns - beltX) / 2)
+  const packPhase = phase - WALK_TICKS - DROP_TICKS
+  const stage = packPhase < 0 ? 0 : Math.min(CLOSED_STAGE, 1 + Math.floor(packPhase / STAGE_TICKS))
+
+  const shipped = Math.max(0, phase - SHIP_START + 1)
+  const speed = Math.max(SHIP_SPEED, Math.ceil((beltEnd - beltX) / (SHIP_TICKS - HOP_TICKS)))
+  const hop = beltX - boxX
+  const shipShift = shipped <= HOP_TICKS ? Math.ceil((hop * shipped) / HOP_TICKS) : hop + speed * (shipped - HOP_TICKS)
+
+  // The station box: lowers in from the top, holds the parts as they are packed, then hops onto the belt and rides to its end, where it drops out of sight.
+  if (!isWalking) {
+    const box = packingOf(unit)[stage]?.box ?? []
+    const drop = phase - WALK_TICKS
+    const shift = shipped > 0 ? shipShift : stage === CLOSED_STAGE ? tick % 2 : 0
+    for (let row = 0; row < 4; row++) {
+      const from = drop < DROP_TICKS ? row + 3 - drop : row
+      if (from <= 3) put(row, boxX + shift, box[from] ?? '', boxColorOf(unit, stage, from), beltEnd)
+    }
+  }
+
+  // The one unit on the line: walks the last steps to the station once the belt is clear, then stands there while it packs.
+  const unitX = isWalking ? stationX - MOVE * (WALK_TICKS - 1 - phase) : stationX
+  const art = isWalking ? walking(unit, tick) : packingOf(unit)[stage]?.unit ?? []
+  art.forEach((text, row) => put(row, unitX, text, char => (char === '|' && unit === 'walle' ? FRIEND_BODY_COLOR : unitColorOf(unit, row))))
+
+  // The belt shows only while a box rides it: it fills blank cells of the bottom row from right of the station to its end.
+  if (shipped === 0) return rows.map(spansOfCells)
+  const offset = BELT_SPEED * shipped
+  const bottom = rows[3] ?? []
+  for (let x = beltX; x < beltEnd; x++) {
+    while (bottom.length <= x) bottom.push({ char: ' ', color: DEFAULT_COLOR })
+    if (bottom[x]?.char === ' ') bottom[x] = { char: (((x - offset) % BELT_MARK) + BELT_MARK) % BELT_MARK === 0 ? '>' : '=', color: BELT_COLOR }
   }
   return rows.map(spansOfCells)
 }

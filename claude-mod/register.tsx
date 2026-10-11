@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, packStage, packing, speech, svgOf, typedSoFar, withFriends } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
@@ -42,12 +42,6 @@ const sayOf = (percent: number): Span[][] => [
   [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
 ]
 
-/** What the robot says while the conversation compacts; the dots count up with the tick. */
-const compactingOf = (at: number): Span[][] => [
-  [{ text: `compacting${'.'.repeat(at % 4)}${' '.repeat(3 - (at % 4))}`, color: DEFAULT_COLOR }],
-  [{ text: 'hold on!', color: DEFAULT_COLOR }],
-]
-
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
@@ -65,10 +59,8 @@ let lastFriendId = 0
 const nextFriendId = (): number => ++lastFriendId
 /** The tick the current compaction was first drawn at, or -1 when nothing compacts. */
 let packedFrom = -1
-// Ticks per packing stage: one part goes into the box each second.
-const PACK_TICKS = 4
-// Cells the packing scene takes: robot and box (20), then the four-cell gap and "compacting...".
-const PACK_SCENE = 37
+// Picks at random who goes first on this compaction's line: a robot or a WALL-E.
+let packedSeed = 0
 
 export const register: Register = (on, options) => {
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
@@ -158,10 +150,13 @@ export const register: Register = (on, options) => {
     const isCelebrating = !isCompacting && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
     const isHot = isFireOn && percent >= hotAt
     if (!isCompacting) packedFrom = -1
-    else if (packedFrom < 0) packedFrom = at
+    else if (packedFrom < 0) {
+      packedFrom = at
+      packedSeed = randomInt()
+    }
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
-    // While compacting or celebrating the robot stands still: it packs itself into a box in the middle of the band.
+    // While compacting or celebrating the robot stands still: the factory line runs across the band.
     if (at !== shown.at && !isCompacting && !isCelebrating) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       const wanted = talkAt(at) >= 0 ? 'dance' : 'walk'
@@ -182,11 +177,10 @@ export const register: Register = (on, options) => {
       friends = stepFriends(friends, subagents, nextFriendId)
       friendsAt = at
     }
-    const packed = packStage(Math.floor((at - packedFrom) / PACK_TICKS))
     // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
     let frame: Frame
     if (isCompacting) {
-      frame = speech(packing(Math.max(0, Math.floor((columns - PACK_SCENE) / 2)), columns, packed, at), compactingOf(at), columns)
+      frame = factory(columns, at - packedFrom, packedSeed)
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {
