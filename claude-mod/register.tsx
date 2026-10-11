@@ -367,7 +367,7 @@ export const register: Register = (on, options) => {
       }
     })
 
-    $.clock.every(AGENTS_MS, async () => {
+    const checkAgents = async () => {
       if (!isFriendsOn && !isAgentLinesOn) return
       try {
         const agents = await $.agent.list()
@@ -390,19 +390,22 @@ export const register: Register = (on, options) => {
       } catch (error) {
         $.ui.log(`robot: agent list unavailable: ${String(error)}`, { to: 'debug' })
       }
-    })
+    }
+    $.clock.every(AGENTS_MS, checkAgents)
 
     // An older version pinned the line as a notice; the hint line draws it now.
     $.ui.status(undefined)
-    if (isStatusOn) {
-      account = await accountOf($)
-      await refreshStatus($, { account, windows, limitsAt, hotAt })
-      $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
-    }
-    if (isChangesOn) {
-      await refreshChanges($)
-      $.clock.every(STATUS_MS, () => refreshChanges($))
-    }
+    if (isStatusOn) $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
+    if (isChangesOn) $.clock.every(STATUS_MS, () => refreshChanges($))
+    // The first reads all at once, and the session does not wait for them: git and gh can take seconds.
+    void Promise.all([
+      checkAgents(),
+      isStatusOn ? accountOf($).then(found => {
+        account = found
+        return refreshStatus($, { account, windows, limitsAt, hotAt })
+      }) : undefined,
+      isChangesOn ? refreshChanges($) : undefined,
+    ])
 
     return started
   })
