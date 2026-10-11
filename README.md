@@ -222,11 +222,11 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 5 files changed | +249 | -24
 ```
 
-**Click it, or run `/robot files`, for the list.** A panel opens with each file: the name on the left, `+N -N` on the right.
+Under the mouse, the line shimmers. **Click it, or run `/robot files`, for the list.** A panel opens with each file: the name on the left, `+N -N` on the right.
 
 - 🔎 Type in the search box to find a file.
 - ✨ The file under the mouse gets a soft background, and its name shimmers.
-- 🖱️ Click a file to select it. Then `↑` `↓` move, and `Enter` (or a second click) opens its diff, in color.
+- ⌨️ `↓` from the search box walks the files, and `Enter` opens the file's diff, in color. A mouse click works too: click once to select, click again to open.
 - ↗ In the diff, `↗ open` opens the file in its default app. `← files` goes back.
 - `Esc` or **Close** closes the panel.
 
