@@ -10,6 +10,8 @@ import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
 import { accountNameOf, fitStatus, groupsOf, wavedOf } from './statusline'
+import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
+import type { AgentRow } from './agents'
 import type { RateLimit } from './statusline'
 
 const TICK_MS = 250
@@ -54,6 +56,8 @@ const LIMITS_AT = 0
 /** How often the status line refreshes on its own: time left on the limits, the branch. */
 const STATUS_MS = 30_000
 const STATUS_MARGIN = 4
+// Marks each subagent's line under the status line.
+const AGENT_MARK: Span = { text: '↳ ', color: 'inactive' }
 
 /** The organisation the person signed in with, from the config dir's .claude.json; undefined when unknown. */
 async function accountOf($: EngineInterface): Promise<string | undefined> {
@@ -80,6 +84,7 @@ const STATUS = { plugin: 'robot', key: 'status' } as const
 const EFFORT = { plugin: 'robot', key: 'effort' } as const
 const BRANCH = { plugin: 'robot', key: 'branch' } as const
 const WAVE_AT = { plugin: 'robot', key: 'waveAt' } as const
+const AGENT_ROWS = { plugin: 'robot', key: 'agentRows' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -145,7 +150,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, resetSettings: false,
 }
 
 async function resetSettings($: EngineInterface): Promise<void> {
@@ -173,6 +178,7 @@ export const register: Register = (on, options) => {
   const isCheerOn = options.gitCheer !== false
   const isFriendsOn = options.subagentFriends !== false
   const isWaveOn = options.branchWave !== false
+  const isAgentLinesOn = options.agentLines !== false
   // Which rate-limit windows the status line shows: both, or one.
   const windowKind = options.limitWindows === '5h' ? 'five_hour' : options.limitWindows === '7d' ? 'seven_day' : undefined
   const windows = windowKind ? [windowKind] : ['seven_day', 'five_hour']
@@ -210,10 +216,16 @@ export const register: Register = (on, options) => {
     })
 
     $.clock.every(AGENTS_MS, async () => {
-      if (!isFriendsOn) return
+      if (!isFriendsOn && !isAgentLinesOn) return
       try {
         const agents = await $.agent.list()
-        const running = agents.filter(agent => ['pending', 'running', 'waiting'].includes(agent.status) && agent.type !== 'teammate').length
+        const live = agents.filter(agent => ['pending', 'running', 'waiting'].includes(agent.status) && agent.type !== 'teammate')
+        // An agent that ended without a turn.complete (stopped, failed) leaves its line here.
+        const { value: rows = [] } = await $.state.get(AGENT_ROWS)
+        const kept = rows.filter(row => live.some(agent => agent.id === row.id))
+        if (kept.length !== rows.length) await $.state.set(AGENT_ROWS, kept)
+        if (!isFriendsOn) return
+        const running = live.length
         const { value: was = 0 } = await $.state.get(SUBAGENTS)
         if (running !== was) await $.state.set(SUBAGENTS, running)
       } catch (error) {
@@ -243,12 +255,40 @@ export const register: Register = (on, options) => {
   // Kept in $.state: the module reloads (as at the end of a turn while developing) and forgets its variables.
   on('turn.step', async function* ($, e, next) {
     if (!e.agentId && typeof e.effort === 'string') await noteEffort($, e.effort, isStatusOn, { account, windows, limitsAt, hotAt })
-    return yield* next(e)
+    const stepped = yield* next(e)
+    // A subagent's model request: its line counts the tokens and shows the model and effort it ran with.
+    if (isAgentLinesOn && e.agentId && stepped.usage) {
+      const { usage } = stepped
+      const { value: rows = [] } = await $.state.get(AGENT_ROWS)
+      if (rows.some(row => row.id === e.agentId)) {
+        await $.state.set(AGENT_ROWS, rows.map(row => (row.id !== e.agentId ? row : {
+          ...row,
+          model: usage.model || row.model,
+          effort: typeof e.effort === 'string' ? e.effort : row.effort,
+          tokens: row.tokens + stepTokensOf(usage),
+        })))
+      }
+    }
+    return stepped
+  })
+
+  // A subagent starts: it gets a line under the status line.
+  on('agent.spawn', async ($, e, next) => {
+    const started = await next(e)
+    if (!isAgentLinesOn || started.deny !== undefined || !started.agentId || e.subagentType === 'teammate') return started
+    const row: AgentRow = { id: started.agentId, type: e.subagentType, description: e.description, model: started.model, startedAt: Date.now(), tokens: 0 }
+    const { value: rows = [] } = await $.state.get(AGENT_ROWS)
+    await $.state.set(AGENT_ROWS, [...rows.filter(other => other.id !== row.id), row])
+    return started
   })
 
   // Claude ended its turn on a question: the robot asks for the person until they send the next prompt.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
+    if (e.agentId) {
+      const { value: rows = [] } = await $.state.get(AGENT_ROWS)
+      if (rows.some(row => row.id === e.agentId)) await $.state.set(AGENT_ROWS, rows.filter(row => row.id !== e.agentId))
+    }
     if (isNeedsOn && !e.agentId && e.reason === 'answer') await $.state.set(IS_ASKED, isQuestion(e.answer))
     return done
   })
@@ -304,30 +344,46 @@ export const register: Register = (on, options) => {
   })
 
   // The status line: a row of coloured parts above Claude Code's own hint line, which stays as it is.
+  // The status line, then one line for each running subagent: rows above Claude Code's own hint line, which stays as it is.
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
-    if (!isStatusOn) return next(e)
+    if (!isStatusOn && !isAgentLinesOn) return next(e)
     const { value: status = [] } = await $.state.get(STATUS)
+    const { value: agentRows = [] } = isAgentLinesOn ? await $.state.get(AGENT_ROWS) : { value: [] }
     const theirs = await next(e)
-    if (status.length === 0) return theirs
-    const { Box, Text } = $.ui.resolve(e)
     // A few cells of room for the line's indent and the right edge.
-    let groups = status.filter(group => Array.isArray(group.spans))
-    // Only a waving branch reads the tick, so a still line does not redraw 4 times a second.
-    const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
-    if (isWaveOn && waveAt >= 0) {
-      const { value: at = 0 } = await $.state.get(TICK)
-      groups = wavedOf(groups, at - waveAt)
+    const columns = (e.viewport?.columns ?? 80) - STATUS_MARGIN
+    const lines: Span[][] = []
+    if (isStatusOn && status.length > 0) {
+      let groups = status.filter(group => Array.isArray(group.spans))
+      // Only a waving branch reads the tick, so a still line does not redraw 4 times a second.
+      const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
+      if (isWaveOn && waveAt >= 0) {
+        const { value: at = 0 } = await $.state.get(TICK)
+        groups = wavedOf(groups, at - waveAt)
+      }
+      lines.push(fitStatus(groups, columns))
     }
-    const spans = fitStatus(groups, (e.viewport?.columns ?? 80) - STATUS_MARGIN)
+    if (agentRows.length > 0) {
+      // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
+      await $.state.get(TICK)
+      const now = Date.now()
+      for (const row of agentRows.slice(0, MAX_AGENT_LINES)) lines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
+      const more = moreOf(agentRows.length)
+      if (more.length > 0) lines.push([AGENT_MARK, ...more])
+    }
+    if (lines.length === 0) return theirs
+    const { Box, Text } = $.ui.resolve(e)
     return (
       <Box flexDirection="column">
-        <Box>
-          {spans.map(span => (
-            <Text color={span.color || undefined} wrap="truncate">
-              {span.text}
-            </Text>
-          ))}
-        </Box>
+        {lines.map(spans => (
+          <Box>
+            {spans.map(span => (
+              <Text color={span.color || undefined} wrap="truncate">
+                {span.text}
+              </Text>
+            ))}
+          </Box>
+        ))}
         {theirs}
       </Box>
     )

@@ -171,6 +171,15 @@ When Claude runs subagents, each one is a small WALL-E robot at the robot's back
 They always stand on the side away from what the robot does, so they never block the fishing rod or the
 balloon. They sit out the cat act.
 
+Under the status line, each running subagent also gets its own line: its task, type, model and effort,
+tokens and time. Up to 3 lines show, then `+N more`. They go away when the agents end.
+
+```text
+TegoAI Team | Opus 5.5 [high] | robot | feat/login | 7d 27% (1d) | 5h 30% (2h) | $32.68 | ctx 21%
+↳ List mod settings | egor-xyz-scout | Haiku 5.5 [low] | 16k tok | 0:06
+↳ Count robot animations | egor-xyz-scout | Haiku 5.5 [low] | 21k tok | 0:14
+```
+
 ---
 
 ## 📊 Status line
@@ -229,6 +238,7 @@ Every act has a switch. To change one:
 | Needs you | `true` | `false` stops the "need a human" bubble. |
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
 | Branch wave | `true` | The branch name waves in colors for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
+| Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.
