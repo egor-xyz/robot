@@ -207,7 +207,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 
 **The branch shimmers.** When the branch changes, or after a git commit or push, a bright band sweeps across the branch name for 3 seconds: blue → purple → pink → orange → yellow.
 
-**Subagents get their own lines.** Each running subagent gets one line under the status line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`.
+**Subagents get their own lines.** Each running subagent gets one line under the status line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`. Agents that already run when you reload plugins or update get their lines back within a second.
 
 ```text
 Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
@@ -237,6 +237,7 @@ In PR · 12
   register.tsx claude-mod +206 -22 M
 ```
 
+- 📚 Big PRs work too: the panel lists hundreds of files.
 - 🔎 Type in the search box to find a file.
 - ✨ The file under the mouse gets a soft background, and its name shimmers.
 - ⌨️ `↓` from the search box walks the files, and `Enter` opens the file's diff, in color. A mouse click works too: click once to select, click again to open.
@@ -280,7 +281,7 @@ Every act has a switch. To change one:
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
 | Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
-| Changed files | `true` | One line under the status line: how many files git would commit; with a PR open, all the PR's files, and how many are not committed yet, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
+| Changed files | `true` | One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.
