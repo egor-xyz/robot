@@ -49,7 +49,7 @@ Type these two lines in the Claude Code prompt — that's it:
 /plugin install robot@robot
 ```
 
-Restart Claude Code and the robot appears above the prompt.
+The robot appears above the prompt. No restart needed.
 
 <details>
 <summary>Other ways to install</summary>
@@ -79,6 +79,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
 - 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. Past three, a `+1`, `+2`… shows how many more run.
 - 📊 **Custom status line.** Under the prompt: account, model, effort, branch, usage limits, cost and context — [see below](#-status-line).
+- 📂 **Changed files and your PR.** One line counts the files you changed. Click it for a panel with each file and its diff; with a PR open, the files come in two groups, and the title links to the PR — [see below](#-status-line).
 - 🙋 **Needs you.** When Claude ends its turn with a question, the robot dances and says _"need a human"_ in a comic bubble.
 - 💬 **Robot spinner words.** One robot word per turn: _"Beaming…"_, _"Recharging…"_.
 - ⚙️ **Every part has a switch.** Turn each act on or off — [see settings](#settings).

@@ -75,19 +75,18 @@ pre { margin: 0; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 70px -34px color-mix(in srgb, var(--c) 55%, transparent); }
 
 /* ---------- nav: the one blurred glass ---------- */
-.nav { position: sticky; top: 12px; z-index: 10; margin: 12px auto 0; max-width: 1080px; width: calc(100% - 32px);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 20px; border-radius: 999px;
+.nav { position: sticky; top: 12px; z-index: 10; margin: 12px auto 0; width: fit-content; max-width: calc(100% - 32px);
+  display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 5px 5px 5px 18px; border-radius: 999px;
   background: rgba(20,20,26,.55); border: 1px solid var(--line);
   backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%); }
-.brand { display: flex; align-items: center; gap: 10px; color: var(--fg); font-weight: 700; font-size: 19px; letter-spacing: -0.02em; }
+.brand { display: flex; white-space: nowrap; align-items: center; gap: 10px; color: var(--fg); font-weight: 700; font-size: 17px; letter-spacing: -0.02em; }
 .brand:hover { color: var(--fg); }
 .brand i { font-style: normal; font-family: var(--mono); font-size: 14px; color: var(--walk); }
 .brand i b { color: var(--ufo); font-weight: 400; }
-.nav-links { display: flex; align-items: center; gap: 2px; font-size: 15px; }
-.nav-links a { color: var(--muted); padding: 12px 14px; border-radius: 999px; transition: color .2s, background .2s; }
+.nav-links { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.nav-links a { white-space: nowrap; color: var(--muted); padding: 7px 11px; border-radius: 999px; transition: color .2s, background .2s; }
 .nav-links a:hover { color: var(--fg); background: rgba(255,255,255,.07); }
 .nav-links a.cta { color: #000; background: var(--fg); font-weight: 600; }
-@media (max-width: 720px) { .nav-links a.hide-sm { display: none; } }
 
 /* ---------- type ---------- */
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
@@ -243,11 +242,26 @@ footer nav { display: flex; gap: 20px; }
   @keyframes float { from { transform: translateY(50px) rotate(-1.5deg); } to { transform: translateY(-50px) rotate(1.5deg); } }
 }
 
+/* ---------- side dots: one per section, a ring hops to the one on screen ---------- */
+.dots { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); z-index: 10; display: flex; flex-direction: column; gap: 14px; }
+.dots a { --c: var(--walk); position: relative; display: block; width: 10px; height: 10px; border-radius: 50%; background: color-mix(in srgb, var(--c) 35%, transparent); transition: background .3s, transform .3s; }
+.dots a::before { content: ''; position: absolute; inset: -7px; }
+.dots a:hover, .dots a.on { background: var(--c); box-shadow: 0 0 12px var(--c); }
+.dots a.on { transform: scale(1.3); }
+.dots a span { position: absolute; right: 22px; top: 50%; transform: translate(6px, -50%); white-space: nowrap; font-size: 13px; color: var(--fg); padding: 4px 10px; border-radius: 999px;
+  background: rgba(20,20,26,.8); border: 1px solid var(--line); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.dots a:hover span, .dots a:focus-visible span { opacity: 1; transform: translate(0, -50%); }
+.dots .ring { position: absolute; left: -5px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--c, var(--walk)); top: -5px; pointer-events: none;
+  transition: top .55s cubic-bezier(.34, 1.8, .5, 1), border-color .3s, opacity .3s; }
+.dots .ring.hop { animation: hop .55s ease-out; }
+@keyframes hop { 40% { scale: 1.6; } 100% { scale: 1; } }
+@media (max-width: 1180px) { .dots { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .aurora, .row, .rb, .caret, .reveal, .demo-frame, .float { animation: none !important; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .btn:hover { transform: none; }
+  .dots .ring, .dots a, .dots a span { transition: none; animation: none !important; }
 }
 </style>
 </head>
@@ -260,15 +274,23 @@ footer nav { display: flex; gap: 20px; }
 <nav class="nav" aria-label="Main">
   <a class="brand" href="#top"><i>[<b>o o</b>]</i>robot</a>
   <div class="nav-links">
-    <a class="hide-sm" href="#follows">What it does</a>
-    <a class="hide-sm" href="#acts">Animations</a>
-    <a class="hide-sm" href="#friends">Friends</a>
-    <a class="hide-sm" href="#statusline">Status line</a>
-    <a class="hide-sm" href="#settings">Settings</a>
-    <a class="hide-sm" href="#terminal">Terminal</a>
     <a href="#install">Install</a>
+    <a href="#follows">Features</a>
     <a class="cta" href="https://github.com/egor-xyz/robot">GitHub</a>
   </div>
+</nav>
+
+<nav class="dots" aria-label="Sections">
+  <a href="#install" style="--c:var(--walk)"><span>Install</span></a>
+  <a href="#follows" style="--c:var(--wave)"><span>Features</span></a>
+  <a href="#acts" style="--c:var(--goal)"><span>Animations</span></a>
+  <a href="#friends" style="--c:var(--ufo)"><span>Friends</span></a>
+  <a href="#statusline" style="--c:var(--moon)"><span>Status line</span></a>
+  <a href="#files" style="--c:var(--concert)"><span>Changed files</span></a>
+  <a href="#extras" style="--c:var(--smile)"><span>More tricks</span></a>
+  <a href="#settings" style="--c:var(--fire)"><span>Settings</span></a>
+  <a href="#terminal" style="--c:var(--walk)"><span>Terminal</span></a>
+  <i class="ring" aria-hidden="true"></i>
 </nav>
 
 <main id="top">
@@ -290,6 +312,27 @@ footer nav { display: flex; gap: 20px; }
   <div class="btns">
     <a class="btn primary" href="#install">Install it</a>
     <a class="btn ghost" href="https://github.com/egor-xyz/robot">Star on GitHub</a>
+  </div>
+</section>
+
+<section class="block" id="install">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow reveal" style="--c:var(--walk)">install in Claude Code</div>
+      <h2 class="reveal">Two lines.<br><span class="rb">That's it.</span></h2>
+      <p class="lead reveal">macOS, Linux and Windows. No daemon, no network, nothing else to install.</p>
+    </div>
+    <ol class="steps">
+      <li class="step panel reveal" style="--c:var(--walk)"><span class="num">1</span><div class="step-body"><small>Add the marketplace, in the Claude Code prompt</small><code><b>/plugin</b> marketplace add egor-xyz/robot</code></div><button class="copy" type="button" data-copy="/plugin marketplace add egor-xyz/robot" aria-label="Copy step 1">Copy</button></li>
+      <li class="step panel reveal" style="--c:var(--wave)"><span class="num">2</span><div class="step-body"><small>Install the robot</small><code><b>/plugin</b> install robot@robot</code></div><button class="copy" type="button" data-copy="/plugin install robot@robot" aria-label="Copy step 2">Copy</button></li>
+      <li class="step panel reveal" style="--c:var(--goal)"><span class="num">3</span><div class="step-body"><small>Done</small><span class="plain">The robot appears above the prompt. No restart.</span></div></li>
+    </ol>
+    <div class="tips">
+      <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot</code><p>Hide or show the robot.</p></div>
+      <div class="tip panel reveal" style="--c:var(--walk)"><code>/robot files</code><p>See the changed files and their diffs.</p></div>
+      <div class="tip panel reveal" style="--c:var(--fire)"><code>/plugin → robot → Configure</code><p>Turn the fire off, or set when it starts.</p></div>
+      <div class="tip panel reveal" style="--c:var(--concert)"><code>/plugin update robot@robot</code><p>Get the newest robot.</p></div>
+    </div>
   </div>
 </section>
 
@@ -622,7 +665,29 @@ footer nav { display: flex; gap: 20px; }
       <div class="fact panel reveal" style="--c:var(--fire)"><h3>Grey until it matters</h3><p>Limits turn <span style="color:#ffd700">yellow</span> at 50% and <span style="color:#ff5f5f">red</span> at 80%. Cost turns <span style="color:#ffd700">yellow</span> above $100. ctx turns <span style="color:#ff5f5f">red</span> at the "Fire at" setting (default 25%). The exact shades come from your Claude Code theme: dark, light, color-blind or your terminal's own colors.</p></div>
       <div class="fact panel reveal" style="--c:var(--ufo)"><h3>The branch shimmers</h3><p>When the branch changes, or after a git commit or push, a bright band sweeps across the branch name for 3 seconds: <span style="color:#4782c8">fe</span><span style="color:#af87ff">a</span><span style="color:#ff87ff">t</span><span style="color:#ff8700">/</span><span style="color:#ffd700">l</span><span style="color:#ff8700">o</span><span style="color:#ff87ff">g</span><span style="color:#af87ff">i</span><span style="color:#4782c8">n</span>.</p></div>
       <div class="fact panel reveal" style="--c:var(--goal)"><h3>A line per subagent</h3><p>Each running subagent gets a <code>↳</code> line: task, type, model and effort, tokens and time. Up to 3 show, then <code>+N more</code>. After a plugin reload, running agents get their lines back.</p></div>
-      <div class="fact panel reveal" style="--c:var(--walk)"><h3>Changed files</h3><p>One line counts the files git would commit. With a PR open, it counts all the PR's files, and the panel shows them in two groups: not committed, and in the PR, with <span style="color:#87d787">+added</span> and <span style="color:#ff5f5f">-removed</span> lines. Click it, or run <code>/robot files</code>: a panel lists them, hundreds if the PR is big, with search, a shimmer under the mouse, ↑ ↓ and Enter keys, and a colored diff for each file. The line shimmers under the mouse too.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="files">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow reveal" style="--c:var(--walk)">changed files and your PR</div>
+      <h2 class="reveal">Every file you touched.<br><span class="rb">One click away.</span></h2>
+      <p class="lead reveal">One line under the status line counts the files git would commit. With a PR open, it counts all the PR's files. Click it, or run <code>/robot files</code>: a panel lists them.</p>
+    </div>
+    <pre class="sline panel reveal" style="--c:var(--walk)" role="img" aria-label="The changed-files panel for PR 42: 14 files changed. Not committed, 2 files. In PR, 12 files, each with lines added and removed and a status letter."><small>the line</small>14 files changed | <span style="color:#87d787">+249</span> | <span style="color:#ff5f5f">-94</span><small>the panel</small><span style="color:#5fafff">PR #42</span> · 14 files changed
+<span style="color:#808080">Not committed · 2</span>
+  <span style="color:#d0d0d0">SECURITY.md</span>                  <span style="color:#87d787">+1</span> <span style="color:#ffd700">M</span>
+  <span style="color:#d0d0d0">notes.txt</span>                    <span style="color:#87d787">+1</span> <span style="color:#87d787">A</span>
+<span style="color:#808080">In PR · 12</span>
+  <span style="color:#d0d0d0">register.tsx</span> claude-mod <span style="color:#87d787">+206</span> <span style="color:#ff5f5f">-22</span> <span style="color:#ffd700">M</span>
+  <span style="color:#d0d0d0">old-panel.ts</span> claude-mod     <span style="color:#ff5f5f">-48</span> <span style="color:#ff5f5f">D</span></pre>
+    <div class="facts" style="margin-top:14px">
+      <div class="fact panel reveal" style="--c:var(--wave)"><h3>Your PR, in two groups</h3><p>With a PR open (found with <code>gh</code>), the files come in two groups: not committed yet, and already in the PR. The panel title links to the PR in the browser.</p></div>
+      <div class="fact panel reveal" style="--c:var(--goal)"><h3>A diff for each file</h3><p>Open a file to see its diff, in color. <code>↗ open</code> opens the file in its default app. <code>← files</code> goes back.</p></div>
+      <div class="fact panel reveal" style="--c:var(--ufo)"><h3>Find it fast</h3><p>Type in the search box to find a file. <code>↓</code> walks the files, <code>Enter</code> opens one. With the mouse, click once to select, click again to open.</p></div>
+      <div class="fact panel reveal" style="--c:var(--smile)"><h3>Big PRs too</h3><p>The panel lists hundreds of files. The file under the mouse shimmers, and so does the line. <code>Esc</code> or Close closes it.</p></div>
     </div>
   </div>
 </section>
@@ -636,27 +701,6 @@ footer nav { display: flex; gap: 20px; }
     <div class="facts">
       <div class="fact panel reveal" style="--c:var(--concert)"><h3>Needs you</h3><p>Claude ends its turn with a question for you? The robot dances and says "need a human" in a comic speech bubble. It goes away when you send your next message.</p></div>
       <div class="fact panel reveal" style="--c:var(--ufo)"><h3>Robot spinner words</h3><p>The spinner shows a robot word each turn, like "Beaming…" or "Recharging…".</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="install">
-  <div class="wrap">
-    <div class="head">
-      <div class="eyebrow reveal" style="--c:var(--walk)">install in Claude Code</div>
-      <h2 class="reveal">Two lines.<br><span class="rb">Restart. Done.</span></h2>
-      <p class="lead reveal">macOS, Linux and Windows. No daemon, no network, nothing else to install.</p>
-    </div>
-    <ol class="steps">
-      <li class="step panel reveal" style="--c:var(--walk)"><span class="num">1</span><div class="step-body"><small>Add the marketplace, in the Claude Code prompt</small><code><b>/plugin</b> marketplace add egor-xyz/robot</code></div><button class="copy" type="button" data-copy="/plugin marketplace add egor-xyz/robot" aria-label="Copy step 1">Copy</button></li>
-      <li class="step panel reveal" style="--c:var(--wave)"><span class="num">2</span><div class="step-body"><small>Install the robot</small><code><b>/plugin</b> install robot@robot</code></div><button class="copy" type="button" data-copy="/plugin install robot@robot" aria-label="Copy step 2">Copy</button></li>
-      <li class="step panel reveal" style="--c:var(--goal)"><span class="num">3</span><div class="step-body"><small>Restart Claude Code</small><span class="plain">The robot appears above the prompt.</span></div></li>
-    </ol>
-    <div class="tips">
-      <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot</code><p>Hide or show the robot.</p></div>
-      <div class="tip panel reveal" style="--c:var(--walk)"><code>/robot files</code><p>See the changed files and their diffs.</p></div>
-      <div class="tip panel reveal" style="--c:var(--fire)"><code>/plugin → robot → Configure</code><p>Turn the fire off, or set when it starts.</p></div>
-      <div class="tip panel reveal" style="--c:var(--concert)"><code>/plugin update robot@robot</code><p>Get the newest robot.</p></div>
     </div>
   </div>
 </section>
@@ -733,6 +777,40 @@ footer nav { display: flex; gap: 20px; }
 (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // Side dots: the ring hops to the dot of the section on screen.
+  const dots = [...document.querySelectorAll('.dots a')];
+  const ring = document.querySelector('.dots .ring');
+  if (dots.length && ring) {
+    const move = (dot) => {
+      if (dot.classList.contains('on')) return;
+      dots.forEach((d) => d.classList.toggle('on', d === dot));
+      ring.style.top = `${dot.offsetTop - 5}px`;
+      ring.style.setProperty('--c', getComputedStyle(dot).getPropertyValue('--c'));
+      ring.classList.remove('hop'); void ring.offsetWidth; ring.classList.add('hop');
+    };
+    // One spy for all: the hero in the middle band hides the ring, any other section moves it.
+    const hero = document.getElementById('hero');
+    ring.style.opacity = '0';
+    const spy = new IntersectionObserver((es) => es.forEach((e) => {
+      if (!e.isIntersecting) return;
+      if (e.target === hero) { ring.style.opacity = '0'; dots.forEach((d) => d.classList.remove('on')); return; }
+      const dot = dots.find((d) => d.hash === `#${e.target.id}`);
+      if (dot) { ring.style.opacity = '1'; move(dot); }
+    }), { rootMargin: '-45% 0px -50% 0px' });
+    [hero, ...dots.map((d) => document.querySelector(d.hash))].forEach((sec) => sec && spy.observe(sec));
+  }
+
+  // The logo robot blinks now and then, as the real one does.
+  const eyes = document.querySelector('.brand i b');
+  if (eyes && !reduce) {
+    const blink = () => {
+      eyes.textContent = '- -';
+      setTimeout(() => { eyes.textContent = 'o o'; }, 160);
+      setTimeout(blink, 2500 + Math.random() * 4000);
+    };
+    setTimeout(blink, 2500);
+  }
 
   // Reveal fallback for browsers without scroll-driven animations.
   if (!CSS.supports('animation-timeline: view()')) {
