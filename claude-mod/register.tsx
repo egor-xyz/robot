@@ -12,7 +12,7 @@ import { robotWord } from './spinner'
 import { accountNameOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow } from './agents'
-import { MAX_NEW_FILES, changesGroupsOf, changesOf, countOf, countsOf, listRowOf, matchesOf, numstatOf, rowOf } from './changes'
+import { MAX_NEW_FILES, changesGroupsOf, changesOf, countsOf, listRowOf, localOf, matchesOf, numstatOf, prChangesOf, rowOf, titleOf } from './changes'
 import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
 
@@ -95,6 +95,8 @@ const CHANGES_QUERY = { plugin: 'robot', key: 'changesQuery' } as const
 const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
 /** The key of the list mark the panel's focus ring is on: `row-3`, `close-mark`, or none. */
 const CHANGES_CURSOR = { plugin: 'robot', key: 'changesCursor' } as const
+/** The branch's open PR (`number` 0: none) and the commit its diff starts from (HEAD with none). */
+const CHANGES_PR = { plugin: 'robot', key: 'changesPr' } as const
 /** The most of a diff the preview draws. */
 const MAX_DIFF_CHARS = 60_000
 /** The panel that lists the changed files. */
@@ -167,15 +169,54 @@ async function updateAgentRows($: EngineInterface, change: (rows: AgentRow[]) =>
   }
 }
 
-/** Reads what `git` would commit: each changed or new file with its added and removed lines. */
+type Git = (args: string[]) => ReturnType<EngineInterface['process']['run']>
+
+/** How long a PR lookup holds before `gh` is asked again. */
+const PR_MS = 60_000
+/** The last PR lookup: the branch it was for, when, and the PR (0: none open). Starts over on a reload. */
+let prLookup = { key: '', at: 0, number: 0, baseRef: '' }
+
+/** The open PR of the branch at `root`, by `gh`, kept for a minute; none when `gh` is missing or not signed in. */
+async function prOf($: EngineInterface, git: Git, root: string): Promise<{ number: number; baseRef: string }> {
+  const branch = (await git(['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
+  const key = `${root}\n${branch}`
+  if (prLookup.key === key && Date.now() - prLookup.at < PR_MS) return prLookup
+  const found = await $.process.run(['gh', 'pr', 'view', '--json', 'number,baseRefName,state'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
+  let pr = { number: 0, baseRef: '' }
+  try {
+    const view = found?.exitCode === 0 ? (JSON.parse(found.stdout) as { number?: number; baseRefName?: string; state?: string }) : {}
+    if (view.state === 'OPEN' && view.number) pr = { number: view.number, baseRef: view.baseRefName ?? '' }
+  } catch {
+    // Not JSON: no PR known.
+  }
+  prLookup = { key, at: Date.now(), ...pr }
+  return pr
+}
+
+/** Where the PR's branch began: the commit its diff starts from; HEAD when none is found. */
+async function baseOf(git: Git, root: string, baseRef: string): Promise<string> {
+  for (const ref of [`origin/${baseRef}`, baseRef]) {
+    const found = await git(['-C', root, 'merge-base', 'HEAD', ref])
+    if (found.exitCode === 0 && found.stdout.trim()) return found.stdout.trim()
+  }
+  return 'HEAD'
+}
+
+/**
+ * Reads the changed files. With no PR open: what `git` would commit, each
+ * changed or new file. With one open: every file of the PR, committed or not,
+ * plus the new files; the ones not committed yet are marked.
+ */
 async function refreshChanges($: EngineInterface): Promise<void> {
   try {
     const cwd = await $.session.cwd()
-    const git = (args: string[]) => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
+    const git: Git = args => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
     const top = await git(['rev-parse', '--show-toplevel'])
     if (top.exitCode !== 0) return
     const root = top.stdout.trim()
-    const tracked = await git(['-C', root, 'diff', 'HEAD', '--numstat'])
+    const pr = await prOf($, git, root)
+    const base = pr.number > 0 ? await baseOf(git, root, pr.baseRef) : 'HEAD'
+    const local = await git(['-C', root, 'diff', '--no-renames', '--numstat', 'HEAD'])
     const others = await git(['-C', root, 'ls-files', '--others', '--exclude-standard'])
     const paths = others.exitCode === 0 ? others.stdout.split('\n').filter(Boolean) : []
     // A new file's lines come from a diff against nothing; past MAX_NEW_FILES they are not counted.
@@ -184,9 +225,18 @@ async function refreshChanges($: EngineInterface): Promise<void> {
       const counted = await git(['-C', root, 'diff', '--no-index', '--numstat', '--', '/dev/null', path])
       return { path, added: numstatOf(counted.stdout)[0]?.added ?? 0, removed: 0 }
     }))
-    const changes = changesOf(tracked.exitCode === 0 ? numstatOf(tracked.stdout) : [], fresh)
+    const uncommitted = local.exitCode === 0 ? numstatOf(local.stdout) : []
+    let changes = changesOf(uncommitted, fresh)
+    if (base !== 'HEAD') {
+      const sincePr = await git(['-C', root, 'diff', '--no-renames', '--numstat', base])
+      const isLocal = new Set(changes.map(change => change.path))
+      changes = prChangesOf(sincePr.exitCode === 0 ? numstatOf(sincePr.stdout) : [], fresh, isLocal)
+    }
+    const prNow = { number: base !== 'HEAD' ? pr.number : 0, base }
     const { value: was = [] } = await $.state.get(CHANGES)
     if (JSON.stringify(was) !== JSON.stringify(changes)) await $.state.set(CHANGES, changes)
+    const { value: wasPr } = await $.state.get(CHANGES_PR)
+    if (JSON.stringify(wasPr) !== JSON.stringify(prNow)) await $.state.set(CHANGES_PR, prNow)
   } catch (error) {
     $.ui.log(`robot: changed files unavailable: ${String(error)}`, { to: 'debug' })
   }
@@ -209,13 +259,14 @@ async function openChanges($: EngineInterface): Promise<void> {
   if (!opened.isPlaced) $.ui.toast('robot: no room for the changed files panel')
 }
 
-/** Shows a changed file's diff in the panel, as git has it against HEAD; a new file shows whole, as added. */
+/** Shows a changed file's diff in the panel: against HEAD, or with a PR open, the PR's whole diff; a new file shows whole, as added. */
 async function previewChange($: EngineInterface, path: string): Promise<void> {
+  const { value: pr = { number: 0, base: 'HEAD' } } = await $.state.get(CHANGES_PR)
   const cwd = await $.session.cwd()
   const git = (args: string[]) => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
   const top = await git(['rev-parse', '--show-toplevel'])
   const root = top.stdout.trim()
-  const tracked = await git(['-C', root, 'diff', 'HEAD', '--', path])
+  const tracked = await git(['-C', root, 'diff', '--no-renames', pr.base || 'HEAD', '--', path])
   const diff = tracked.stdout.trim() ? tracked.stdout : (await git(['-C', root, 'diff', '--no-index', '--', '/dev/null', path])).stdout
   await $.state.set(CHANGES_PREVIEW, { path, root, diff: diff.slice(0, MAX_DIFF_CHARS) })
 }
@@ -453,6 +504,7 @@ export const register: Register = (on, options) => {
     const { value: status = [] } = await $.state.get(STATUS)
     const { value: agentRows = [] } = isAgentLinesOn ? await $.state.get(AGENT_ROWS) : { value: [] }
     const { value: changes = [] } = isChangesOn ? await $.state.get(CHANGES) : { value: [] }
+    const { value: pr = { number: 0, base: 'HEAD' } } = isChangesOn ? await $.state.get(CHANGES_PR) : { value: undefined }
     const theirs = await next(e)
     // A few cells of room for the line's indent and the right edge.
     const columns = (e.viewport?.columns ?? 80) - STATUS_MARGIN
@@ -473,7 +525,7 @@ export const register: Register = (on, options) => {
       if (more.length > 0) lines.push([AGENT_MARK, ...more])
     }
     // The changed files: one line, a button that opens the panel with the list.
-    const changed = changes.length > 0 ? fitStatus(changesGroupsOf(changes as FileChange[]), columns) : []
+    const changed = changes.length > 0 ? fitStatus(changesGroupsOf(changes as FileChange[], pr.number), columns) : []
     if (lines.length === 0 && changed.length === 0) return theirs
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
@@ -517,6 +569,7 @@ export const register: Register = (on, options) => {
     const { value: query = '' } = await $.state.get(CHANGES_QUERY)
     const { value: preview = { path: '', root: '', diff: '' } } = await $.state.get(CHANGES_PREVIEW)
     const { value: cursor = '' } = await $.state.get(CHANGES_CURSOR)
+    const { value: pr = { number: 0, base: 'HEAD' } } = await $.state.get(CHANGES_PR)
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
     // The mobile app draws no field and no code block: there the list shows whole, and a diff as plain text.
@@ -555,7 +608,14 @@ export const register: Register = (on, options) => {
     const shown = matchesOf(changes, query)
     return (
       <Box flexDirection="column" paddingX={1}>
-        <Text bold>{changes.length > 0 ? countOf(changes.length) : 'No changed files'}</Text>
+        {changes.length > 0 ? (
+          <Text>
+            <Text bold>{titleOf(changes.length, pr.number)}</Text>
+            {pr.number > 0 && localOf(changes) && <Text color="warning">{` · ● ${localOf(changes)}`}</Text>}
+          </Text>
+        ) : (
+          <Text bold>No changed files</Text>
+        )}
         {/* Typing filters the list; Tab walks the files, the pointer lights the one under it. */}
         {Input && <Input key="search" placeholder="Search files" value={query} autoFocus onInput={value => void $.state.set(CHANGES_QUERY, value)} onSubmit={() => undefined} />}
         {Client ? (
@@ -575,15 +635,16 @@ export const register: Register = (on, options) => {
               </Button>
             </Box>
             <Box flexGrow={1}>
-              <Client key="files" module="./files-list.tsx" width="100%" props={{ rows: shown.map(change => listRowOf(change, columns - 2)), cursor: cursorOf(cursor, shown.length) }} />
+              <Client key="files" module="./files-list.tsx" width="100%" props={{ rows: shown.map(change => listRowOf(change, columns - (pr.number > 0 ? 4 : 2))), cursor: cursorOf(cursor, shown.length), isMarked: pr.number > 0 }} />
             </Box>
           </Box>
         ) : (
           <Box key="files" flexDirection="column">
             {shown.map(change => {
-              const row = rowOf(change, columns)
+              const row = rowOf(change, columns - (pr.number > 0 ? 2 : 0))
               return (
                 <Button key={change.path} plain onPress={() => void previewChange($, change.path)}>
+                  {pr.number > 0 && <Text color="warning">{change.isLocal ? '● ' : '  '}</Text>}
                   <Text>{row.path}</Text>
                   <Text>{row.gap}</Text>
                   <Text color="success">{change.added > 0 ? `+${change.added}` : ''}</Text>

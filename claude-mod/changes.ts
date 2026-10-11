@@ -1,14 +1,18 @@
 import type { StatusGroup } from './statusline'
 
-/** One changed file, as `git` counts it against HEAD. */
-export type FileChange = { path: string; added: number; removed: number }
+/**
+ * One changed file with its added and removed lines. With no PR open, git
+ * counts it against HEAD; with one open, against where the PR's branch began.
+ * `isLocal`: it has changes not committed yet.
+ */
+export type FileChange = { path: string; added: number; removed: number; isLocal?: boolean }
 
 const DIM = 'inactive'
 /** At most this many new files are counted line by line; the rest count as one line changed. */
 export const MAX_NEW_FILES = 20
 
 // On a narrow screen the lowest rank goes first: the count stays longest.
-const RANK = { removed: 1, added: 2, count: 3 }
+const RANK = { removed: 1, added: 2, local: 3, count: 4 }
 
 /**
  * The files of `git diff HEAD --numstat` output: one `added<TAB>removed<TAB>path`
@@ -31,16 +35,39 @@ export function changesOf(tracked: readonly FileChange[], fresh: readonly FileCh
 /** `5 files changed`, `1 file changed`. */
 export const countOf = (count: number): string => `${count} ${count === 1 ? 'file' : 'files'} changed`
 
-/** The line under the status line: `5 files changed | +120 | -30`. Nothing when nothing changed. */
-export function changesGroupsOf(changes: readonly FileChange[]): StatusGroup[] {
+/** `PR #12 · 5 files`, or `5 files changed` with no PR open (`pr` 0). */
+export const titleOf = (count: number, pr: number): string => (pr > 0 ? `PR #${pr} · ${count} ${count === 1 ? 'file' : 'files'}` : countOf(count))
+
+/** `2 not committed`: the files of an open PR with changes not committed yet. */
+export const localOf = (changes: readonly FileChange[]): string => {
+  const count = changes.filter(change => change.isLocal).length
+  return count > 0 ? `${count} not committed` : ''
+}
+
+/**
+ * The line under the status line: `5 files changed | +120 | -30`, or with a
+ * PR open, `PR #12 · 14 files | +300 | -20 | 2 not committed`. Nothing when nothing changed.
+ */
+export function changesGroupsOf(changes: readonly FileChange[], pr = 0): StatusGroup[] {
   if (changes.length === 0) return []
   const added = changes.reduce((sum, change) => sum + change.added, 0)
   const removed = changes.reduce((sum, change) => sum + change.removed, 0)
+  const local = pr > 0 ? localOf(changes) : ''
   return [
-    { rank: RANK.count, spans: [{ text: countOf(changes.length), color: DIM }] },
+    { rank: RANK.count, spans: [{ text: titleOf(changes.length, pr), color: DIM }] },
     ...(added > 0 ? [{ rank: RANK.added, spans: [{ text: `+${added}`, color: 'success' }] }] : []),
     ...(removed > 0 ? [{ rank: RANK.removed, spans: [{ text: `-${removed}`, color: 'error' }] }] : []),
+    ...(local ? [{ rank: RANK.local, spans: [{ text: local, color: 'warning' }] }] : []),
   ]
+}
+
+/**
+ * An open PR's files: what the branch changed since it began (`sincePr`,
+ * committed or not) and the new files, each marked `isLocal` when `local`
+ * (the paths not committed yet) holds it.
+ */
+export function prChangesOf(sincePr: readonly FileChange[], fresh: readonly FileChange[], local: ReadonlySet<string>): FileChange[] {
+  return changesOf(sincePr, fresh).map(change => (local.has(change.path) ? { ...change, isLocal: true } : change))
 }
 
 /** `+12 -3` for one file, as the panel shows it; empty for a binary file. */
@@ -65,8 +92,8 @@ export function rowOf(change: FileChange, columns: number): { path: string; gap:
   return { path, gap: ' '.repeat(Math.max(counts > 0 ? 2 : 0, columns - path.length - counts)) }
 }
 
-/** A row as the panel's list draws it: the full path to pick, the fitted name, the gap and the counts. */
-export function listRowOf(change: FileChange, columns: number): { path: string; name: string; gap: string; added: number; removed: number } {
+/** A row as the panel's list draws it: the full path to pick, the fitted name, the gap, the counts and the not-committed mark. */
+export function listRowOf(change: FileChange, columns: number): { path: string; name: string; gap: string; added: number; removed: number; isLocal: boolean } {
   const { path: name, gap } = rowOf(change, columns)
-  return { path: change.path, name, gap, added: change.added, removed: change.removed }
+  return { path: change.path, name, gap, added: change.added, removed: change.removed, isLocal: change.isLocal === true }
 }

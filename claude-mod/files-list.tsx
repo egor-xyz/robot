@@ -1,9 +1,12 @@
 import type { ClientModule } from 'claude-code'
 
 /** One row of the changed-files list: the path on the left, the counts on the right (see `rowOf`). */
-export type ListRow = { path: string; name: string; gap: string; added: number; removed: number }
-/** `cursor`: the row the keyboard is on (the engine's focus ring, see register.tsx), or -1. */
-export type ListProps = { rows: ListRow[]; cursor: number }
+export type ListRow = { path: string; name: string; gap: string; added: number; removed: number; isLocal: boolean }
+/**
+ * `cursor`: the row the keyboard is on (the engine's focus ring, see register.tsx), or -1.
+ * `isMarked`: a PR is open, so each row keeps two cells for the `●` of changes not committed yet.
+ */
+export type ListProps = { rows: ListRow[]; cursor: number; isMarked: boolean }
 /** The Close row under the files, with one empty row between. */
 const CLOSE = 'Close'
 type Local = { hover: number; picked: number; phase: number; ref: { props: ListProps; cursor: number; stop?: () => void; light?: (next: Partial<Local>) => void } }
@@ -94,6 +97,7 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
         const chars = [...row.name]
         return (
           <Box flexDirection="row" height={1} overflow="hidden" backgroundColor={isLit ? 'subtle' : undefined}>
+            {props.isMarked && <Text color="warning">{row.isLocal ? '● ' : '  '}</Text>}
             <Box flexShrink={1} overflow="hidden">
               <Text bold={isLit} wrap="truncate-start">
                 {isLit ? chars.map((char, at) => <Text color={shadeOf(at, state.phase, chars.length)}>{char}</Text>) : row.name}

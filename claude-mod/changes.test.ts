@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { changesGroupsOf, changesOf, countOf, countsOf, listRowOf, matchesOf, numstatOf, rowOf } from './changes'
+import { changesGroupsOf, changesOf, countOf, countsOf, listRowOf, matchesOf, numstatOf, prChangesOf, rowOf } from './changes'
 import { shadeOf, sweepOf } from './files-list'
 import { fitStatus, textOfStatus } from './statusline'
 
@@ -26,6 +26,24 @@ test('the line counts the files and sums the lines', () => {
   expect(line([{ path: 'a.ts', added: 4, removed: 0 }])).toBe('1 file changed | +4')
   expect(changesGroupsOf([])).toEqual([])
   expect(countOf(5)).toBe('5 files changed')
+})
+
+test('with a PR open the line names it, and counts the files not committed yet', () => {
+  const line = (changes: Parameters<typeof changesGroupsOf>[0], pr: number) => textOfStatus(fitStatus(changesGroupsOf(changes, pr), Number.POSITIVE_INFINITY))
+  const changes = [{ path: 'a.ts', added: 100, removed: 10, isLocal: true }, { path: 'b.ts', added: 20, removed: 20 }]
+  expect(line(changes, 12)).toBe('PR #12 · 2 files | +120 | -30 | 1 not committed')
+  expect(line([{ path: 'b.ts', added: 1, removed: 0 }], 12)).toBe('PR #12 · 1 file | +1')
+  expect(line(changes, 0)).toBe('2 files changed | +120 | -30')
+})
+
+test('a PR lists its files and new ones, marking the ones not committed yet', () => {
+  const sincePr = [{ path: 'a.ts', added: 5, removed: 1 }, { path: 'b.ts', added: 2, removed: 0 }]
+  const fresh = [{ path: 'c.ts', added: 3, removed: 0 }]
+  expect(prChangesOf(sincePr, fresh, new Set(['b.ts', 'c.ts']))).toEqual([
+    { path: 'a.ts', added: 5, removed: 1 },
+    { path: 'b.ts', added: 2, removed: 0, isLocal: true },
+    { path: 'c.ts', added: 3, removed: 0, isLocal: true },
+  ])
 })
 
 test('on a narrow screen the count stays', () => {

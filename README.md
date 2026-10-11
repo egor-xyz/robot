@@ -222,6 +222,14 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 5 files changed | +249 | -24
 ```
 
+With a PR open (found with `gh`), the line counts all the PR's files, committed or not. It also says how many are not committed yet:
+
+```text
+PR #42 · 14 files | +310 | -27 | 2 not committed
+```
+
+In the panel, `●` marks the files not committed yet.
+
 Under the mouse, the line shimmers. **Click it, or run `/robot files`, for the list.** A panel opens with each file: the name on the left, `+N -N` on the right.
 
 - 🔎 Type in the search box to find a file.
@@ -267,7 +275,7 @@ Every act has a switch. To change one:
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
 | Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
-| Changed files | `true` | One line under the status line: how many files git would commit, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
+| Changed files | `true` | One line under the status line: how many files git would commit; with a PR open, all the PR's files, and how many are not committed yet, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.
