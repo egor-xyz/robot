@@ -222,15 +222,20 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 5 files changed | +249 | -24
 ```
 
-With a PR open (found with `gh`), the line counts all the PR's files, committed or not. It also says how many are not committed yet:
+With a PR open (found with `gh`), the line counts all the PR's files, committed or not.
+
+Under the mouse, the line shimmers. **Click it, or run `/robot files`, for the list.** A panel opens with each file, as editors list changes: the name, its folder (dim), `+N -N`, and a colored letter: `M` modified, `A` added, `D` deleted.
+
+With a PR open, the panel title links to the PR in the browser, and the files come in two groups:
 
 ```text
-PR #42 · 14 files | +310 | -27 | 2 not committed
+PR #42 · 14 files changed
+Not committed · 2
+  SECURITY.md                 +1 M
+  notes.txt                   +1 A
+In PR · 12
+  register.tsx claude-mod +206 -22 M
 ```
-
-In the panel, `●` marks the files not committed yet.
-
-Under the mouse, the line shimmers. **Click it, or run `/robot files`, for the list.** A panel opens with each file: the name on the left, `+N -N` on the right.
 
 - 🔎 Type in the search box to find a file.
 - ✨ The file under the mouse gets a soft background, and its name shimmers.

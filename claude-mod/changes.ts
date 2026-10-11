@@ -1,24 +1,33 @@
 import type { StatusGroup } from './statusline'
 
+/** How git changed a file: modified, added (new files too) or deleted. */
+export type FileStatus = 'M' | 'A' | 'D'
+
 /**
- * One changed file with its added and removed lines. With no PR open, git
- * counts it against HEAD; with one open, against where the PR's branch began.
- * `isLocal`: it has changes not committed yet.
+ * One changed file with its added and removed lines. `group`: `local` for
+ * changes not committed yet (against HEAD), `pr` for what an open PR's commits
+ * changed (against where its branch began). A file can be in both.
  */
-export type FileChange = { path: string; added: number; removed: number; isLocal?: boolean }
+export type FileChange = { path: string; added: number; removed: number; status: FileStatus; group: 'local' | 'pr' }
+
+/** What the line under the status line counts. */
+export type ChangeTotals = { files: number; added: number; removed: number }
 
 const DIM = 'inactive'
 /** At most this many new files are counted line by line; the rest count as one line changed. */
 export const MAX_NEW_FILES = 20
 
 // On a narrow screen the lowest rank goes first: the count stays longest.
-const RANK = { removed: 1, added: 2, local: 3, count: 4 }
+const RANK = { removed: 1, added: 2, count: 3 }
+
+/** The colour of each status letter, as editors draw them. */
+export const STATUS_COLORS: Record<FileStatus, string> = { M: 'warning', A: 'success', D: 'error' }
 
 /**
- * The files of `git diff HEAD --numstat` output: one `added<TAB>removed<TAB>path`
+ * The files of `git diff --numstat` output: one `added<TAB>removed<TAB>path`
  * line each. A binary file (`-` counts) counts as nothing changed in lines.
  */
-export function numstatOf(stdout: string): FileChange[] {
+export function numstatOf(stdout: string): { path: string; added: number; removed: number }[] {
   return stdout
     .split('\n')
     .map(line => line.split('\t'))
@@ -26,52 +35,55 @@ export function numstatOf(stdout: string): FileChange[] {
     .map(([added = '', removed = '', ...path]) => ({ path: path.join('\t'), added: Number(added) || 0, removed: Number(removed) || 0 }))
 }
 
-/** All changes: the tracked files first, then the new ones, each path once. */
-export function changesOf(tracked: readonly FileChange[], fresh: readonly FileChange[]): FileChange[] {
+/** Each path's letter from `git diff --name-status` output (`M\tpath`); any other letter reads as M. */
+export function statusesOf(stdout: string): Map<string, FileStatus> {
+  const found = new Map<string, FileStatus>()
+  for (const line of stdout.split('\n')) {
+    const [letter = '', ...path] = line.split('\t')
+    if (!letter || path.length === 0) continue
+    found.set(path.join('\t'), letter[0] === 'A' ? 'A' : letter[0] === 'D' ? 'D' : 'M')
+  }
+  return found
+}
+
+/** One group's files: the tracked ones with their letters, then the new ones (added, each path once). */
+export function groupOf(
+  group: FileChange['group'],
+  tracked: readonly { path: string; added: number; removed: number }[],
+  statuses: ReadonlyMap<string, FileStatus>,
+  fresh: readonly { path: string; added: number }[] = [],
+): FileChange[] {
   const seen = new Set(tracked.map(change => change.path))
-  return [...tracked, ...fresh.filter(change => !seen.has(change.path))]
+  return [
+    ...tracked.map(change => ({ ...change, status: statuses.get(change.path) ?? ('M' as const), group })),
+    ...fresh.filter(change => !seen.has(change.path)).map(change => ({ path: change.path, added: change.added, removed: 0, status: 'A' as const, group })),
+  ]
+}
+
+/** The files and lines of a list of changes, each path counted once. */
+export function totalsOf(changes: readonly { path: string; added: number; removed: number }[]): ChangeTotals {
+  return {
+    files: new Set(changes.map(change => change.path)).size,
+    added: changes.reduce((sum, change) => sum + change.added, 0),
+    removed: changes.reduce((sum, change) => sum + change.removed, 0),
+  }
 }
 
 /** `5 files changed`, `1 file changed`. */
 export const countOf = (count: number): string => `${count} ${count === 1 ? 'file' : 'files'} changed`
 
-/** `PR #12 · 5 files`, or `5 files changed` with no PR open (`pr` 0). */
-export const titleOf = (count: number, pr: number): string => (pr > 0 ? `PR #${pr} · ${count} ${count === 1 ? 'file' : 'files'}` : countOf(count))
-
-/** `2 not committed`: the files of an open PR with changes not committed yet. */
-export const localOf = (changes: readonly FileChange[]): string => {
-  const count = changes.filter(change => change.isLocal).length
-  return count > 0 ? `${count} not committed` : ''
-}
-
-/**
- * The line under the status line: `5 files changed | +120 | -30`, or with a
- * PR open, `PR #12 · 14 files | +300 | -20 | 2 not committed`. Nothing when nothing changed.
- */
-export function changesGroupsOf(changes: readonly FileChange[], pr = 0): StatusGroup[] {
-  if (changes.length === 0) return []
-  const added = changes.reduce((sum, change) => sum + change.added, 0)
-  const removed = changes.reduce((sum, change) => sum + change.removed, 0)
-  const local = pr > 0 ? localOf(changes) : ''
+/** The line under the status line: `5 files changed | +120 | -30`. Nothing when nothing changed. */
+export function changesGroupsOf(totals: ChangeTotals): StatusGroup[] {
+  if (totals.files === 0) return []
   return [
-    { rank: RANK.count, spans: [{ text: titleOf(changes.length, pr), color: DIM }] },
-    ...(added > 0 ? [{ rank: RANK.added, spans: [{ text: `+${added}`, color: 'success' }] }] : []),
-    ...(removed > 0 ? [{ rank: RANK.removed, spans: [{ text: `-${removed}`, color: 'error' }] }] : []),
-    ...(local ? [{ rank: RANK.local, spans: [{ text: local, color: 'warning' }] }] : []),
+    { rank: RANK.count, spans: [{ text: countOf(totals.files), color: DIM }] },
+    ...(totals.added > 0 ? [{ rank: RANK.added, spans: [{ text: `+${totals.added}`, color: 'success' }] }] : []),
+    ...(totals.removed > 0 ? [{ rank: RANK.removed, spans: [{ text: `-${totals.removed}`, color: 'error' }] }] : []),
   ]
 }
 
-/**
- * An open PR's files: what the branch changed since it began (`sincePr`,
- * committed or not) and the new files, each marked `isLocal` when `local`
- * (the paths not committed yet) holds it.
- */
-export function prChangesOf(sincePr: readonly FileChange[], fresh: readonly FileChange[], local: ReadonlySet<string>): FileChange[] {
-  return changesOf(sincePr, fresh).map(change => (local.has(change.path) ? { ...change, isLocal: true } : change))
-}
-
 /** `+12 -3` for one file, as the panel shows it; empty for a binary file. */
-export function countsOf(change: FileChange): string {
+export function countsOf(change: { added: number; removed: number }): string {
   return [change.added > 0 ? `+${change.added}` : '', change.removed > 0 ? `-${change.removed}` : ''].filter(Boolean).join(' ')
 }
 
@@ -82,18 +94,56 @@ export function matchesOf(changes: readonly FileChange[], query: string): FileCh
 }
 
 /**
- * A panel row `columns` cells wide: the path on the left, the counts on the
- * right. A path too long loses its start (`…mod/changes.ts`): the file name stays.
+ * One row of the panel's list: a group's heading (`heading` set, nothing to
+ * pick), or a file: its name, its folder (dim), its counts and its letter.
  */
-export function rowOf(change: FileChange, columns: number): { path: string; gap: string } {
-  const counts = countsOf(change).length
-  const room = Math.max(1, columns - counts - (counts > 0 ? 2 : 0))
-  const path = change.path.length <= room ? change.path : `…${change.path.slice(change.path.length - room + 1)}`
-  return { path, gap: ' '.repeat(Math.max(counts > 0 ? 2 : 0, columns - path.length - counts)) }
+export type ListRow = {
+  heading: string
+  path: string
+  group: FileChange['group']
+  name: string
+  folder: string
+  added: number
+  removed: number
+  status: FileStatus
 }
 
-/** A row as the panel's list draws it: the full path to pick, the fitted name, the gap, the counts and the not-committed mark. */
-export function listRowOf(change: FileChange, columns: number): { path: string; name: string; gap: string; added: number; removed: number; isLocal: boolean } {
-  const { path: name, gap } = rowOf(change, columns)
-  return { path: change.path, name, gap, added: change.added, removed: change.removed, isLocal: change.isLocal === true }
+/** The cells a row keeps right of the name: the counts, a space, the letter. */
+const tailOf = (change: { added: number; removed: number }): number => {
+  const counts = countsOf(change).length
+  return (counts > 0 ? counts + 1 : 0) + 2
+}
+
+/**
+ * A file's row `columns` cells wide, as editors list changes: the name first,
+ * then its folder, dim; the counts and the letter at the right edge. A folder
+ * too long loses its start (`…/claude-mod`), and so does a name too long.
+ */
+export function listRowOf(change: FileChange, columns: number): ListRow {
+  const cut = change.path.lastIndexOf('/')
+  const file = cut < 0 ? change.path : change.path.slice(cut + 1)
+  const dir = cut < 0 ? '' : change.path.slice(0, cut)
+  const room = Math.max(1, columns - tailOf(change) - 1)
+  const name = file.length <= room ? file : `…${file.slice(file.length - room + 1)}`
+  const left = room - name.length - 1
+  const folder = !dir || left < 4 ? '' : dir.length <= left ? dir : `…${dir.slice(dir.length - left + 1)}`
+  return { heading: '', path: change.path, group: change.group, name, folder, added: change.added, removed: change.removed, status: change.status }
+}
+
+const headingOf = (heading: string): ListRow => ({ heading, path: '', group: 'local', name: '', folder: '', added: 0, removed: 0, status: 'M' })
+
+/**
+ * The panel's rows for the files that match `query`. With a PR open, two
+ * groups under their headings: the changes not committed yet first (what
+ * comes next), then the PR's own; with none, the files alone.
+ */
+export function listRowsOf(changes: readonly FileChange[], query: string, isPr: boolean, columns: number): ListRow[] {
+  const shown = matchesOf(changes, query)
+  if (!isPr) return shown.map(change => listRowOf(change, columns))
+  const local = shown.filter(change => change.group === 'local')
+  const pr = shown.filter(change => change.group === 'pr')
+  return [
+    ...(local.length > 0 ? [headingOf(`Not committed · ${local.length}`), ...local.map(change => listRowOf(change, columns))] : []),
+    ...(pr.length > 0 ? [headingOf(`In PR · ${pr.length}`), ...pr.map(change => listRowOf(change, columns))] : []),
+  ]
 }

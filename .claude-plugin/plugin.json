@@ -101,7 +101,7 @@
     "changedFiles": {
       "type": "boolean",
       "title": "Changed files",
-      "description": "One line under the status line: how many files git would commit; with a PR open, all the PR's files, and how many are not committed yet, with the lines added and removed. Click it, or run /robot files, for the list. false hides it.",
+      "description": "One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run /robot files, for the list. false hides it.",
       "default": true
     },
     "resetSettings": {

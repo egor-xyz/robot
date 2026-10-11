@@ -1,12 +1,9 @@
 import type { ClientModule } from 'claude-code'
 
-/** One row of the changed-files list: the path on the left, the counts on the right (see `rowOf`). */
-export type ListRow = { path: string; name: string; gap: string; added: number; removed: number; isLocal: boolean }
-/**
- * `cursor`: the row the keyboard is on (the engine's focus ring, see register.tsx), or -1.
- * `isMarked`: a PR is open, so each row keeps two cells for the `●` of changes not committed yet.
- */
-export type ListProps = { rows: ListRow[]; cursor: number; isMarked: boolean }
+import { STATUS_COLORS, type ListRow } from './changes'
+
+/** `cursor`: the row the keyboard is on (the engine's focus ring, see register.tsx), or -1. */
+export type ListProps = { rows: ListRow[]; cursor: number }
 /** The Close row under the files, with one empty row between. */
 const CLOSE = 'Close'
 type Local = { hover: number; picked: number; phase: number; ref: { props: ListProps; cursor: number; stop?: () => void; light?: (next: Partial<Local>) => void } }
@@ -29,7 +26,7 @@ export const sweepOf = (length: number): number => Math.ceil((length + 10) / 1.6
  * The changed files, as the filetree mod draws its rows: the row under the
  * pointer (or under the keyboard's cursor) gets a soft background, and its
  * name shimmers once. A click selects a row; a second click posts
- * `{ pick: path }` to the hooks;
+ * `{ pick: path, group }` to the hooks; a group's heading is not picked;
  * the Close row under them lights the same way and posts `{ close: true }`.
  */
 const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
@@ -62,7 +59,7 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
       const cur = surface.state
       if (!cur) return
       const count = ref.props.rows.length
-      const at = (e.y >= 0 && e.y < count) || e.y === count + 1 ? e.y : -1
+      const at = (e.y >= 0 && e.y < count && !ref.props.rows[e.y]?.heading) || e.y === count + 1 ? e.y : -1
       if (e.type === 'leave') {
         if (cur.hover !== -1) surface.setState({ ...cur, hover: -1 })
         return
@@ -70,7 +67,7 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
       // As filetree: a click selects a file; a click on the selected file, or on Close, acts.
       if (e.type === 'down' && (e.button ?? 'left') === 'left' && at >= 0) {
         if (at === count + 1) void surface.post({ close: true })
-        else if (at === cur.picked) void surface.post({ pick: ref.props.rows[at]?.path ?? '' })
+        else if (at === cur.picked) void surface.post({ pick: ref.props.rows[at]?.path ?? '', group: ref.props.rows[at]?.group ?? 'local' })
         else light({ picked: at, hover: -1 })
         return
       }
@@ -93,20 +90,28 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
   return (
     <Box flexDirection="column">
       {props.rows.map((row, i) => {
+        if (row.heading) {
+          return (
+            <Box flexDirection="row" height={1} overflow="hidden">
+              <Text bold color="inactive">{row.heading}</Text>
+            </Box>
+          )
+        }
         const isLit = i === lit
         const chars = [...row.name]
         return (
           <Box flexDirection="row" height={1} overflow="hidden" backgroundColor={isLit ? 'subtle' : undefined}>
-            {props.isMarked && <Text color="warning">{row.isLocal ? '● ' : '  '}</Text>}
+            {/* As editors list changes: the name, then its folder dim; the counts and the letter at the right edge. */}
             <Box flexShrink={1} overflow="hidden">
-              <Text bold={isLit} wrap="truncate-start">
-                {isLit ? chars.map((char, at) => <Text color={shadeOf(at, state.phase, chars.length)}>{char}</Text>) : row.name}
+              <Text wrap="truncate-start">
+                <Text bold>{isLit ? chars.map((char, at) => <Text color={shadeOf(at, state.phase, chars.length)}>{char}</Text>) : row.name}</Text>
+                <Text color="inactive">{row.folder ? ` ${row.folder}` : ''}</Text>
               </Text>
             </Box>
-            {/* The counts sit at the right edge, as filetree's right column. */}
             <Box flexGrow={1} />
-            <Text color="success">{row.added > 0 ? `+${row.added}` : ''}</Text>
-            <Text color="error">{row.removed > 0 ? `${row.added > 0 ? ' ' : ''}-${row.removed}` : ''}</Text>
+            <Text color="success">{row.added > 0 ? ` +${row.added}` : ''}</Text>
+            <Text color="error">{row.removed > 0 ? ` -${row.removed}` : ''}</Text>
+            <Text bold color={STATUS_COLORS[row.status]}>{` ${row.status}`}</Text>
           </Box>
         )
       })}
