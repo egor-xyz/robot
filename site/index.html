@@ -49,17 +49,15 @@ a:hover { color: var(--wave); }
 pre, code, kbd { font-family: var(--mono); }
 pre { margin: 0; }
 
-/* ---------- colour backdrop: one fixed layer that only rotates (GPU) ---------- */
-.aurora { position: fixed; inset: -35vmax; z-index: -3; pointer-events: none; will-change: transform;
+/* ---------- colour backdrop: one still fixed layer (a spinning one this big cost a full repaint each frame) ---------- */
+.aurora { position: fixed; inset: -35vmax; z-index: -3; pointer-events: none;
   background:
     radial-gradient(38vmax 38vmax at 22% 30%, rgba(255,135,0,.42), transparent 62%),
     radial-gradient(34vmax 34vmax at 76% 24%, rgba(0,255,255,.26), transparent 62%),
     radial-gradient(40vmax 40vmax at 62% 74%, rgba(175,95,255,.34), transparent 62%),
     radial-gradient(30vmax 30vmax at 24% 78%, rgba(255,135,255,.26), transparent 62%),
     radial-gradient(28vmax 28vmax at 86% 62%, rgba(95,255,0,.14), transparent 62%),
-    radial-gradient(26vmax 26vmax at 48% 46%, rgba(255,215,0,.16), transparent 62%);
-  animation: spin 80s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+    radial-gradient(26vmax 26vmax at 48% 46%, rgba(255,215,0,.16), transparent 62%); }
 .veil { position: fixed; inset: 0; z-index: -2; pointer-events: none;
   background: radial-gradient(120% 90% at 50% 40%, rgba(5,5,7,.15), rgba(5,5,7,.78)); }
 .stars { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .7;
@@ -74,11 +72,10 @@ pre { margin: 0; }
   background: linear-gradient(160deg, color-mix(in srgb, var(--c) 13%, var(--panel)), var(--panel) 60%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 70px -34px color-mix(in srgb, var(--c) 55%, transparent); }
 
-/* ---------- nav: the one blurred glass ---------- */
+/* ---------- nav: no blur, it repaints on every frame over the moving backdrop ---------- */
 .nav { position: sticky; top: 12px; z-index: 10; margin: 12px auto 0; width: fit-content; max-width: calc(100% - 32px);
   display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 5px 5px 5px 18px; border-radius: 999px;
-  background: rgba(20,20,26,.55); border: 1px solid var(--line);
-  backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%); }
+  background: rgba(16,16,21,.9); border: 1px solid var(--line); }
 .brand { display: flex; white-space: nowrap; align-items: center; gap: 10px; color: var(--fg); font-weight: 700; font-size: 17px; letter-spacing: -0.02em; }
 .brand:hover { color: var(--fg); }
 .brand i { font-style: normal; font-family: var(--mono); font-size: 14px; color: var(--walk); }
@@ -94,8 +91,7 @@ pre { margin: 0; }
 h1, h2, h3 { margin: 0; letter-spacing: -0.03em; }
 h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 800; }
 .lead { color: var(--muted); font-size: clamp(1.1rem, 1.6vw, 1.35rem); line-height: 1.5; margin: 0; }
-.rb { background: var(--rainbow); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: slide 8s linear infinite; }
-@keyframes slide { to { background-position: 200% 0; } }
+.rb { background: var(--rainbow); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 /* ---------- hero ---------- */
 .hero { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 26px; padding: 96px 16px 64px; }
@@ -154,6 +150,7 @@ h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 80
 .tilted { display: flex; flex-direction: column; gap: 22px; transform: rotateX(16deg) rotateZ(-3deg) scale(1.06); }
 .row { display: flex; gap: 20px; width: max-content; animation: run 120s linear infinite; }
 .row.rev { animation-direction: reverse; animation-duration: 140s; }
+.marquee:not(.on) .row { animation-play-state: paused; }
 @keyframes run { to { transform: translateX(calc(-50% - 10px)); } }
 .act { --c: var(--walk); margin: 0; flex: none; min-width: 210px; padding: 18px 20px 14px; border-radius: 22px; display: flex; flex-direction: column; gap: 12px;
   background: linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, rgba(12,12,16,.85)), rgba(12,12,16,.85) 70%);
@@ -819,6 +816,10 @@ footer nav { display: flex; gap: 20px; }
     }), { threshold: 0.1 });
     document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
   }
+
+  // The act rows run only while they are on screen.
+  const marquee = document.querySelector('.marquee');
+  if (marquee) new IntersectionObserver(([e]) => marquee.classList.toggle('on', e.isIntersecting)).observe(marquee);
 
   // Copy buttons: one command each.
   document.querySelectorAll('.copy').forEach((b) => b.addEventListener('click', async () => {
