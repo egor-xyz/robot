@@ -125,6 +125,20 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
   if (isStatusOn) await refreshStatus($, fixed)
 }
 
+// Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
+const DEFAULTS: Record<string, boolean | number | string> = {
+  robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, resetSettings: false,
+}
+
+async function resetSettings($: EngineInterface): Promise<void> {
+  // The switch itself goes last, so a failed write leaves it on to try again.
+  for (const [field, value] of Object.entries(DEFAULTS).sort(([a], [b]) => Number(a === 'resetSettings') - Number(b === 'resetSettings'))) {
+    await $.config.set({ key: `robot.${field}`, value }).catch(() => undefined)
+  }
+  await $.ui.toast('Robot settings are back to default')
+}
+
 export const register: Register = (on, options) => {
   /** The tick the robot started asking for the person, or -1 when nobody is asked. */
   let needFrom = -1
@@ -150,6 +164,7 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
+    if (options.resetSettings === true) await resetSettings($)
     await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt' })
 
     $.clock.every(TICK_MS, async () => {

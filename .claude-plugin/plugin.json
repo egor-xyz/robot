@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -13,25 +13,25 @@
   "userConfig": {
     "robot": {
       "type": "boolean",
-      "title": "Robot (default on)",
-      "description": "The animated robot above the prompt. Off hides it, as /robot does, and keeps the status line.",
+      "title": "Robot",
+      "description": "The animated robot above the prompt. false hides it, as /robot does, and keeps the status line.",
       "default": true
     },
     "statusLine": {
       "type": "boolean",
-      "title": "Status line (default on)",
+      "title": "Status line",
       "description": "A line under the prompt: account | model [effort] | project | branch | 7d and 5h limits with time left | cost | context %.",
       "default": true
     },
     "contextFire": {
       "type": "boolean",
-      "title": "Context on fire (default on)",
-      "description": "When the context passes the fire level, the robot's head catches fire and it reminds you to /compact. Off keeps the normal animations always.",
+      "title": "Context on fire",
+      "description": "When the context passes the fire level, the robot's head catches fire and it reminds you to /compact. false keeps the normal animations always.",
       "default": true
     },
     "hotAt": {
       "type": "number",
-      "title": "Fire at (% context, default 25)",
+      "title": "Fire at (% context)",
       "description": "Context usage, in percent, at which the robot's head catches fire. Empty means 25.",
       "default": 25,
       "min": 1,
@@ -39,25 +39,25 @@
     },
     "compactFactory": {
       "type": "boolean",
-      "title": "Compacting factory line (default on)",
+      "title": "Compacting factory line",
       "description": "While the conversation compacts, robots and WALL-Es pack themselves into boxes on a factory line.",
       "default": true
     },
     "gitCheer": {
       "type": "boolean",
-      "title": "Git cheer (default on)",
+      "title": "Git cheer",
       "description": "The robot cheers when a git commit or push goes through.",
       "default": true
     },
     "subagentFriends": {
       "type": "boolean",
-      "title": "Subagent friends (default on)",
+      "title": "Subagent friends",
       "description": "A WALL-E friend rolls in for each running subagent, up to 3.",
       "default": true
     },
     "limitWindows": {
       "type": "string",
-      "title": "Limits shown (default both)",
+      "title": "Limits shown",
       "description": "Which rate limits the status line shows: both, 5h or 7d.",
       "default": "both",
       "options": [
@@ -68,7 +68,7 @@
     },
     "limitsAt": {
       "type": "number",
-      "title": "Limits from (% used, default 0)",
+      "title": "Limits from (% used)",
       "description": "Rate-limit usage, in percent, from which a limit shows in the status line. 0 shows it always.",
       "default": 0,
       "min": 0,
@@ -76,15 +76,21 @@
     },
     "needsYou": {
       "type": "boolean",
-      "title": "Needs you (default on)",
+      "title": "Needs you",
       "description": "When Claude ends its turn on a question, the robot says \"need a human\" in a bubble until you send your reply.",
       "default": true
     },
     "robotSpinner": {
       "type": "boolean",
-      "title": "Robot spinner words (default on)",
+      "title": "Robot spinner words",
       "description": "Replaces the spinner word (Sauteing…) with robot words.",
       "default": true
+    },
+    "resetSettings": {
+      "type": "boolean",
+      "title": "Reset all settings to default",
+      "description": "Set to true and save: every robot setting goes back to its default, and this switch goes back to false.",
+      "default": false
     }
   }
 }
