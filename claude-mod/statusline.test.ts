@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { hexOf } from './frames'
 import type { Span } from './frames'
-import { accountNameOf, leftOf, modelNameOf, statusOf, textOfStatus } from './statusline'
+import { accountNameOf, isSameName, leftOf, modelNameOf, statusOf, textOfStatus } from './statusline'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
 
@@ -22,10 +22,20 @@ test('the line reads every part in order, the windows as meters with time left',
   expect(line).toBe('TegoAI Team | Opus 5.5 [medium] | robot | feat/x | 7d ━━─── 23% (2d) | 5h ━──── 6% (4h) | $13.34 | ctx 23%')
 })
 
-test('missing parts are left out, and a branch named like its worktree is hidden', () => {
+test('missing parts are left out, and a worktree named like its branch shows once, as the branch', () => {
   const line = plain(statusOf({ model: 'Opus 5.5', project: 'feat-x', branch: 'feat/x', rateLimits: [], windows: BOTH, limitsAt: 0, hotAt: 25, now: NOW }))
 
-  expect(line).toBe('Opus 5.5 | feat-x')
+  expect(line).toBe('Opus 5.5 | feat/x')
+})
+
+test('a worktree folder and a branch match when one ends with the other', () => {
+  expect(isSameName('feat-x', 'feat/x')).toBe(true)
+  expect(isSameName('usage-needs-spinner', 'feat/usage-needs-spinner')).toBe(true)
+  expect(isSameName('worktree-x', 'x')).toBe(true)
+  expect(isSameName('Robot', 'robot')).toBe(true)
+  expect(isSameName('robot', 'feat/usage-needs-spinner')).toBe(false)
+  expect(isSameName('spinner', 'feat/usage-needs-spinner')).toBe(true)
+  expect(isSameName('inner', 'feat/spinner')).toBe(false)
 })
 
 test('only the chosen windows show, and only from the threshold', () => {
@@ -53,7 +63,7 @@ test('each part has its own colour, and a limit is coloured by how full it is', 
 
   expect(spans.find(span => span.text === 'robot')?.color).toBe(hexOf(117))
   expect(spans.find(span => span.text === '7d ━━━━━ 85%')?.color).toBe(hexOf(203))
-  expect(spans.find(span => span.text === 'ctx 10%')?.color).toBe(hexOf(114))
+  expect(spans.find(span => span.text === 'ctx 10%')?.color).toBe(hexOf(244))
 })
 
 test('the account reads organisation and tier, else the name, else the email', () => {
@@ -64,13 +74,13 @@ test('the account reads organisation and tier, else the name, else the email', (
   expect(accountNameOf(undefined)).toBeUndefined()
 })
 
-test('ctx is red from the fire level, yellow just under it, green below', () => {
+test('ctx is red from the fire level, grey below it', () => {
   const ctx = (contextPercent: number) => statusOf({ rateLimits: [], windows: [], limitsAt: 0, contextPercent, hotAt: 25, now: NOW }).at(-1)?.color
 
   expect(ctx(33)).toBe(hexOf(203))
   expect(ctx(25)).toBe(hexOf(203))
-  expect(ctx(20)).toBe(hexOf(220))
-  expect(ctx(10)).toBe(hexOf(114))
+  expect(ctx(24)).toBe(hexOf(244))
+  expect(ctx(10)).toBe(hexOf(244))
 })
 
 test('cost is grey up to $100 and yellow above it', () => {
@@ -79,4 +89,13 @@ test('cost is grey up to $100 and yellow above it', () => {
   expect(cost(18.69)).toBe(hexOf(244))
   expect(cost(100)).toBe(hexOf(244))
   expect(cost(100.01)).toBe(hexOf(220))
+})
+
+test('a limit is grey below 50%, yellow below 80%, red from 80%', () => {
+  const limit = (percentUsed: number) => statusOf({ rateLimits: [{ kind: 'five_hour', percentUsed }], windows: ['five_hour'], limitsAt: 0, now: NOW, hotAt: 25 })[0]?.color
+
+  expect(limit(10)).toBe(hexOf(244))
+  expect(limit(49)).toBe(hexOf(244))
+  expect(limit(50)).toBe(hexOf(220))
+  expect(limit(80)).toBe(hexOf(203))
 })

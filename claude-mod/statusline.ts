@@ -18,7 +18,7 @@ export type StatusParts = {
   limitsAt: number
   costUsd?: number
   contextPercent?: number
-  /** The robot's fire level (% context): ctx turns red there, yellow from 80% of it. */
+  /** The robot's fire level (% context): ctx turns red there, grey below it. */
   hotAt: number
   now: number
 }
@@ -26,10 +26,19 @@ export type StatusParts = {
 const HOUR = 3_600_000
 
 /** Green under half, yellow under 80%, red from there: the same steps for limits and context. */
-const levelOf = (percent: number): string => hexOf(percent < 50 ? 114 : percent < 80 ? 220 : 203)
+const levelOf = (percent: number): string => hexOf(percent < 50 ? 244 : percent < 80 ? 220 : 203)
 const DIM = hexOf(244)
 /** Session cost, in USD, above which the cost stands out in yellow; grey up to it. */
 const COST_HIGH = 100
+
+const slugOf = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+
+/** `feat-x`, `x` and `worktree-x` all name the branch `feat/x`: one ends with the other at a word break. */
+export function isSameName(folder: string, branch: string): boolean {
+  const [a, b] = [slugOf(folder), slugOf(branch)]
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a]
+  return short.length > 0 && (long === short || long.endsWith(`-${short}`))
+}
 
 /** `claude-opus-5-5` as the person reads it, `Opus 5.5`; any other name as it is. */
 export function modelNameOf(model: string): string {
@@ -60,16 +69,16 @@ export function statusOf(parts: StatusParts): Span[] {
     const meter: Span = { text: meterOf({ kind, percent }), color: levelOf(percent) }
     return [left ? [meter, { text: ` (${left})`, color: DIM }] : [meter]]
   })
-  // A branch named like its worktree folder says nothing new.
-  const isBranchShown = branch && branch.replaceAll('/', '-') !== project
+  // A worktree folder named like its branch shows once, as the branch.
+  const isProjectShown = project && !(branch && isSameName(project, branch))
   const groups: (Span[] | undefined)[] = [
     account ? [{ text: account, color: DIM }] : undefined,
     model ? [{ text: modelNameOf(model), color: hexOf(208) }, ...(effort ? [{ text: ` [${effort}]`, color: DIM }] : [])] : undefined,
-    project ? [{ text: project, color: hexOf(117) }] : undefined,
-    isBranchShown ? [{ text: branch, color: hexOf(141) }] : undefined,
+    isProjectShown ? [{ text: project, color: hexOf(117) }] : undefined,
+    branch ? [{ text: branch, color: hexOf(141) }] : undefined,
     ...limits,
     costUsd !== undefined && Number.isFinite(costUsd) ? [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? hexOf(220) : DIM }] : undefined,
-    contextPercent !== undefined && Number.isFinite(contextPercent) ? [{ text: `ctx ${Math.round(contextPercent)}%`, color: hexOf(contextPercent >= hotAt ? 203 : contextPercent >= hotAt * 0.8 ? 220 : 114) }] : undefined,
+    contextPercent !== undefined && Number.isFinite(contextPercent) ? [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? hexOf(203) : DIM }] : undefined,
   ]
   return groups
     .filter((group): group is Span[] => group !== undefined)
