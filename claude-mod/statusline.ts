@@ -27,7 +27,9 @@ const HOUR = 3_600_000
 
 /** Green under half, yellow under 80%, red from there: the same steps for limits and context. */
 // Theme keys, not fixed colors: Claude Code paints them for the person's theme (dark, light, color-blind, custom).
-const DIM = 'subtle'
+// `inactive` is the grey Claude Code uses for its own hint text; `subtle` is darker, kept for the separators.
+const DIM = 'inactive'
+const LINE = 'subtle'
 const WARN = 'warning'
 const ALARM = 'error'
 const levelOf = (percent: number): string => (percent < 50 ? DIM : percent < 80 ? WARN : ALARM)
@@ -75,7 +77,7 @@ export type StatusGroup = { rank: number; spans: Span[] }
 
 // Who stays longest on a narrow screen: ctx, then the model, the limits, the branch, cost, project, account.
 const RANK = { account: 1, project: 2, cost: 3, branch: 4, sevenDay: 5, fiveHour: 6, model: 7, ctx: 8 }
-const SEPARATOR: Span = { text: ' | ', color: DIM }
+const SEPARATOR: Span = { text: ' | ', color: LINE }
 
 /** The status line's parts in order: account | model [effort] | project | branch | 7d … | 5h … | $cost | ctx N%. */
 export function groupsOf(parts: StatusParts): StatusGroup[] {

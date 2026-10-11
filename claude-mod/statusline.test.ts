@@ -62,7 +62,7 @@ test('each part has its own colour, and a limit is coloured by how full it is', 
 
   expect(spans.find(span => span.text === 'robot')?.color).toBe('permission')
   expect(spans.find(span => span.text === '7d 85%')?.color).toBe('error')
-  expect(spans.find(span => span.text === 'ctx 10%')?.color).toBe('subtle')
+  expect(spans.find(span => span.text === 'ctx 10%')?.color).toBe('inactive')
 })
 
 test('the account reads organisation and tier, else the name, else the email', () => {
@@ -78,23 +78,23 @@ test('ctx is red from the fire level, grey below it', () => {
 
   expect(ctx(33)).toBe('error')
   expect(ctx(25)).toBe('error')
-  expect(ctx(24)).toBe('subtle')
-  expect(ctx(10)).toBe('subtle')
+  expect(ctx(24)).toBe('inactive')
+  expect(ctx(10)).toBe('inactive')
 })
 
 test('cost is grey up to $100 and yellow above it', () => {
   const cost = (costUsd: number) => statusOf({ rateLimits: [], windows: [], limitsAt: 0, costUsd, hotAt: 25, now: NOW }).at(-1)?.color
 
-  expect(cost(18.69)).toBe('subtle')
-  expect(cost(100)).toBe('subtle')
+  expect(cost(18.69)).toBe('inactive')
+  expect(cost(100)).toBe('inactive')
   expect(cost(100.01)).toBe('warning')
 })
 
 test('a limit is grey below 50%, yellow below 80%, red from 80%', () => {
   const limit = (percentUsed: number) => statusOf({ rateLimits: [{ kind: 'five_hour', percentUsed }], windows: ['five_hour'], limitsAt: 0, now: NOW, hotAt: 25 })[0]?.color
 
-  expect(limit(10)).toBe('subtle')
-  expect(limit(49)).toBe('subtle')
+  expect(limit(10)).toBe('inactive')
+  expect(limit(49)).toBe('inactive')
   expect(limit(50)).toBe('warning')
   expect(limit(80)).toBe('error')
 })
@@ -104,10 +104,10 @@ test('the model color follows its family, and the effort color its level', () =>
   expect(modelColorOf('Sonnet 5.5')).toBe('suggestion')
   expect(modelColorOf('claude-haiku-5-5')).toBe('success')
   expect(modelColorOf('claude-fable-5-1')).toBe('planMode')
-  expect(modelColorOf('gpt-x')).toBe('subtle')
-  expect(effortColorOf('low')).toBe('subtle')
+  expect(modelColorOf('gpt-x')).toBe('inactive')
+  expect(effortColorOf('low')).toBe('inactive')
   expect(effortColorOf('max')).toBe('error')
-  expect(effortColorOf('odd')).toBe('subtle')
+  expect(effortColorOf('odd')).toBe('inactive')
 })
 
 test('on a narrow screen the least needed parts drop out first', () => {
