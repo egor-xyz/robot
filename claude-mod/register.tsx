@@ -655,7 +655,7 @@ export const register: Register = (on, options) => {
               </Button>
             </Box>
             <Box flexGrow={1}>
-              <Client key="files" module="./files-list.tsx" width="100%" props={{ rows, cursor: cursorOf(cursor, rows.length) }} />
+              <Client key="files" module="./files-list.tsx" width={columns - 2} props={{ rows, cursor: cursorOf(cursor, rows.length) }} />
             </Box>
           </Box>
         ) : (

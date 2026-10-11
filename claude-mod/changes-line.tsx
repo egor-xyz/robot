@@ -8,7 +8,7 @@ type Local = { isHover: boolean; phase: number; ref: { props: LineProps; stop?: 
 
 /**
  * The changed-files line, drawn as the panel draws its rows: under the
- * pointer it gets a soft background and a band shimmers across it once.
+ * pointer it gets a soft background, its grey turns white, and a band shimmers across it once.
  * A click posts `{ open: true }` to the hooks, which open the panel.
  */
 const ChangesLine: ClientModule<LineProps, Local> = (props, surface) => {
@@ -53,7 +53,7 @@ const ChangesLine: ClientModule<LineProps, Local> = (props, surface) => {
     <Box flexDirection="row" height={1} overflow="hidden" backgroundColor={isHover ? 'subtle' : undefined}>
       <Text wrap="truncate">
         {props.spans.map(span =>
-          [...span.text].map(char => <Text color={isHover ? shadeOf(at++, phase, length, span.color) || undefined : span.color || undefined}>{char}</Text>),
+          [...span.text].map(char => <Text color={isHover ? shadeOf(at++, phase, length, span.color === 'inactive' ? 'text' : span.color) || undefined : span.color || undefined}>{char}</Text>),
         )}
       </Text>
     </Box>
