@@ -9,7 +9,7 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, fitStatus, groupsOf } from './statusline'
+import { accountNameOf, fitStatus, groupsOf, wavedOf } from './statusline'
 import type { RateLimit } from './statusline'
 
 const TICK_MS = 250
@@ -30,6 +30,8 @@ const PACE = 48
 const PACE_WALK = 32
 // A git commit or push is celebrated for 3 seconds, at 4 ticks a second.
 const CELEBRATE_TICKS = 12
+// The branch name waves for 3 seconds, at 4 ticks a second.
+const WAVE_TICKS = 12
 // How often the running subagents are counted.
 const AGENTS_MS = 1000
 
@@ -76,6 +78,8 @@ const SUBAGENTS = { plugin: 'robot', key: 'subagents' } as const
 const IS_ASKED = { plugin: 'robot', key: 'isAsked' } as const
 const STATUS = { plugin: 'robot', key: 'status' } as const
 const EFFORT = { plugin: 'robot', key: 'effort' } as const
+const BRANCH = { plugin: 'robot', key: 'branch' } as const
+const WAVE_AT = { plugin: 'robot', key: 'waveAt' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -97,12 +101,19 @@ async function refreshStatus($: EngineInterface, { account, windows, limitsAt, h
     const { value: effort } = await $.state.get(EFFORT)
     const [usage, model, cwd] = await Promise.all([$.session.usage(), $.session.model(), $.session.cwd()])
     const git = await $.process.run(['git', '-C', cwd, 'branch', '--show-current']).catch(() => undefined)
+    const branch = git?.exitCode === 0 ? git.stdout.trim() : undefined
+    // A new branch waves; the first one a session reads does not.
+    const { value: was } = await $.state.get(BRANCH)
+    if ((branch ?? '') !== was) {
+      await $.state.set(BRANCH, branch ?? '')
+      if (was !== undefined && branch) await startWave($)
+    }
     await $.state.set(STATUS, groupsOf({
       account,
       model,
       effort,
       project: cwd.split('/').filter(Boolean).at(-1),
-      branch: git?.exitCode === 0 ? git.stdout.trim() : undefined,
+      branch,
       rateLimits: usage.rateLimits as readonly RateLimit[],
       windows,
       limitsAt,
@@ -114,6 +125,12 @@ async function refreshStatus($: EngineInterface, { account, windows, limitsAt, h
   } catch (error) {
     $.ui.log(`robot: status line unavailable: ${String(error)}`, { to: 'debug' })
   }
+}
+
+/** Starts the branch wave at the current tick. */
+async function startWave($: EngineInterface): Promise<void> {
+  const { value: at = 0 } = await $.state.get(TICK)
+  await $.state.set(WAVE_AT, at)
 }
 
 /** Keeps the turn's effort level and redraws the status line when it changed. */
@@ -128,7 +145,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, resetSettings: false,
 }
 
 async function resetSettings($: EngineInterface): Promise<void> {
@@ -155,6 +172,7 @@ export const register: Register = (on, options) => {
   const isFactoryOn = options.compactFactory !== false
   const isCheerOn = options.gitCheer !== false
   const isFriendsOn = options.subagentFriends !== false
+  const isWaveOn = options.branchWave !== false
   // Which rate-limit windows the status line shows: both, or one.
   const windowKind = options.limitWindows === '5h' ? 'five_hour' : options.limitWindows === '7d' ? 'seven_day' : undefined
   const windows = windowKind ? [windowKind] : ['seven_day', 'five_hour']
@@ -169,9 +187,15 @@ export const register: Register = (on, options) => {
 
     $.clock.every(TICK_MS, async () => {
       const { value: hidden = false } = await $.state.get(IS_HIDDEN)
-      if (hidden) return
+      const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
+      // The wave counts ticks; while hidden they stop, so the wave ends at once.
+      if (hidden) {
+        if (waveAt >= 0) await $.state.set(WAVE_AT, -1)
+        return
+      }
       const { value: at = 0 } = await $.state.get(TICK)
       await $.state.set(TICK, at + 1)
+      if (waveAt >= 0 && at + 1 - waveAt >= WAVE_TICKS) await $.state.set(WAVE_AT, -1)
     })
 
     if (isFireOn) $.clock.every(HEAT_MS, async () => {
@@ -245,16 +269,16 @@ export const register: Register = (on, options) => {
     }
   })
 
-  // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS. Subagent commands count too.
+  // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS and the branch waves. Subagent commands count too.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
-    if (!isCheerOn) return ran
+    if (!isCheerOn && !isWaveOn) return ran
     if (ran.deny !== undefined || ran.isError === true) return ran
     const act = gitActOf(e.command)
-    if (act) {
-      const { value: at = 0 } = await $.state.get(TICK)
-      await $.state.set(CELEBRATION, { act, at })
-    }
+    if (!act) return ran
+    const { value: at = 0 } = await $.state.get(TICK)
+    if (isCheerOn) await $.state.set(CELEBRATION, { act, at })
+    if (isWaveOn) await $.state.set(WAVE_AT, at)
     return ran
   })
 
@@ -287,7 +311,14 @@ export const register: Register = (on, options) => {
     if (status.length === 0) return theirs
     const { Box, Text } = $.ui.resolve(e)
     // A few cells of room for the line's indent and the right edge.
-    const spans = fitStatus(status.filter(group => Array.isArray(group.spans)), (e.viewport?.columns ?? 80) - STATUS_MARGIN)
+    let groups = status.filter(group => Array.isArray(group.spans))
+    // Only a waving branch reads the tick, so a still line does not redraw 4 times a second.
+    const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
+    if (isWaveOn && waveAt >= 0) {
+      const { value: at = 0 } = await $.state.get(TICK)
+      groups = wavedOf(groups, at - waveAt)
+    }
+    const spans = fitStatus(groups, (e.viewport?.columns ?? 80) - STATUS_MARGIN)
     return (
       <Box flexDirection="column">
         <Box>

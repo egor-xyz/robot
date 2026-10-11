@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Span } from './frames'
-import { accountNameOf, effortColorOf, isSameName, modelColorOf, leftOf, modelNameOf, statusOf, textOfStatus } from './statusline'
+import { accountNameOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, statusOf, textOfStatus, waveOf, wavedOf } from './statusline'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
 
@@ -58,9 +58,10 @@ test('a model id reads as its name; other names stay as they are', () => {
 })
 
 test('each part has its own colour, and a limit is coloured by how full it is', () => {
-  const spans = statusOf({ project: 'robot', rateLimits: [{ kind: 'seven_day', percentUsed: 85 }], windows: ['seven_day'], limitsAt: 0, contextPercent: 10, hotAt: 25, now: NOW })
+  const spans = statusOf({ project: 'robot', branch: 'main', rateLimits: [{ kind: 'seven_day', percentUsed: 85 }], windows: ['seven_day'], limitsAt: 0, contextPercent: 10, hotAt: 25, now: NOW })
 
-  expect(spans.find(span => span.text === 'robot')?.color).toBe('permission')
+  expect(spans.find(span => span.text === 'robot')?.color).toBe('planMode')
+  expect(spans.find(span => span.text === 'main')?.color).toBe('ide')
   expect(spans.find(span => span.text === '7d 85%')?.color).toBe('error')
   expect(spans.find(span => span.text === 'ctx 10%')?.color).toBe('inactive')
 })
@@ -123,4 +124,20 @@ test('on a narrow screen the least needed parts drop out first', () => {
   for (const width of [80, 60, 40, 30, 20]) expect(plain(statusOf(parts, width)).length).toBeLessThanOrEqual(width)
   expect(plain(statusOf(parts, 12))).toBe('ctx 12%')
   expect(plain(statusOf(parts, 5))).toBe('ctx …')
+})
+
+test('the branch wave colours each letter and moves one letter right each step', () => {
+  const still = waveOf('main', 0)
+  expect(still.map(span => span.text).join('')).toBe('main')
+  expect(still.map(span => span.color)).toEqual(['ide', 'suggestion', 'merged', 'bashBorder'])
+  expect(waveOf('main', 1).map(span => span.color)).toEqual(['planMode', 'ide', 'suggestion', 'merged'])
+  expect(waveOf('main', 8).map(span => span.color)).toEqual(still.map(span => span.color))
+})
+
+test('only the branch waves', () => {
+  const groups = groupsOf({ project: 'robot', branch: 'main', rateLimits: [], windows: [], limitsAt: 0, hotAt: 25, now: NOW })
+  const waved = wavedOf(groups, 0)
+  expect(textOfStatus(fitStatus(waved, Number.POSITIVE_INFINITY))).toBe('robot | main')
+  expect(waved.find(group => group.spans[0]?.text === 'robot')?.spans).toHaveLength(1)
+  expect(waved.find(group => group.spans[0]?.text === 'm')?.spans).toHaveLength(4)
 })
