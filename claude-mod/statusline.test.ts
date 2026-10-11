@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { hexOf } from './frames'
 import type { Span } from './frames'
-import { accountNameOf, isSameName, leftOf, modelNameOf, statusOf, textOfStatus } from './statusline'
+import { accountNameOf, effortColorOf, isSameName, modelColorOf, leftOf, modelNameOf, statusOf, textOfStatus } from './statusline'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
 
@@ -98,4 +98,30 @@ test('a limit is grey below 50%, yellow below 80%, red from 80%', () => {
   expect(limit(49)).toBe(hexOf(244))
   expect(limit(50)).toBe(hexOf(220))
   expect(limit(80)).toBe(hexOf(203))
+})
+
+test('the model color follows its family, and the effort color its level', () => {
+  expect(modelColorOf('claude-opus-5-5')).toBe(hexOf(208))
+  expect(modelColorOf('Sonnet 5.5')).toBe(hexOf(75))
+  expect(modelColorOf('claude-haiku-5-5')).toBe(hexOf(114))
+  expect(modelColorOf('claude-fable-5-1')).toBe(hexOf(213))
+  expect(modelColorOf('gpt-x')).toBe(hexOf(244))
+  expect(effortColorOf('low')).toBe(hexOf(244))
+  expect(effortColorOf('max')).toBe(hexOf(203))
+  expect(effortColorOf('odd')).toBe(hexOf(244))
+})
+
+test('on a narrow screen the least needed parts drop out first', () => {
+  const parts = {
+    account: 'Acme Team', model: 'Opus 5.5', effort: 'high', project: 'robot', branch: 'feat/x',
+    rateLimits: [{ kind: 'seven_day', percentUsed: 25 }, { kind: 'five_hour', percentUsed: 15 }],
+    windows: BOTH, limitsAt: 0, costUsd: 21.97, contextPercent: 12, hotAt: 25, now: NOW,
+  }
+  const full = plain(statusOf(parts))
+  expect(plain(statusOf(parts, full.length))).toBe(full)
+  expect(plain(statusOf(parts, full.length - 1))).not.toContain('Acme Team')
+  expect(plain(statusOf(parts, 40))).toBe('Opus 5.5 [high] | 5h 15% | ctx 12%')
+  for (const width of [80, 60, 40, 30, 20]) expect(plain(statusOf(parts, width)).length).toBeLessThanOrEqual(width)
+  expect(plain(statusOf(parts, 12))).toBe('ctx 12%')
+  expect(plain(statusOf(parts, 5))).toBe('ctx …')
 })

@@ -1,4 +1,4 @@
-import { hexOf } from './frames'
+import { cellsOf, hexOf } from './frames'
 import type { Span } from './frames'
 import { meterOf } from './usage'
 
@@ -40,6 +40,15 @@ export function isSameName(folder: string, branch: string): boolean {
   return short.length > 0 && (long === short || long.endsWith(`-${short}`))
 }
 
+/** Each model family keeps its own color: Opus orange, Sonnet blue, Haiku green, Fable pink; any other grey. */
+const MODEL_COLORS: [string, number][] = [['opus', 208], ['sonnet', 75], ['haiku', 114], ['fable', 213]]
+export const modelColorOf = (model: string): string =>
+  hexOf(MODEL_COLORS.find(([family]) => model.toLowerCase().includes(family))?.[1] ?? 244)
+
+/** Effort stays grey up to medium, then warms up: high yellow, xhigh orange, max red. */
+const EFFORT_COLORS: Record<string, number> = { low: 244, medium: 244, high: 222, xhigh: 215, max: 203 }
+export const effortColorOf = (effort: string): string => hexOf(EFFORT_COLORS[effort] ?? 244)
+
 /** `claude-opus-5-5` as the person reads it, `Opus 5.5`; any other name as it is. */
 export function modelNameOf(model: string): string {
   const parts = /^claude-([a-z]+)-(\d+)-(\d+)/.exec(model)
@@ -58,32 +67,67 @@ export function leftOf(resetsAt: string | undefined, now: number): string | unde
   return `${Math.max(1, Math.round(left / 60_000))}m`
 }
 
-/** The status line as coloured parts: account | model [effort] | project | branch | 7d … | 5h … | $cost | ctx N%. */
-export function statusOf(parts: StatusParts): Span[] {
+/** One part of the status line; on a narrow screen the lowest rank goes first. */
+export type StatusGroup = { rank: number; spans: Span[] }
+
+// Who stays longest on a narrow screen: ctx, then the model, the limits, the branch, cost, project, account.
+const RANK = { account: 1, project: 2, cost: 3, branch: 4, sevenDay: 5, fiveHour: 6, model: 7, ctx: 8 }
+const SEPARATOR: Span = { text: ' | ', color: DIM }
+
+/** The status line's parts in order: account | model [effort] | project | branch | 7d … | 5h … | $cost | ctx N%. */
+export function groupsOf(parts: StatusParts): StatusGroup[] {
   const { account, model, effort, project, branch, rateLimits, windows, limitsAt, costUsd, contextPercent, hotAt, now } = parts
-  const limits = windows.flatMap((kind): Span[][] => {
+  const limits = windows.flatMap((kind): StatusGroup[] => {
     const limit = rateLimits.find(each => each.kind === kind)
     if (!limit || !Number.isFinite(limit.percentUsed) || limit.percentUsed < limitsAt) return []
     const percent = Math.round(limit.percentUsed)
     const left = leftOf(limit.resetsAt, now)
     const meter: Span = { text: meterOf({ kind, percent }), color: levelOf(percent) }
-    return [left ? [meter, { text: ` (${left})`, color: DIM }] : [meter]]
+    return [{ rank: kind === 'five_hour' ? RANK.fiveHour : RANK.sevenDay, spans: left ? [meter, { text: ` (${left})`, color: DIM }] : [meter] }]
   })
   // A worktree folder named like its branch shows once, as the branch.
   const isProjectShown = project && !(branch && isSameName(project, branch))
-  const groups: (Span[] | undefined)[] = [
-    account ? [{ text: account, color: DIM }] : undefined,
-    model ? [{ text: modelNameOf(model), color: hexOf(208) }, ...(effort ? [{ text: ` [${effort}]`, color: DIM }] : [])] : undefined,
-    isProjectShown ? [{ text: project, color: hexOf(117) }] : undefined,
-    branch ? [{ text: branch, color: hexOf(141) }] : undefined,
+  const groups: (StatusGroup | undefined)[] = [
+    account ? { rank: RANK.account, spans: [{ text: account, color: DIM }] } : undefined,
+    model ? { rank: RANK.model, spans: [{ text: modelNameOf(model), color: modelColorOf(model) }, ...(effort ? [{ text: ` [${effort}]`, color: effortColorOf(effort) }] : [])] } : undefined,
+    isProjectShown ? { rank: RANK.project, spans: [{ text: project, color: hexOf(117) }] } : undefined,
+    branch ? { rank: RANK.branch, spans: [{ text: branch, color: hexOf(141) }] } : undefined,
     ...limits,
-    costUsd !== undefined && Number.isFinite(costUsd) ? [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? hexOf(220) : DIM }] : undefined,
-    contextPercent !== undefined && Number.isFinite(contextPercent) ? [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? hexOf(203) : DIM }] : undefined,
+    costUsd !== undefined && Number.isFinite(costUsd) ? { rank: RANK.cost, spans: [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? hexOf(220) : DIM }] } : undefined,
+    contextPercent !== undefined && Number.isFinite(contextPercent) ? { rank: RANK.ctx, spans: [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? hexOf(203) : DIM }] } : undefined,
   ]
-  return groups
-    .filter((group): group is Span[] => group !== undefined)
-    .flatMap((group, i) => (i === 0 ? group : [{ text: ' | ', color: DIM }, ...group]))
+  return groups.filter((group): group is StatusGroup => group !== undefined)
 }
+
+const joined = (groups: readonly StatusGroup[]): Span[] => groups.flatMap((group, i) => (i === 0 ? group.spans : [SEPARATOR, ...group.spans]))
+
+/** The parts that fit in `columns` cells, joined by ` | `: the lowest-ranked parts drop out first, and a last part too wide is cut with `…`. */
+export function fitStatus(groups: readonly StatusGroup[], columns: number): Span[] {
+  let kept = [...groups]
+  while (kept.length > 1 && cellsOf(textOfStatus(joined(kept))) > columns) {
+    const lowest = kept.reduce((low, group) => (group.rank < low.rank ? group : low))
+    kept = kept.filter(group => group !== lowest)
+  }
+  const spans = joined(kept)
+  if (cellsOf(textOfStatus(spans)) <= columns) return spans
+  // One part alone is still too wide: cut it, cell by cell.
+  let room = Math.max(0, columns - 1)
+  const cut: Span[] = []
+  for (const span of spans) {
+    let text = ''
+    for (const char of span.text) {
+      if (cellsOf(char) > room) break
+      text += char
+      room -= cellsOf(char)
+    }
+    if (text) cut.push({ ...span, text })
+    if (text !== span.text) break
+  }
+  return [...cut, { text: '…', color: DIM }]
+}
+
+/** The status line as coloured parts, cut to `columns` cells when given. */
+export const statusOf = (parts: StatusParts, columns = Number.POSITIVE_INFINITY): Span[] => fitStatus(groupsOf(parts), columns)
 
 /** The line's text, colours left out. */
 export const textOfStatus = (spans: readonly Span[]): string => spans.map(span => span.text).join('')
