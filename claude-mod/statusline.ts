@@ -95,8 +95,8 @@ export function groupsOf(parts: StatusParts): StatusGroup[] {
   const groups: (StatusGroup | undefined)[] = [
     account ? { rank: RANK.account, spans: [{ text: account, color: DIM }] } : undefined,
     model ? { rank: RANK.model, spans: [{ text: modelNameOf(model), color: modelColorOf(model) }, ...(effort ? [{ text: ` [${effort}]`, color: effortColorOf(effort) }] : [])] } : undefined,
-    isProjectShown ? { rank: RANK.project, spans: [{ text: project, color: 'permission' }] } : undefined,
-    branch ? { rank: RANK.branch, spans: [{ text: branch, color: 'merged' }] } : undefined,
+    isProjectShown ? { rank: RANK.project, spans: [{ text: project, color: 'planMode' }] } : undefined,
+    branch ? { rank: RANK.branch, spans: [{ text: branch, color: 'ide' }] } : undefined,
     ...limits,
     costUsd !== undefined && Number.isFinite(costUsd) ? { rank: RANK.cost, spans: [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? WARN : DIM }] } : undefined,
     contextPercent !== undefined && Number.isFinite(contextPercent) ? { rank: RANK.ctx, spans: [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? ALARM : DIM }] } : undefined,
@@ -133,6 +133,17 @@ export function fitStatus(groups: readonly StatusGroup[], columns: number): Span
 
 /** The status line as coloured parts, cut to `columns` cells when given. */
 export const statusOf = (parts: StatusParts, columns = Number.POSITIVE_INFINITY): Span[] => fitStatus(groupsOf(parts), columns)
+
+/** The colours a waving branch name runs through: a loop from its own blue to pink and back. */
+const WAVE_COLORS = ['ide', 'suggestion', 'merged', 'bashBorder', 'merged', 'suggestion', 'ide', 'planMode']
+
+/** `text` letter by letter, coloured as a wave `step` ticks along: each step moves the colours one letter right. */
+export const waveOf = (text: string, step: number): Span[] =>
+  [...text].map((char, i) => ({ text: char, color: WAVE_COLORS[(((i - step) % WAVE_COLORS.length) + WAVE_COLORS.length) % WAVE_COLORS.length] ?? DIM }))
+
+/** The groups with the branch drawn as a wave `step` ticks along. */
+export const wavedOf = (groups: readonly StatusGroup[], step: number): StatusGroup[] =>
+  groups.map(group => (group.rank === RANK.branch ? { ...group, spans: waveOf(textOfStatus(group.spans), step) } : group))
 
 /** The line's text, colours left out. */
 export const textOfStatus = (spans: readonly Span[]): string => spans.map(span => span.text).join('')

@@ -188,8 +188,8 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | `Acme Team` | your account | grey |
 | `Opus 5.5` | the model | 🟠 Opus · 🔵 Sonnet · 🟢 Haiku · 🩷 Fable |
 | `[high]` | the effort | grey up to `medium`, then `high` / `xhigh` yellow → `max` red |
-| `my-app` | the project folder | light blue |
-| `feat/login` | the git branch | purple. A worktree folder named like its branch shows once. |
+| `my-app` | the project folder | teal |
+| `feat/login` | the git branch | blue. A worktree folder named like its branch shows once. |
 | `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
 | `$21.97` | session cost | grey → 🟡 above $100 |
 | `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
@@ -228,6 +228,7 @@ Every act has a switch. To change one:
 | Limits from (% used) | `0` | A limit shows only from this %. `0` shows it always. |
 | Needs you | `true` | `false` stops the "need a human" bubble. |
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
+| Branch wave | `true` | The branch name waves in colors for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.
