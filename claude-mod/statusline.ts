@@ -1,4 +1,4 @@
-import { cellsOf, hexOf } from './frames'
+import { cellsOf } from './frames'
 import type { Span } from './frames'
 import { meterOf } from './usage'
 
@@ -26,8 +26,11 @@ export type StatusParts = {
 const HOUR = 3_600_000
 
 /** Green under half, yellow under 80%, red from there: the same steps for limits and context. */
-const levelOf = (percent: number): string => hexOf(percent < 50 ? 244 : percent < 80 ? 220 : 203)
-const DIM = hexOf(244)
+// Theme keys, not fixed colors: Claude Code paints them for the person's theme (dark, light, color-blind, custom).
+const DIM = 'subtle'
+const WARN = 'warning'
+const ALARM = 'error'
+const levelOf = (percent: number): string => (percent < 50 ? DIM : percent < 80 ? WARN : ALARM)
 /** Session cost, in USD, above which the cost stands out in yellow; grey up to it. */
 const COST_HIGH = 100
 
@@ -40,14 +43,14 @@ export function isSameName(folder: string, branch: string): boolean {
   return short.length > 0 && (long === short || long.endsWith(`-${short}`))
 }
 
-/** Each model family keeps its own color: Opus orange, Sonnet blue, Haiku green, Fable pink; any other grey. */
-const MODEL_COLORS: [string, number][] = [['opus', 208], ['sonnet', 75], ['haiku', 114], ['fable', 213]]
+/** Each model family keeps its own color: the theme's claude (Opus), suggestion (Sonnet), success (Haiku) and planMode (Fable) colors; any other grey. */
+const MODEL_COLORS: [string, string][] = [['opus', 'claude'], ['sonnet', 'suggestion'], ['haiku', 'success'], ['fable', 'planMode']]
 export const modelColorOf = (model: string): string =>
-  hexOf(MODEL_COLORS.find(([family]) => model.toLowerCase().includes(family))?.[1] ?? 244)
+  MODEL_COLORS.find(([family]) => model.toLowerCase().includes(family))?.[1] ?? DIM
 
-/** Effort stays grey up to medium, then warms up: high yellow, xhigh orange, max red. */
-const EFFORT_COLORS: Record<string, number> = { low: 244, medium: 244, high: 222, xhigh: 215, max: 203 }
-export const effortColorOf = (effort: string): string => hexOf(EFFORT_COLORS[effort] ?? 244)
+/** Effort stays grey up to medium, then warms up: high and xhigh warning, max error. */
+const EFFORT_COLORS: Record<string, string> = { high: WARN, xhigh: WARN, max: ALARM }
+export const effortColorOf = (effort: string): string => EFFORT_COLORS[effort] ?? DIM
 
 /** `claude-opus-5-5` as the person reads it, `Opus 5.5`; any other name as it is. */
 export function modelNameOf(model: string): string {
@@ -90,11 +93,11 @@ export function groupsOf(parts: StatusParts): StatusGroup[] {
   const groups: (StatusGroup | undefined)[] = [
     account ? { rank: RANK.account, spans: [{ text: account, color: DIM }] } : undefined,
     model ? { rank: RANK.model, spans: [{ text: modelNameOf(model), color: modelColorOf(model) }, ...(effort ? [{ text: ` [${effort}]`, color: effortColorOf(effort) }] : [])] } : undefined,
-    isProjectShown ? { rank: RANK.project, spans: [{ text: project, color: hexOf(117) }] } : undefined,
-    branch ? { rank: RANK.branch, spans: [{ text: branch, color: hexOf(141) }] } : undefined,
+    isProjectShown ? { rank: RANK.project, spans: [{ text: project, color: 'permission' }] } : undefined,
+    branch ? { rank: RANK.branch, spans: [{ text: branch, color: 'merged' }] } : undefined,
     ...limits,
-    costUsd !== undefined && Number.isFinite(costUsd) ? { rank: RANK.cost, spans: [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? hexOf(220) : DIM }] } : undefined,
-    contextPercent !== undefined && Number.isFinite(contextPercent) ? { rank: RANK.ctx, spans: [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? hexOf(203) : DIM }] } : undefined,
+    costUsd !== undefined && Number.isFinite(costUsd) ? { rank: RANK.cost, spans: [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? WARN : DIM }] } : undefined,
+    contextPercent !== undefined && Number.isFinite(contextPercent) ? { rank: RANK.ctx, spans: [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? ALARM : DIM }] } : undefined,
   ]
   return groups.filter((group): group is StatusGroup => group !== undefined)
 }
