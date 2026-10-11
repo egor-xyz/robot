@@ -1,10 +1,6 @@
-import { DEFAULT_COLOR, cellsOf, hexOf } from './frames'
-import type { Frame, Span } from './frames'
+import { cellsOf } from './frames'
 
 export type Limit = { kind: string; percent: number }
-
-/** Cells the gauge takes: ' ' + label(2) + ' ' + bar(5) + ' ' + percent(4). */
-export const GAUGE_CELLS = 14
 
 const BAR_CELLS = 5
 const PREFERRED = ['five_hour', 'seven_day']
@@ -34,41 +30,9 @@ const labelOf = (kind: string): string => {
   return cellsOf(label) === 2 ? label : '??'
 }
 
-/** A 14-cell meter: label, five-cell bar, percent. */
-export function gaugeOf({ kind, percent }: Limit): Span[] {
+/** The meter as plain text for the status line under the prompt: label, five-cell bar, percent (`7d ━━─── 23%`). */
+export function meterOf({ kind, percent }: Limit): string {
   const p = Math.max(0, Math.min(100, percent))
   const filled = p === 0 ? 0 : Math.min(BAR_CELLS, Math.ceil(p / 20))
-  const barColor = hexOf(p < 50 ? 114 : p < 80 ? 220 : 203)
-  const spans: Span[] = [
-    { text: ` ${labelOf(kind)} `, color: DEFAULT_COLOR },
-    { text: '━'.repeat(filled), color: barColor },
-    { text: '─'.repeat(BAR_CELLS - filled), color: hexOf(240) },
-    { text: ` ${`${p}%`.padStart(4)}`, color: DEFAULT_COLOR },
-  ]
-  return spans.filter(span => span.text.length > 0)
-}
-
-const padOf = (cells: number): Span[] => (cells > 0 ? [{ text: ' '.repeat(cells), color: DEFAULT_COLOR }] : [])
-
-/** Fits row 0 to `layout` cells, then appends the gauge. Other rows are untouched. */
-export function withGauge(frame: Frame, layout: number, gauge: Span[]): Frame {
-  const row: Span[] = []
-  let cells = 0
-  for (const span of frame[0] ?? []) {
-    let text = ''
-    for (const char of span.text) {
-      const width = cellsOf(char)
-      if (cells + width > layout) {
-        // A 2-cell emoji that would cross the edge becomes one space.
-        if (cells < layout) text += ' '
-        cells = layout
-        break
-      }
-      text += char
-      cells += width
-    }
-    if (text.length > 0) row.push({ text, color: span.color })
-    if (cells >= layout) break
-  }
-  return [[...row, ...padOf(layout - cells), ...gauge], ...frame.slice(1)]
+  return `${labelOf(kind)} ${'━'.repeat(filled)}${'─'.repeat(BAR_CELLS - filled)} ${p}%`
 }

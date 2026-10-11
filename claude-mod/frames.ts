@@ -136,12 +136,15 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
       if (at < 0) return recoloured
       const top = HEAD_TOPS[tick % HEAD_TOPS.length] ?? HEAD_TOP
       cells.splice(at, HEAD_TOP.length, ...[...top].map(char => ({ char, color: red })))
-      // Sparks only replace existing spaces, left and right of the head top.
+      // Sparks only replace spaces, left and right of the head top; the row grows on the right to hold its sparks.
+      // Counted in characters: an emoji is one cell entry but two UTF-16 units of `top.length`.
+      const end = at + [...top].length
+      while (cells.length < end + 2) cells.push({ char: ' ', color: DEFAULT_COLOR })
       const sparks = [
         { index: at - 1, side: 0 },
         { index: at - 2, side: 1 },
-        { index: at + top.length, side: 2 },
-        { index: at + top.length + 1, side: 3 },
+        { index: end, side: 2 },
+        { index: end + 1, side: 3 },
       ]
       for (const { index, side } of sparks) {
         const cell = cells[index]
@@ -170,44 +173,69 @@ const DEFAULT_FILL = '#a8a8a8'
 export const COMMAND_COLOR = 'suggestion'
 const COMMAND_FILL = '#b1b9f9'
 const fillOf = (color: string): string => (color === COMMAND_COLOR ? COMMAND_FILL : color || DEFAULT_FILL)
-/** First row of speech: the robot's eyes; each further line goes one row down. */
+/** First row of speech: the robot's eyes; each further line goes one row down. The bubble's top edge sits one row above. */
 const SPEECH_ROW = 1
-/** Empty cells between the robot and its speech. */
-const SPEECH_GAP = 4
+/** Empty cells between the robot and its speech bubble. */
+const SPEECH_GAP = 2
+/** Cells arms and sparks may reach past the eyes on either side; the bubble keeps clear of them so it never moves. */
+const REACH = 2
+/** Cells a bubble adds around its text: the tail, two borders and a space on each side. */
+const BUBBLE_CELLS = 5
 
 const textOfSpans = (spans: Span[]): string => spans.map(span => span.text).join('')
+const blank = (cells: number): Span => ({ text: ' '.repeat(Math.max(0, cells)), color: DEFAULT_COLOR })
+
+/** Wraps the lines in a comic speech bubble whose tail points at the robot, on the `tail` side. */
+export function bubble(lines: Span[][], tail: 'left' | 'right'): Span[][] {
+  const width = Math.max(0, ...lines.map(line => cellsOf(textOfSpans(line))))
+  const rule = '─'.repeat(width + 2)
+  const edge = (corners: string): Span[] => [{ text: tail === 'left' ? ` ${corners[0]}${rule}${corners[1]}` : `${corners[0]}${rule}${corners[1]} `, color: DEFAULT_COLOR }]
+  const body = lines.map((line, i): Span[] => {
+    const pad = blank(width - cellsOf(textOfSpans(line)))
+    if (tail === 'left') return [{ text: i === 0 ? '<  ' : ' │ ', color: DEFAULT_COLOR }, ...line, pad, { text: ' │', color: DEFAULT_COLOR }]
+    return [{ text: '│ ', color: DEFAULT_COLOR }, ...line, pad, { text: i === 0 ? '  >' : ' │ ', color: DEFAULT_COLOR }]
+  })
+  return [edge('╭╮'), ...body, edge('╰╯')]
+}
 
 /**
- * Puts speech lines (each a list of coloured spans) beside the robot, one per row from its eyes down:
- * to its right if they fit in `columns`, else to its left, else nowhere.
+ * Puts speech lines (each a list of coloured spans) in a comic bubble beside the robot, one per row
+ * from its eyes down: to its right if it fits in `columns`, else to its left, else nowhere.
  */
 export function speech(frame: Frame, lines: Span[][], columns: number): Frame {
-  const rows = lines.map((_, i) => frame[SPEECH_ROW + i])
+  const top = SPEECH_ROW - 1
+  const rows = Array.from({ length: lines.length + 2 }, (_, i) => frame[top + i])
   if (rows.some(row => !row)) return frame
   const texts = rows.map(row => textOfSpans(row ?? []))
-  const longest = Math.max(...lines.map(line => cellsOf(textOfSpans(line))))
+  const longest = Math.max(0, ...lines.map(line => cellsOf(textOfSpans(line)))) + BUBBLE_CELLS
   // Anchored on the eyes row, which arms never pass, so moving arms never shift the speech.
-  const eyes = texts[0] ?? ''
+  const eyes = textOfSpans(frame[SPEECH_ROW] ?? [])
   const anchor = eyes.length - eyes.trimStart().length
-  const end = Math.max(anchor + cellsOf(eyes.trimStart()), ...texts.map(cellsOf))
-  const blank = (cells: number): Span => ({ text: ' '.repeat(Math.max(0, cells)), color: DEFAULT_COLOR })
+  // Fixed to the eyes, not to the rows: arms and sparks move every tick, and the bubble must not.
+  const end = anchor + cellsOf(eyes.trimStart()) + REACH
 
   if (end + SPEECH_GAP + longest <= columns) {
+    const boxed = bubble(lines, 'left')
     return frame.map((row, i) => {
-      const line = lines[i - SPEECH_ROW]
+      const line = boxed[i - top]
       if (!line) return row
-      return [...row, blank(end - cellsOf(texts[i - SPEECH_ROW] ?? '') + SPEECH_GAP), ...line]
+      // A row reaching past `end` (a wide arm) is cut there, so the bubble's left edge stays straight.
+      const kept = cellsOfFrameRow(row).reduce<{ cells: Cell[]; width: number }>((acc, cell) => {
+        const width = cellsOf(cell.char)
+        return acc.width + width > end ? acc : { cells: [...acc.cells, cell], width: acc.width + width }
+      }, { cells: [], width: 0 })
+      return [...spansOfCells(kept.cells), blank(end - kept.width + SPEECH_GAP), ...line]
     })
   }
 
-  const lead = Math.min(anchor, ...texts.map(text => text.length - text.trimStart().length))
+  const lead = anchor - REACH
   const start = lead - SPEECH_GAP - longest
   if (start < 0) return frame
+  const boxed = bubble(lines, 'right')
   return frame.map((row, i) => {
-    const line = lines[i - SPEECH_ROW]
+    const line = boxed[i - top]
     if (!line) return row
-    const after = lead - start - cellsOf(textOfSpans(line))
-    return [blank(start), ...line, blank(after), ...spansOfCells(cellsOfFrameRow(row).slice(lead))]
+    return [blank(start), ...line, blank(SPEECH_GAP), ...spansOfCells(cellsOfFrameRow(row).slice(lead))]
   })
 }
 
