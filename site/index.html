@@ -213,6 +213,19 @@ h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 80
 kbd { font-size: 14px; color: var(--fg); min-width: 34px; height: 34px; padding: 0 10px; display: inline-grid; place-items: center; border-radius: 9px;
   background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05)); border: 1px solid var(--line); box-shadow: inset 0 -3px 0 rgba(0,0,0,.45), 0 2px 0 rgba(0,0,0,.4); }
 
+/* ---------- status line + settings table ---------- */
+.sline { padding: 22px 24px; overflow-x: auto; font-size: clamp(12px, 1.7vw, 16px); font-weight: 600; line-height: 1.7; color: #808080; background: #0b0b0d; white-space: pre; }
+.sline b { font-weight: 600; }
+.sline small { display: block; font-family: var(--sans); font-size: 12px; font-weight: 400; color: #808080; margin: 10px 0 2px; }
+.sline small:first-child { margin-top: 0; }
+.tbl-wrap { overflow-x: auto; padding: 8px 24px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tbl th { text-align: left; font-family: var(--mono); font-size: 13px; font-weight: 400; color: var(--faint); padding: 14px 16px 10px 0; }
+.tbl td { padding: 12px 16px 12px 0; border-top: 1px solid var(--line); color: var(--muted); vertical-align: top; }
+.tbl td:first-child { color: var(--fg); font-weight: 600; }
+.tbl td:nth-child(2) { font-family: var(--mono); color: var(--walk); white-space: nowrap; }
+@media (max-width: 560px) { .tbl-wrap { padding: 4px 16px; } .tbl { font-size: 14px; } }
+
 /* ---------- footer ---------- */
 footer { padding: 48px 0 64px; color: var(--faint); font-size: 15px; }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
@@ -250,6 +263,8 @@ footer nav { display: flex; gap: 20px; }
     <a class="hide-sm" href="#follows">What it does</a>
     <a class="hide-sm" href="#acts">Animations</a>
     <a class="hide-sm" href="#friends">Friends</a>
+    <a class="hide-sm" href="#statusline">Status line</a>
+    <a class="hide-sm" href="#settings">Settings</a>
     <a class="hide-sm" href="#terminal">Terminal</a>
     <a href="#install">Install</a>
     <a class="cta" href="https://github.com/egor-xyz/robot">GitHub</a>
@@ -589,6 +604,36 @@ footer nav { display: flex; gap: 20px; }
   </div>
 </section>
 
+<section class="block" id="statusline">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow reveal" style="--c:var(--wave)">status line</div>
+      <h2 class="reveal">A colored line<br><span class="rb">under your prompt.</span></h2>
+      <p class="lead reveal">The robot draws it. It replaces nothing: Claude Code's own hint line stays right under it.</p>
+    </div>
+    <pre class="sline panel reveal" style="--c:var(--wave)" role="img" aria-label="Status line examples. Calm: Acme Team, Opus 5.5 high, my-app, feat/login, 7d 25%, 5h 15%, $21.97, ctx 12%. Needs attention: 7d 62% yellow, 5h 85% red, $134.50 yellow, ctx 31% red."><small>all calm</small>Acme Team | <span style="color:#ff8700">Opus 5.5</span> <span style="color:#ffd787">[high]</span> | <span style="color:#87d7ff">my-app</span> | <span style="color:#af87ff">feat/login</span> | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%<small>needs attention</small>Acme Team | <span style="color:#ff8700">Opus 5.5</span> <span style="color:#ffd787">[high]</span> | <span style="color:#87d7ff">my-app</span> | <span style="color:#af87ff">feat/login</span> | <span style="color:#ffd700">7d 62%</span> (1d) | <span style="color:#ff5f5f">5h 85%</span> (1h) | <span style="color:#ffd700">$134.50</span> | <span style="color:#ff5f5f">ctx 31%</span></pre>
+    <div class="facts" style="margin-top:14px">
+      <div class="fact panel reveal" style="--c:var(--ufo)"><h3>What is in it</h3><p>Account, model and effort, project folder, git branch, 7d and 5h limits with time left until reset, session cost, context %. A worktree folder named like its branch shows once, as the branch.</p></div>
+      <div class="fact panel reveal" style="--c:var(--walk)"><h3>Model colors</h3><p><span style="color:#ff8700">Opus orange</span>, <span style="color:#5fafff">Sonnet blue</span>, <span style="color:#87d787">Haiku green</span>, <span style="color:#ff87ff">Fable pink</span>. Project folder <span style="color:#87d7ff">light blue</span>, branch <span style="color:#af87ff">purple</span>.</p></div>
+      <div class="fact panel reveal" style="--c:var(--wave)"><h3>Effort warms up</h3><p>low and medium stay <span style="color:#808080">grey</span>, high <span style="color:#ffd787">yellow</span>, xhigh <span style="color:#ffaf5f">orange</span>, max <span style="color:#ff5f5f">red</span>.</p></div>
+      <div class="fact panel reveal" style="--c:var(--fire)"><h3>Grey until it matters</h3><p>Limits turn <span style="color:#ffd700">yellow</span> at 50% and <span style="color:#ff5f5f">red</span> at 80%. Cost turns <span style="color:#ffd700">yellow</span> above $100. ctx turns <span style="color:#ff5f5f">red</span> at the "Fire at" setting (default 25%).</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="extras">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow reveal" style="--c:var(--concert)">more tricks</div>
+      <h2 class="reveal">Needs you.<br><span class="rb">Beaming…</span></h2>
+    </div>
+    <div class="facts">
+      <div class="fact panel reveal" style="--c:var(--concert)"><h3>Needs you</h3><p>Claude ends its turn with a question for you? The robot dances and says "need a human" in a comic speech bubble. It goes away when you send your next message.</p></div>
+      <div class="fact panel reveal" style="--c:var(--ufo)"><h3>Robot spinner words</h3><p>The spinner shows a robot word each turn, like "Beaming…" or "Recharging…".</p></div>
+    </div>
+  </div>
+</section>
+
 <section class="block" id="install">
   <div class="wrap">
     <div class="head">
@@ -605,6 +650,34 @@ footer nav { display: flex; gap: 20px; }
       <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot</code><p>Hide or show the robot.</p></div>
       <div class="tip panel reveal" style="--c:var(--fire)"><code>/plugin → robot → Configure</code><p>Turn the fire off, or set when it starts.</p></div>
       <div class="tip panel reveal" style="--c:var(--concert)"><code>/plugin update robot@robot</code><p>Get the newest robot.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="settings">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow reveal" style="--c:var(--moon)">settings</div>
+      <h2 class="reveal">Your robot,<br><span class="rb">your rules.</span></h2>
+      <p class="lead reveal">In Claude Code, type <code>/plugin</code>, open <b>Installed</b>, pick <b>robot</b>, choose <b>Configure</b>. Change a value and save. Then run <code>/reload-plugins</code> (or start a new session). <code>/robot</code> hides or shows the robot for this session.</p>
+    </div>
+    <div class="tbl-wrap panel reveal" style="--c:var(--moon)">
+      <table class="tbl">
+        <thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>Robot</td><td>on</td><td>Off hides the robot above the prompt.</td></tr>
+          <tr><td>Status line</td><td>on</td><td>Off hides the status line under the prompt.</td></tr>
+          <tr><td>Context on fire</td><td>on</td><td>Off turns the burning-head act off.</td></tr>
+          <tr><td>Fire at (% context)</td><td>25</td><td>Context % where the head catches fire and ctx turns red.</td></tr>
+          <tr><td>Compacting factory line</td><td>on</td><td>Off turns the factory line during /compact off.</td></tr>
+          <tr><td>Git cheer</td><td>on</td><td>Off stops the ✅ / 🚀 on commit and push.</td></tr>
+          <tr><td>Subagent friends</td><td>on</td><td>Off hides the WALL-E friends.</td></tr>
+          <tr><td>Limits shown</td><td>both</td><td>Which limits the status line shows: both, 5h or 7d.</td></tr>
+          <tr><td>Limits from (% used)</td><td>0</td><td>A limit shows only from this %; 0 shows it always.</td></tr>
+          <tr><td>Needs you</td><td>on</td><td>Off stops the "need a human" bubble.</td></tr>
+          <tr><td>Robot spinner words</td><td>on</td><td>Off keeps Claude Code's own spinner words.</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>

@@ -9,7 +9,7 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, statusOf } from './statusline'
+import { accountNameOf, fitStatus, groupsOf } from './statusline'
 import type { RateLimit } from './statusline'
 
 const TICK_MS = 250
@@ -51,6 +51,7 @@ const sayOf = (percent: number): Span[][] => [
 const LIMITS_AT = 0
 /** How often the status line refreshes on its own: time left on the limits, the branch. */
 const STATUS_MS = 30_000
+const STATUS_MARGIN = 4
 
 /** The organisation the person signed in with, from the config dir's .claude.json; undefined when unknown. */
 async function accountOf($: EngineInterface): Promise<string | undefined> {
@@ -96,7 +97,7 @@ async function refreshStatus($: EngineInterface, { account, windows, limitsAt, h
     const { value: effort } = await $.state.get(EFFORT)
     const [usage, model, cwd] = await Promise.all([$.session.usage(), $.session.model(), $.session.cwd()])
     const git = await $.process.run(['git', '-C', cwd, 'branch', '--show-current']).catch(() => undefined)
-    await $.state.set(STATUS, statusOf({
+    await $.state.set(STATUS, groupsOf({
       account,
       model,
       effort,
@@ -270,10 +271,12 @@ export const register: Register = (on, options) => {
     const theirs = await next(e)
     if (status.length === 0) return theirs
     const { Box, Text } = $.ui.resolve(e)
+    // A few cells of room for the line's indent and the right edge.
+    const spans = fitStatus(status.filter(group => Array.isArray(group.spans)), (e.viewport?.columns ?? 80) - STATUS_MARGIN)
     return (
       <Box flexDirection="column">
         <Box>
-          {status.map(span => (
+          {spans.map(span => (
             <Text color={span.color || undefined} wrap="truncate">
               {span.text}
             </Text>
