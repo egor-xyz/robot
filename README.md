@@ -132,15 +132,15 @@ While the conversation compacts — your `/compact`, or Claude Code's own
 auto-compact — the band turns into a factory line. No text, just the belt:
 
 ```text
-            .-----.            └───────┘   ┌───────┐
-  (o)(o)    [o   o]   (o)(o)               │ robot │
-  =[##]=    /|━━━|\   =[##]=               │ ↑ ↑ ↑ │
-  (oooo)     o   o    (oooo)   =====>=====>└───────┘==>=====
+            .-----.
+            [o   o]  │       │
+            /|━━━|\  │ o   o │
+                     └───────┘====>=====>=====>=====>=====>===
 ```
 
-- 🤖 **The queue** alternates our robot and a WALL-E, walking up from the left edge.
+- 🤖 **One at a time, in the middle.** A unit walks up to the station in the middle of the band. A robot and a WALL-E take turns; who goes first is random.
 - 📦 **A new box drops in**, and the unit packs itself part by part: legs or treads first, then the body, then the head or eyes. The lid closes and the box shakes.
-- ➡️ **The closed box rides the belt** right and off the edge, and the next unit steps up — a loop for as long as the compaction runs.
+- ➡️ **The closed box hops onto a short belt** and rides to its end, where it drops out of sight. The belt shows only while a box is on it. Only then the next unit walks in — a loop for as long as the compaction runs.
 - When the compaction ends, the robot goes back to what it did before.
 
 ---

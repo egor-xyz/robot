@@ -59,6 +59,8 @@ let lastFriendId = 0
 const nextFriendId = (): number => ++lastFriendId
 /** The tick the current compaction was first drawn at, or -1 when nothing compacts. */
 let packedFrom = -1
+// Picks at random who goes first on this compaction's line: a robot or a WALL-E.
+let packedSeed = 0
 
 export const register: Register = (on, options) => {
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
@@ -148,7 +150,10 @@ export const register: Register = (on, options) => {
     const isCelebrating = !isCompacting && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
     const isHot = isFireOn && percent >= hotAt
     if (!isCompacting) packedFrom = -1
-    else if (packedFrom < 0) packedFrom = at
+    else if (packedFrom < 0) {
+      packedFrom = at
+      packedSeed = randomInt()
+    }
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
@@ -175,7 +180,7 @@ export const register: Register = (on, options) => {
     // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
     let frame: Frame
     if (isCompacting) {
-      frame = factory(columns, at - packedFrom)
+      frame = factory(columns, at - packedFrom, packedSeed)
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {
