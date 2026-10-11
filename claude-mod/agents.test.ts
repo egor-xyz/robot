@@ -27,6 +27,11 @@ test('an agent line shows task, type, model, effort, tokens and time', () => {
   expect(spans.find(span => span.text === 'Haiku 5.5')?.color).toBe('success')
 })
 
+test('an agent found after a reload, with no model yet, has no empty part', () => {
+  const found = { ...ROW, model: '', effort: undefined, tokens: 0, startedAt: 6_000 }
+  expect(textOfStatus(fitStatus(agentGroupsOf(found, 6_000), Number.POSITIVE_INFINITY))).toBe('List mod settings | egor-xyz-scout | 0 tok | 0:00')
+})
+
 test('on a narrow screen the type goes first and the task stays', () => {
   expect(textOfStatus(fitStatus(agentGroupsOf(ROW, 6_000), 55))).toBe('List mod settings | Haiku 5.5 [low] | 16k tok | 0:06')
   expect(textOfStatus(fitStatus(agentGroupsOf(ROW, 6_000), 20))).toBe('List mod settings')

@@ -38,10 +38,13 @@ export function agentGroupsOf(row: AgentRow, now: number): StatusGroup[] {
   return [
     { rank: RANK.task, spans: [{ text: row.description || row.type, color: 'text' }] },
     { rank: RANK.type, spans: [{ text: row.type, color: DIM }] },
-    {
-      rank: RANK.model,
-      spans: [{ text: model, color: modelColorOf(model) }, ...(row.effort ? [{ text: ` [${row.effort}]`, color: effortColorOf(row.effort) }] : [])],
-    },
+    // An agent found after a reload has no model until its next step: no empty part for it.
+    ...(model || row.effort
+      ? [{
+          rank: RANK.model,
+          spans: [...(model ? [{ text: model, color: modelColorOf(model) }] : []), ...(row.effort ? [{ text: `${model ? ' ' : ''}[${row.effort}]`, color: effortColorOf(row.effort) }] : [])],
+        }]
+      : []),
     { rank: RANK.tokens, spans: [{ text: `${tokensOf(row.tokens)} tok`, color: DIM }] },
     { rank: RANK.time, spans: [{ text: elapsedOf(row.startedAt, now), color: DIM }] },
   ]

@@ -373,10 +373,16 @@ export const register: Register = (on, options) => {
         const agents = await $.agent.list()
         const live = agents.filter(agent => ['pending', 'running', 'waiting'].includes(agent.status) && agent.type !== 'teammate')
         // An agent that ended without a turn.complete (stopped, failed) leaves its line here.
-        await updateAgentRows($, rows => {
-          const kept = rows.filter(row => live.some(agent => agent.id === row.id))
-          return kept.length !== rows.length ? kept : rows
-        })
+        // One that started before a reload (/reload-plugins, an update) missed agent.spawn: it gets its line here.
+        if (isAgentLinesOn) {
+          await updateAgentRows($, rows => {
+            const kept = rows.filter(row => live.some(agent => agent.id === row.id))
+            const missed = live.filter(agent => !rows.some(row => row.id === agent.id))
+            if (kept.length === rows.length && missed.length === 0) return rows
+            const now = Date.now()
+            return [...kept, ...missed.map(agent => ({ id: agent.id, type: agent.type, description: agent.description, model: '', startedAt: now, tokens: 0 }))]
+          })
+        }
         if (!isFriendsOn) return
         const running = live.length
         const { value: was = 0 } = await $.state.get(SUBAGENTS)
