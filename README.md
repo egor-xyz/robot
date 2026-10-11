@@ -187,7 +187,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | --- | --- | --- |
 | `Acme Team` | your account | grey |
 | `Opus 5.5` | the model | 🟠 Opus · 🔵 Sonnet · 🟢 Haiku · 🩷 Fable |
-| `[high]` | the effort | grey up to `medium`, then `high` yellow → `xhigh` orange → `max` red |
+| `[high]` | the effort | grey up to `medium`, then `high` / `xhigh` yellow → `max` red |
 | `my-app` | the project folder | light blue |
 | `feat/login` | the git branch | purple. A worktree folder named like its branch shows once. |
 | `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
@@ -195,6 +195,8 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
 
 **Grey means calm.** A part gets a color only when it needs your attention.
+
+**Your theme decides the exact colors.** The line uses Claude Code's theme colors (warning, error, …), not fixed ones. It reads well in dark, light and color-blind themes. With a `-ansi` theme in `/theme`, it uses your terminal's own color scheme.
 
 ---
 
@@ -215,17 +217,18 @@ Every act has a switch. To change one:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| Robot | on | Off hides the robot above the prompt. |
-| Status line | on | Off hides the [status line](#-status-line) under the prompt. |
-| Context on fire | on | Off turns the [burning head](#-context-on-fire) off. |
+| Robot | `true` | `false` hides the robot above the prompt. |
+| Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. |
+| Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
-| Compacting factory line | on | Off turns the [factory line](#-compacting) off. |
-| Git cheer | on | Off stops the ✅ / 🚀 on commit and push. |
-| Subagent friends | on | Off hides the [WALL-E friends](#-subagent-friends). |
+| Compacting factory line | `true` | `false` turns the [factory line](#-compacting) off. |
+| Git cheer | `true` | `false` stops the ✅ / 🚀 on commit and push. |
+| Subagent friends | `true` | `false` hides the [WALL-E friends](#-subagent-friends). |
 | Limits shown | `both` | Which limits the status line shows: `both`, `5h` or `7d`. |
 | Limits from (% used) | `0` | A limit shows only from this %. `0` shows it always. |
-| Needs you | on | Off stops the "need a human" bubble. |
-| Robot spinner words | on | Off keeps Claude Code's own spinner words. |
+| Needs you | `true` | `false` stops the "need a human" bubble. |
+| Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
+| Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.
 

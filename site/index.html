@@ -615,8 +615,8 @@ footer nav { display: flex; gap: 20px; }
     <div class="facts" style="margin-top:14px">
       <div class="fact panel reveal" style="--c:var(--ufo)"><h3>What is in it</h3><p>Account, model and effort, project folder, git branch, 7d and 5h limits with time left until reset, session cost, context %. A worktree folder named like its branch shows once, as the branch.</p></div>
       <div class="fact panel reveal" style="--c:var(--walk)"><h3>Model colors</h3><p><span style="color:#ff8700">Opus orange</span>, <span style="color:#5fafff">Sonnet blue</span>, <span style="color:#87d787">Haiku green</span>, <span style="color:#ff87ff">Fable pink</span>. Project folder <span style="color:#87d7ff">light blue</span>, branch <span style="color:#af87ff">purple</span>.</p></div>
-      <div class="fact panel reveal" style="--c:var(--wave)"><h3>Effort warms up</h3><p>low and medium stay <span style="color:#808080">grey</span>, high <span style="color:#ffd787">yellow</span>, xhigh <span style="color:#ffaf5f">orange</span>, max <span style="color:#ff5f5f">red</span>.</p></div>
-      <div class="fact panel reveal" style="--c:var(--fire)"><h3>Grey until it matters</h3><p>Limits turn <span style="color:#ffd700">yellow</span> at 50% and <span style="color:#ff5f5f">red</span> at 80%. Cost turns <span style="color:#ffd700">yellow</span> above $100. ctx turns <span style="color:#ff5f5f">red</span> at the "Fire at" setting (default 25%).</p></div>
+      <div class="fact panel reveal" style="--c:var(--wave)"><h3>Effort warms up</h3><p>low and medium stay <span style="color:#808080">grey</span>, high and xhigh <span style="color:#ffd787">yellow</span>, max <span style="color:#ff5f5f">red</span>.</p></div>
+      <div class="fact panel reveal" style="--c:var(--fire)"><h3>Grey until it matters</h3><p>Limits turn <span style="color:#ffd700">yellow</span> at 50% and <span style="color:#ff5f5f">red</span> at 80%. Cost turns <span style="color:#ffd700">yellow</span> above $100. ctx turns <span style="color:#ff5f5f">red</span> at the "Fire at" setting (default 25%). The exact shades come from your Claude Code theme: dark, light, color-blind or your terminal's own colors.</p></div>
     </div>
   </div>
 </section>
@@ -665,17 +665,18 @@ footer nav { display: flex; gap: 20px; }
       <table class="tbl">
         <thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td>Robot</td><td>on</td><td>Off hides the robot above the prompt.</td></tr>
-          <tr><td>Status line</td><td>on</td><td>Off hides the status line under the prompt.</td></tr>
-          <tr><td>Context on fire</td><td>on</td><td>Off turns the burning-head act off.</td></tr>
+          <tr><td>Robot</td><td>true</td><td>false hides the robot above the prompt.</td></tr>
+          <tr><td>Status line</td><td>true</td><td>false hides the status line under the prompt.</td></tr>
+          <tr><td>Context on fire</td><td>true</td><td>false turns the burning-head act off.</td></tr>
           <tr><td>Fire at (% context)</td><td>25</td><td>Context % where the head catches fire and ctx turns red.</td></tr>
-          <tr><td>Compacting factory line</td><td>on</td><td>Off turns the factory line during /compact off.</td></tr>
-          <tr><td>Git cheer</td><td>on</td><td>Off stops the ✅ / 🚀 on commit and push.</td></tr>
-          <tr><td>Subagent friends</td><td>on</td><td>Off hides the WALL-E friends.</td></tr>
+          <tr><td>Compacting factory line</td><td>true</td><td>false turns the factory line during /compact off.</td></tr>
+          <tr><td>Git cheer</td><td>true</td><td>false stops the ✅ / 🚀 on commit and push.</td></tr>
+          <tr><td>Subagent friends</td><td>true</td><td>false hides the WALL-E friends.</td></tr>
           <tr><td>Limits shown</td><td>both</td><td>Which limits the status line shows: both, 5h or 7d.</td></tr>
           <tr><td>Limits from (% used)</td><td>0</td><td>A limit shows only from this %; 0 shows it always.</td></tr>
-          <tr><td>Needs you</td><td>on</td><td>Off stops the "need a human" bubble.</td></tr>
-          <tr><td>Robot spinner words</td><td>on</td><td>Off keeps Claude Code's own spinner words.</td></tr>
+          <tr><td>Needs you</td><td>true</td><td>false stops the "need a human" bubble.</td></tr>
+          <tr><td>Robot spinner words</td><td>true</td><td>false keeps Claude Code's own spinner words.</td></tr>
+          <tr><td>Reset all settings to default</td><td>false</td><td>Set to true and save: every setting goes back to its default, and this switch goes back to false.</td></tr>
         </tbody>
       </table>
     </div>
