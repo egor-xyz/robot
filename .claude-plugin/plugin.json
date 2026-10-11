@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -89,7 +89,7 @@
     "branchWave": {
       "type": "boolean",
       "title": "Branch wave",
-      "description": "The branch name waves in colors for 3 seconds when the branch changes, and after a git commit or push. false keeps it still.",
+      "description": "A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. false keeps it still.",
       "default": true
     },
     "agentLines": {

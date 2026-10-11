@@ -205,6 +205,18 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 
 **Grey means calm.** A part gets a color only when it needs your attention.
 
+**The branch shimmers.** When the branch changes, or after a git commit or push, a bright band sweeps across the branch name for 3 seconds: blue → purple → pink → orange → yellow.
+
+**Subagents get their own lines.** Each running subagent gets one line under the status line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`.
+
+```text
+Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
+↳ Find the login form | Explore | Haiku 5.5 [low] | 16k tok | 0:06
+↳ Review the diff | tech-lead | Opus 5.5 [high] | 42k tok | 1:12
+```
+
+Turn them off with the **Branch wave** and **Subagent lines** settings.
+
 **Your theme decides the exact colors.** The line uses Claude Code's theme colors (warning, error, …), not fixed ones. It reads well in dark, light and color-blind themes. With a `-ansi` theme in `/theme`, it uses your terminal's own color scheme.
 
 ---
@@ -237,7 +249,7 @@ Every act has a switch. To change one:
 | Limits from (% used) | `0` | A limit shows only from this %. `0` shows it always. |
 | Needs you | `true` | `false` stops the "need a human" bubble. |
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
-| Branch wave | `true` | The branch name waves in colors for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
+| Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 

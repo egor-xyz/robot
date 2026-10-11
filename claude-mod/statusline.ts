@@ -134,16 +134,12 @@ export function fitStatus(groups: readonly StatusGroup[], columns: number): Span
 /** The status line as coloured parts, cut to `columns` cells when given. */
 export const statusOf = (parts: StatusParts, columns = Number.POSITIVE_INFINITY): Span[] => fitStatus(groupsOf(parts), columns)
 
-/** The colours a waving branch name runs through: a loop from its own blue to pink and back. */
-const WAVE_COLORS = ['ide', 'suggestion', 'merged', 'bashBorder', 'merged', 'suggestion', 'ide', 'planMode']
+/** The colour that marks the shimmering branch: the drawing hands that span to the shimmer module. */
+export const SHIMMER = 'shimmer'
 
-/** `text` letter by letter, coloured as a wave `step` ticks along: each step moves the colours one letter right. */
-export const waveOf = (text: string, step: number): Span[] =>
-  [...text].map((char, i) => ({ text: char, color: WAVE_COLORS[(((i - step) % WAVE_COLORS.length) + WAVE_COLORS.length) % WAVE_COLORS.length] ?? DIM }))
-
-/** The groups with the branch drawn as a wave `step` ticks along. */
-export const wavedOf = (groups: readonly StatusGroup[], step: number): StatusGroup[] =>
-  groups.map(group => (group.rank === RANK.branch ? { ...group, spans: waveOf(textOfStatus(group.spans), step) } : group))
+/** The groups with the branch marked to shimmer. */
+export const wavedOf = (groups: readonly StatusGroup[]): StatusGroup[] =>
+  groups.map(group => (group.rank === RANK.branch ? { ...group, spans: [{ text: textOfStatus(group.spans), color: SHIMMER }] } : group))
 
 /** The line's text, colours left out. */
 export const textOfStatus = (spans: readonly Span[]): string => spans.map(span => span.text).join('')

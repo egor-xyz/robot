@@ -9,7 +9,7 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, fitStatus, groupsOf, wavedOf } from './statusline'
+import { accountNameOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow } from './agents'
 import type { RateLimit } from './statusline'
@@ -34,6 +34,8 @@ const PACE_WALK = 32
 const CELEBRATE_TICKS = 12
 // The branch name waves for 3 seconds, at 4 ticks a second.
 const WAVE_TICKS = 12
+// The shimmer module draws its own frames, 90 ms apart: 33 of them fill the same 3 seconds.
+const SHIMMER_FRAMES = 33
 // How often the running subagents are counted.
 const AGENTS_MS = 1000
 
@@ -353,14 +355,11 @@ export const register: Register = (on, options) => {
     // A few cells of room for the line's indent and the right edge.
     const columns = (e.viewport?.columns ?? 80) - STATUS_MARGIN
     const lines: Span[][] = []
+    const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
     if (isStatusOn && status.length > 0) {
       let groups = status.filter(group => Array.isArray(group.spans))
-      // Only a waving branch reads the tick, so a still line does not redraw 4 times a second.
-      const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
-      if (isWaveOn && waveAt >= 0) {
-        const { value: at = 0 } = await $.state.get(TICK)
-        groups = wavedOf(groups, at - waveAt)
-      }
+      // The shimmer module runs its own fast clock, so the line itself does not redraw while the branch shimmers.
+      if (isWaveOn && waveAt >= 0) groups = wavedOf(groups)
       lines.push(fitStatus(groups, columns))
     }
     if (agentRows.length > 0) {
@@ -372,16 +371,23 @@ export const register: Register = (on, options) => {
       if (more.length > 0) lines.push([AGENT_MARK, ...more])
     }
     if (lines.length === 0) return theirs
-    const { Box, Text } = $.ui.resolve(e)
+    const elements = $.ui.resolve(e)
+    const { Box, Text } = elements
+    // Mobile and the IDE draw no Client: there the branch stays still, in its blue.
+    const Client = 'Client' in elements ? elements.Client : undefined
     return (
       <Box flexDirection="column">
         {lines.map(spans => (
           <Box>
-            {spans.map(span => (
-              <Text color={span.color || undefined} wrap="truncate">
-                {span.text}
-              </Text>
-            ))}
+            {spans.map(span =>
+              span.color === SHIMMER && Client ? (
+                <Client key={`shimmer-${waveAt}`} module="./shimmer.tsx" props={{ text: span.text, frames: SHIMMER_FRAMES }} />
+              ) : (
+                <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
+                  {span.text}
+                </Text>
+              ),
+            )}
           </Box>
         ))}
         {theirs}
@@ -484,7 +490,7 @@ export const register: Register = (on, options) => {
               <Text> </Text>
             ) : (
               row.map(span => (
-                <Text color={span.color || undefined} wrap="truncate">
+                <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
                   {span.text}
                 </Text>
               ))

@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Span } from './frames'
-import { accountNameOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, statusOf, textOfStatus, waveOf, wavedOf } from './statusline'
+import { accountNameOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, textOfStatus, wavedOf } from './statusline'
+import { shadeOf } from './shimmer'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
 
@@ -126,18 +127,20 @@ test('on a narrow screen the least needed parts drop out first', () => {
   expect(plain(statusOf(parts, 5))).toBe('ctx …')
 })
 
-test('the branch wave colours each letter and moves one letter right each step', () => {
-  const still = waveOf('main', 0)
-  expect(still.map(span => span.text).join('')).toBe('main')
-  expect(still.map(span => span.color)).toEqual(['ide', 'suggestion', 'merged', 'bashBorder'])
-  expect(waveOf('main', 1).map(span => span.color)).toEqual(['planMode', 'ide', 'suggestion', 'merged'])
-  expect(waveOf('main', 8).map(span => span.color)).toEqual(still.map(span => span.color))
+test('the branch shimmer sweeps a bright band across the name, then starts again', () => {
+  const colors = (phase: number) => [...'feat/login'].map((_, i) => shadeOf(i, phase, 10))
+  expect(colors(0)).toEqual(Array(10).fill('ide'))
+  expect(colors(5)).toEqual(['merged', 'bashBorder', 'claude', 'warning', 'claude', 'bashBorder', 'merged', 'ide', 'ide', 'ide'])
+  expect(colors(5).indexOf('warning')).toBe(3)
+  expect(colors(10).indexOf('warning')).toBe(-1)
+  expect(colors(1).filter(color => color !== 'ide')).not.toHaveLength(0)
+  expect(colors(12.5)).toEqual(colors(0))
 })
 
 test('only the branch waves', () => {
   const groups = groupsOf({ project: 'robot', branch: 'main', rateLimits: [], windows: [], limitsAt: 0, hotAt: 25, now: NOW })
-  const waved = wavedOf(groups, 0)
+  const waved = wavedOf(groups)
   expect(textOfStatus(fitStatus(waved, Number.POSITIVE_INFINITY))).toBe('robot | main')
-  expect(waved.find(group => group.spans[0]?.text === 'robot')?.spans).toHaveLength(1)
-  expect(waved.find(group => group.spans[0]?.text === 'm')?.spans).toHaveLength(4)
+  expect(waved.find(group => group.spans[0]?.text === 'robot')?.spans[0]?.color).toBe('planMode')
+  expect(waved.find(group => group.spans[0]?.text === 'main')?.spans[0]?.color).toBe(SHIMMER)
 })
