@@ -1,4 +1,4 @@
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
@@ -7,6 +7,10 @@ import type { Friend } from './friends'
 import { gitActOf } from './git'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
+import { isQuestion } from './ask'
+import { robotWord } from './spinner'
+import { accountNameOf, statusOf } from './statusline'
+import type { RateLimit } from './statusline'
 
 const TICK_MS = 250
 const ROWS = 4
@@ -42,6 +46,25 @@ const sayOf = (percent: number): Span[][] => [
   [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
 ]
 
+// Default rate-limit usage (percent) from which the meter shows; 0 shows it whenever there is a reading.
+/** Rate-limit usage, in percent, from which a window shows in the status line: 0 shows it always. */
+const LIMITS_AT = 0
+/** How often the status line refreshes on its own: time left on the limits, the branch. */
+const STATUS_MS = 30_000
+
+/** The organisation the person signed in with, from the config dir's .claude.json; undefined when unknown. */
+async function accountOf($: EngineInterface): Promise<string | undefined> {
+  try {
+    const dir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (await $.env.get('HOME'))
+    const read = await $.fs.read(`${dir}/.claude.json`)
+    if (typeof read !== 'string') return undefined
+    return accountNameOf(JSON.parse(read)?.oauthAccount)
+  } catch {
+    return undefined
+  }
+}
+const NEEDS_YOU_SAY: Span[][] = [[{ text: 'need a human', color: COMMAND_COLOR }]]
+
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
 const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
@@ -49,6 +72,9 @@ const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
 const CELEBRATION = { plugin: 'robot', key: 'celebration' } as const
 const SUBAGENTS = { plugin: 'robot', key: 'subagents' } as const
+const IS_ASKED = { plugin: 'robot', key: 'isAsked' } as const
+const STATUS = { plugin: 'robot', key: 'status' } as const
+const EFFORT = { plugin: 'robot', key: 'effort' } as const
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -61,11 +87,65 @@ const nextFriendId = (): number => ++lastFriendId
 let packedFrom = -1
 // Picks at random who goes first on this compaction's line: a robot or a WALL-E.
 let packedSeed = 0
+/** What the status line knows apart from what it reads from the session. */
+type StatusFixed = { account?: string; windows: readonly string[]; limitsAt: number; hotAt: number }
+
+/** Rebuilds the robot's status line; the hint line under the prompt draws it. */
+async function refreshStatus($: EngineInterface, { account, windows, limitsAt, hotAt }: StatusFixed): Promise<void> {
+  try {
+    const { value: effort } = await $.state.get(EFFORT)
+    const [usage, model, cwd] = await Promise.all([$.session.usage(), $.session.model(), $.session.cwd()])
+    const git = await $.process.run(['git', '-C', cwd, 'branch', '--show-current']).catch(() => undefined)
+    await $.state.set(STATUS, statusOf({
+      account,
+      model,
+      effort,
+      project: cwd.split('/').filter(Boolean).at(-1),
+      branch: git?.exitCode === 0 ? git.stdout.trim() : undefined,
+      rateLimits: usage.rateLimits as readonly RateLimit[],
+      windows,
+      limitsAt,
+      costUsd: usage.cost?.usd,
+      contextPercent: usage.context?.percent,
+      hotAt,
+      now: Date.now(),
+    }))
+  } catch (error) {
+    $.ui.log(`robot: status line unavailable: ${String(error)}`, { to: 'debug' })
+  }
+}
+
+/** Keeps the turn's effort level and redraws the status line when it changed. */
+async function noteEffort($: EngineInterface, level: string | undefined, isStatusOn: boolean, fixed: StatusFixed): Promise<void> {
+  if (!level) return
+  const { value: was } = await $.state.get(EFFORT)
+  if (level === was) return
+  await $.state.set(EFFORT, level)
+  if (isStatusOn) await refreshStatus($, fixed)
+}
 
 export const register: Register = (on, options) => {
+  /** The tick the robot started asking for the person, or -1 when nobody is asked. */
+  let needFrom = -1
+  /** The desktop spinner's seed: a new robot word each turn, the same one all through it. */
+  let turnSeed = ''
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
   // The `contextFire` option turns the whole context-on-fire act off; on unless set to false.
   const isFireOn = options.contextFire !== false
+  const isRobotOn = options.robot !== false
+  const isStatusOn = options.statusLine !== false
+  const limitsAt = typeof options.limitsAt === 'number' && options.limitsAt >= 0 && options.limitsAt <= 100 ? options.limitsAt : LIMITS_AT
+  const isNeedsOn = options.needsYou !== false
+  const isSpinnerOn = options.robotSpinner !== false
+  const isFactoryOn = options.compactFactory !== false
+  const isCheerOn = options.gitCheer !== false
+  const isFriendsOn = options.subagentFriends !== false
+  // Which rate-limit windows the status line shows: both, or one.
+  const windowKind = options.limitWindows === '5h' ? 'five_hour' : options.limitWindows === '7d' ? 'seven_day' : undefined
+  const windows = windowKind ? [windowKind] : ['seven_day', 'five_hour']
+
+  /** The organisation the person signed in with, read once a session. */
+  let account: string | undefined
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
@@ -90,6 +170,7 @@ export const register: Register = (on, options) => {
     })
 
     $.clock.every(AGENTS_MS, async () => {
+      if (!isFriendsOn) return
       try {
         const agents = await $.agent.list()
         const running = agents.filter(agent => ['pending', 'running', 'waiting'].includes(agent.status) && agent.type !== 'teammate').length
@@ -100,12 +181,46 @@ export const register: Register = (on, options) => {
       }
     })
 
+    // An older version pinned the line as a notice; the hint line draws it now.
+    $.ui.status(undefined)
+    if (isStatusOn) {
+      account = await accountOf($)
+      await refreshStatus($, { account, windows, limitsAt, hotAt })
+      $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
+    }
+
     return started
+  })
+
+  // Context, cost or a rate-limit window moved: refresh the status line.
+  on('session.measure', async ($, e, next) => {
+    const measured = await next(e)
+    if (isStatusOn) await refreshStatus($, { account, windows, limitsAt, hotAt })
+    return measured
+  })
+
+  // Each model request carries the effort it asks for; the status line shows the main loop's last one.
+  // Kept in $.state: the module reloads (as at the end of a turn while developing) and forgets its variables.
+  on('turn.step', async function* ($, e, next) {
+    if (!e.agentId && typeof e.effort === 'string') await noteEffort($, e.effort, isStatusOn, { account, windows, limitsAt, hotAt })
+    return yield* next(e)
+  })
+
+  // Claude ended its turn on a question: the robot asks for the person until they send the next prompt.
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    if (isNeedsOn && !e.agentId && e.reason === 'answer') await $.state.set(IS_ASKED, isQuestion(e.answer))
+    return done
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    await $.state.set(IS_ASKED, false)
+    return next(e)
   })
 
   // The main conversation compacting, by /compact, the threshold or a plugin: the robot cools down while it runs.
   on('session.compact', async ($, e, next) => {
-    if (e.trigger === 'precompute' || e.agentId) return next(e)
+    if (!isFactoryOn || e.trigger === 'precompute' || e.agentId) return next(e)
     await $.state.set(IS_COMPACTING, true)
     try {
       return await next(e)
@@ -117,6 +232,7 @@ export const register: Register = (on, options) => {
   // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS. Subagent commands count too.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
+    if (!isCheerOn) return ran
     if (ran.deny !== undefined || ran.isError === true) return ran
     const act = gitActOf(e.command)
     if (act) {
@@ -124,6 +240,19 @@ export const register: Register = (on, options) => {
       await $.state.set(CELEBRATION, { act, at })
     }
     return ran
+  })
+
+  on('turn.start', async ($, e, next) => {
+    turnSeed = String(randomInt())
+    return next(e)
+  })
+
+  // The spinner word becomes a robot word, stable for the turn. The engine keeps its elapsed/tokens and the ellipsis.
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    if (!isSpinnerOn || e.props.message !== null) return next(e)
+    if (e.surface !== 'terminal' && e.props.word !== 'Working') return next(e)
+    const seed = e.surface === 'terminal' ? e.props.word : turnSeed
+    return next({ ...e, props: { ...e.props, word: robotWord(seed) } })
   })
 
   on('command.run', { command: 'robot' }, async $ => {
@@ -134,11 +263,32 @@ export const register: Register = (on, options) => {
     return { text: hidden ? 'Robot hidden.' : 'Robot is back.' }
   })
 
+  // The status line: a row of coloured parts above Claude Code's own hint line, which stays as it is.
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
+    if (!isStatusOn) return next(e)
+    const { value: status = [] } = await $.state.get(STATUS)
+    const theirs = await next(e)
+    if (status.length === 0) return theirs
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        <Box>
+          {status.map(span => (
+            <Text color={span.color || undefined} wrap="truncate">
+              {span.text}
+            </Text>
+          ))}
+        </Box>
+        {theirs}
+      </Box>
+    )
+  })
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const columns = e.props.bodyColumns
     const { value: at = 0 } = await $.state.get(TICK)
     const { value: hidden = false } = await $.state.get(IS_HIDDEN)
-    const isQuiet = e.props.hasSurvey || e.props.maxRows < ROWS || hidden
+    const isQuiet = !isRobotOn || e.props.hasSurvey || e.props.maxRows < ROWS || hidden
     if (isQuiet) {
       return next(e)
     }
@@ -149,6 +299,11 @@ export const register: Register = (on, options) => {
     const { value: subagents = 0 } = await $.state.get(SUBAGENTS)
     const isCelebrating = !isCompacting && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
     const isHot = isFireOn && percent >= hotAt
+    // Only once the turn is over: a working engine means the person already answered.
+    const { value: isAsked = false } = await $.state.get(IS_ASKED)
+    const isNeeded = isNeedsOn && isAsked && !e.props.isWorking
+    if (!isNeeded) needFrom = -1
+    else if (needFrom < 0) needFrom = at
     if (!isCompacting) packedFrom = -1
     else if (packedFrom < 0) {
       packedFrom = at
@@ -157,12 +312,13 @@ export const register: Register = (on, options) => {
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
-    if (at !== shown.at && !isCompacting && !isCelebrating) {
+    if (at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
-      const wanted = talkAt(at) >= 0 ? 'dance' : 'walk'
-      if (isHot && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
+      // Talking (asking for the person, or hot and talking) it dances in place, so its bubble stays put.
+      const wanted = isNeeded || (isHot && talkAt(at) >= 0) ? 'dance' : isHot ? 'walk' : undefined
+      if (wanted && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
         shown.state = { ...shown.state, state: wanted, t: 0, dur: FOREVER }
-      } else if (!isHot && shown.state.dur === FOREVER) {
+      } else if (!wanted && shown.state.dur === FOREVER) {
         shown.state = { ...shown.state, dur: shown.state.t }
       }
       if (!isHot || isHotStep(at) || !shown.frame) {
@@ -177,10 +333,13 @@ export const register: Register = (on, options) => {
       friends = stepFriends(friends, subagents, nextFriendId)
       friendsAt = at
     }
-    // Priority: compacting, then celebrating, then the robot as it walks (hot or not).
+    // Priority: compacting, then needs-you, then celebrating, then the robot as it walks (hot or not).
     let frame: Frame
     if (isCompacting) {
       frame = factory(columns, at - packedFrom, packedSeed)
+    } else if (isNeeded) {
+      if (!shown.frame) return next(e)
+      frame = withFriends(speech(heated(shown.frame, isHot, at), typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED), columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false)
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {

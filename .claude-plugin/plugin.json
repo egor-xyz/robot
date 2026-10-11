@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -11,6 +11,18 @@
   "hooks": "./claude-mod/hooks.json",
   "types": "./claude-mod/types/index.d.ts",
   "userConfig": {
+    "robot": {
+      "type": "boolean",
+      "title": "Robot (default on)",
+      "description": "The animated robot above the prompt. Off hides it, as /robot does, and keeps the status line.",
+      "default": true
+    },
+    "statusLine": {
+      "type": "boolean",
+      "title": "Status line (default on)",
+      "description": "A line under the prompt: account | model [effort] | project | branch | 7d and 5h limits with time left | cost | context %.",
+      "default": true
+    },
     "contextFire": {
       "type": "boolean",
       "title": "Context on fire (default on)",
@@ -24,6 +36,55 @@
       "default": 25,
       "min": 1,
       "max": 100
+    },
+    "compactFactory": {
+      "type": "boolean",
+      "title": "Compacting factory line (default on)",
+      "description": "While the conversation compacts, robots and WALL-Es pack themselves into boxes on a factory line.",
+      "default": true
+    },
+    "gitCheer": {
+      "type": "boolean",
+      "title": "Git cheer (default on)",
+      "description": "The robot cheers when a git commit or push goes through.",
+      "default": true
+    },
+    "subagentFriends": {
+      "type": "boolean",
+      "title": "Subagent friends (default on)",
+      "description": "A WALL-E friend rolls in for each running subagent, up to 3.",
+      "default": true
+    },
+    "limitWindows": {
+      "type": "string",
+      "title": "Limits shown (default both)",
+      "description": "Which rate limits the status line shows: both, 5h or 7d.",
+      "default": "both",
+      "options": [
+        "both",
+        "5h",
+        "7d"
+      ]
+    },
+    "limitsAt": {
+      "type": "number",
+      "title": "Limits from (% used, default 0)",
+      "description": "Rate-limit usage, in percent, from which a limit shows in the status line. 0 shows it always.",
+      "default": 0,
+      "min": 0,
+      "max": 100
+    },
+    "needsYou": {
+      "type": "boolean",
+      "title": "Needs you (default on)",
+      "description": "When Claude ends its turn on a question, the robot says \"need a human\" in a bubble until you send your reply.",
+      "default": true
+    },
+    "robotSpinner": {
+      "type": "boolean",
+      "title": "Robot spinner words (default on)",
+      "description": "Replaces the spinner word (Sauteing…) with robot words.",
+      "default": true
     }
   }
 }

@@ -65,18 +65,19 @@ test('a hot head turns its orange head rows red and keeps other rows', () => {
 
 test('the head top cycles through four flame steps of the same width, corners kept', () => {
   const tops = [0, 1, 2, 3].map(tick => textOf(heated(HEAD, true, tick)[0] ?? []))
-  const width = cellsOf(textOf(HEAD[0] ?? []))
+  // Two cells grow on the right of the head top, for its sparks.
+  const width = cellsOf(textOf(HEAD[0] ?? [])) + 2
 
   expect(new Set(tops).size).toBe(4)
   for (const top of tops) {
     expect(cellsOf(top)).toBe(width)
     expect(top).toContain('🔥')
-    expect(top.trimEnd().endsWith('.')).toBe(true)
+    expect(top).toMatch(/\.[-🔥 ]+\./u)
   }
   expect(textOf(heated(HEAD, true, 4)[0] ?? [])).toBe(tops[0])
 })
 
-test('sparks only replace spaces and never move the head', () => {
+test('sparks fly on both sides of the head and never move it', () => {
   for (const tick of [0, 1, 2, 3]) {
     const top = textOf(heated(HEAD, true, tick)[0] ?? [])
     const original = textOf(HEAD[0] ?? [])
@@ -84,11 +85,13 @@ test('sparks only replace spaces and never move the head', () => {
 
     const head = [...top].slice(at, at + 7).join('')
 
-    expect(head).toMatch(/^\.[-🔥 ]+\.$/u)
-    expect(cellsOf(top)).toBe(cellsOf(original))
+    expect(head).toMatch(/^\.[-🔥 ]+\./u)
+    expect(cellsOf(top)).toBe(cellsOf(original) + 2)
   }
-  const sparked = [0, 1, 2, 3].map(tick => textOf(heated(HEAD, true, tick)[0] ?? []).slice(0, 2))
-  expect(new Set(sparked).size).toBeGreaterThan(1)
+  const left = [0, 1, 2, 3].map(tick => textOf(heated(HEAD, true, tick)[0] ?? []).slice(0, 2))
+  const right = [0, 1, 2, 3].map(tick => textOf(heated(HEAD, true, tick)[0] ?? []).slice(-2))
+  expect(new Set(left).size).toBeGreaterThan(1)
+  expect(new Set(right).size).toBeGreaterThan(1)
 })
 
 test('a hot face alternates its eyes by tick and keeps its width', () => {
@@ -106,25 +109,36 @@ const SAY: Span[][] = [
   [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
 ]
 
-test('speech goes to the right of the robot in two lines, four cells out, in the default colour', () => {
+test('speech goes to the right of the robot in a comic bubble, its tail at the eyes, clear of arms and sparks', () => {
   const out = speech(HEAD, SAY, 60)
+  const rule = '─'.repeat(14)
 
-  expect(textOf(out[1] ?? [])).toBe(`  [o   o]    ${SAY_TEXT[0]}`)
-  expect(textOf(out[2] ?? [])).toBe(`  /|---|\\    ${SAY_TEXT[1]}`)
-  expect(out[1]?.at(-1)?.color).toBe(DEFAULT_COLOR)
-  expect(out[0]).toEqual(HEAD[0])
-  expect(out[3]).toEqual(HEAD[3])
+  expect(textOf(out[0] ?? [])).toBe(`  .-----.     ╭${rule}╮`)
+  expect(textOf(out[1] ?? [])).toBe(`  [o   o]    <  ${SAY_TEXT[0]}  │`)
+  expect(textOf(out[2] ?? [])).toBe(`  /|---|\\     │ ${SAY_TEXT[1]} │`)
+  expect(textOf(out[3] ?? [])).toBe(`   o   o      ╰${rule}╯`)
+  expect(out[1]?.find(span => span.text === SAY_TEXT[0])?.color).toBe(DEFAULT_COLOR)
 })
 
-test('speech falls back to the left of the robot', () => {
+test('speech falls back to the left of the robot, the tail pointing right', () => {
   const shifted: Frame = HEAD.map(row => [{ text: ' '.repeat(40), color: '#ff8700' }, ...row])
   const out = speech(shifted, SAY, 52)
   const eyes = textOf(out[1] ?? [])
 
-  expect(eyes.trimStart().startsWith('context 31%')).toBe(true)
+  expect(eyes.trimStart().startsWith(`│ ${SAY_TEXT[0]}   >`)).toBe(true)
   expect(eyes.endsWith('[o   o]')).toBe(true)
-  expect(textOf(out[2] ?? []).trimStart().startsWith('/compact me!')).toBe(true)
-  expect(cellsOf(eyes)).toBe(cellsOf(textOf(shifted[1] ?? [])))
+  expect(textOf(out[2] ?? []).trimStart().startsWith(`│ ${SAY_TEXT[1]} │`)).toBe(true)
+  expect(textOf(out[0] ?? []).trimStart().startsWith('╭')).toBe(true)
+  for (const row of [0, 1, 2, 3]) expect(cellsOf(textOf(out[row] ?? []))).toBe(cellsOf(textOf(shifted[row] ?? [])))
+})
+
+test('the bubble stays put while an arm moves, and a wider row is cut at its edge', () => {
+  const waving: Frame = [[{ text: '  .-----.\\o', color: '#ff8700' }], ...HEAD.slice(1)]
+  const still = speech(HEAD, SAY, 60)
+  const moved = speech(waving, SAY, 60)
+
+  for (const row of [1, 2, 3]) expect(textOf(moved[row] ?? [])).toBe(textOf(still[row] ?? []))
+  expect(textOf(moved[0] ?? []).indexOf('╭')).toBe(textOf(still[0] ?? []).indexOf('╭'))
 })
 
 test('speech is skipped when it fits on neither side', () => {
