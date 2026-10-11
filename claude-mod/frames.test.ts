@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Frame, FriendMood, Span } from './frames'
 import type { Friend } from './friends'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, packing, packStage, PACK_STAGES, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -144,35 +144,84 @@ test('typing reveals letters in order across the lines and keeps their width', (
   expect(typed[1]?.[0]?.color).toBe(COMMAND_COLOR)
 })
 
-test('the robot packs itself into a box part by part, then the closed box shakes', () => {
-  const rows = (stage: number, tick = 0) => packing(2, 60, stage, tick).map(textOf)
-
-  expect(rows(0)[3]).toContain('o   o')
-  expect(rows(0)[3]).toContain('└───────┘')
-  expect(rows(1)[3]?.trim()).toBe('└───────┘')
-  expect(rows(1)[2]).toContain('│ o   o │')
-  expect(rows(2)[2]?.trim()).toBe('│o|━━━|o│')
-  expect(rows(3)[1]?.trim()).toBe('│[^   ^]│')
-  const closed = rows(PACK_STAGES - 1)
-  expect(closed[0]?.trim()).toBe('┌───────┐')
-  expect(closed.join('')).not.toContain('[')
-  expect(rows(PACK_STAGES - 1, 1)[0]).not.toBe(closed[0])
-  expect(rows(PACK_STAGES + 3)).toEqual(closed)
+test('the line alternates our robot and WALL-E', () => {
+  expect([0, 1, 2, 3].map(unitOf)).toEqual(['robot', 'walle', 'robot', 'walle'])
 })
 
-test('the box goes left of the robot when the right side is too narrow', () => {
-  const rows = packing(30, 40, 0, 0).map(textOf)
+test('the factory stays four rows inside the band', () => {
+  for (const columns of [1, 10, 19, 20, 24, 40, 60, 80, 200]) {
+    for (let steps = 0; steps <= 2 * FACTORY_CYCLE; steps++) {
+      const frame = factory(columns, steps)
 
-  expect(rows[3]?.indexOf('└')).toBe(21)
-  expect(rows[3]?.indexOf('o')).toBeGreaterThan(30)
+      expect(frame.length).toBe(4)
+      for (const row of frame) expect(cellsOf(textOf(row))).toBeLessThanOrEqual(columns)
+    }
+  }
 })
 
-test('packing loops while the compaction runs: in, closed, out, again', () => {
-  const stages = Array.from({ length: 20 }, (_, steps) => packStage(steps))
+test('a box drops in and our robot packs itself part by part', () => {
+  const rows = (steps: number) => factory(60, steps).map(textOf)
 
-  expect(stages.slice(0, 5)).toEqual([0, 1, 2, 3, PACK_STAGES - 1])
-  expect(stages.slice(10)).toEqual(stages.slice(0, 10))
-  for (const [i, stage] of stages.entries()) expect(Math.abs(stage - (stages[i + 1] ?? 0))).toBeLessThanOrEqual(1)
+  expect(rows(0)[0]).toContain('└───────┘')
+  expect(rows(0)[1]).toContain('[o   o]')
+  expect(rows(3)[3]?.indexOf('└───────┘')).toBe(31)
+  expect(rows(4)[2]).toContain('│ o   o │')
+  expect(rows(7)[2]).toContain('│o|━━━|o│')
+  expect(rows(10)[1]).toContain('│[^   ^]│')
+  expect(rows(13)[1]).toContain('│ robot │')
+  expect(rows(13)[1]?.indexOf('│ robot │')).not.toBe(rows(14)[1]?.indexOf('│ robot │'))
+})
+
+test('the second unit in line is a WALL-E box and a new robot box drops in', () => {
+  expect(factory(60, 24).map(textOf).map(row => row.trimEnd())).toEqual([
+    '            .-----.            └───────┘   ┌───────┐',
+    '  (o)(o)    [o   o]   (o)(o)               │ robot │',
+    '  =[##]=    /|━━━|\\   =[##]=               │ ↑ ↑ ↑ │',
+    '  (oooo)     o   o    (oooo)   =====>=====>└───────┘==>=====',
+  ])
+})
+
+test('a WALL-E packs its treads, then its body and eyes, into a wall-e box', () => {
+  expect(textOf(factory(60, 28)[2] ?? [])).toContain('│ (oooo)│')
+  expect(textOf(factory(60, 34)[1] ?? [])).toContain('│ (^)(^)│')
+  expect(textOf(factory(60, 37)[1] ?? [])).toContain('│wall-e │')
+})
+
+test('a closed box rides the belt right', () => {
+  const lids = [18, 19, 20, 21, 22, 23].map(steps => textOf(factory(60, steps)[0] ?? []).indexOf('┌───────┐'))
+
+  expect(lids).toEqual([33, 35, 37, 39, 41, 43])
+})
+
+test('the belt moves while the line advances', () => {
+  const [before, after] = [18, 19].map(steps => textOf(factory(60, steps)[3] ?? []))
+
+  expect(before).not.toBe(after)
+  expect(before).toContain('>')
+  expect(after).toContain('>')
+})
+
+test('the line runs forever', () => {
+  for (let steps = 100; steps <= 148; steps++) expect(factory(60, steps)).toEqual(factory(60, steps + 2 * FACTORY_CYCLE))
+})
+
+test('the factory colours: orange robot, grey belt, cardboard box, yellow-green WALL-E body', () => {
+  const colorOf = (frame: Frame, needle: string) => frame.flat().find(span => span.text.includes(needle))?.color
+  const line = factory(60, 24)
+
+  expect(colorOf(line, '.-----.')).toBe(hexOf(208))
+  expect(colorOf(line, '=[##]=')).toBe(hexOf(178))
+  expect(colorOf(line, '=====>')).toBe(hexOf(244))
+  expect(colorOf(line, '┌───────┐')).toBe(hexOf(180))
+  expect(colorOf(factory(60, 34), '(^)(^)')).toBe(hexOf(178))
+})
+
+test('the factory draws as one svg inside the band', () => {
+  const svg = svgOf(factory(60, 24), 60)
+  const xs = [...svg.matchAll(/ x="([\d.]+)"/g)].map(match => Number(match[1]))
+
+  expect(svg.match(/<svg/g)?.length).toBe(1)
+  for (const x of xs) expect(x).toBeLessThan(60 * CELL_WIDTH)
 })
 
 const rowsOf = (frame: Frame) => frame.map(textOf)

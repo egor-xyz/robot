@@ -26,7 +26,7 @@ the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO
 It also follows what Claude Code does:
 
 - 🔥 **Context too big?** Its head catches fire.
-- 📦 **Compacting?** It packs itself into a box.
+- 📦 **Compacting?** Robots and WALL-Es ride a factory line into boxes.
 - 🙈 **Claude asks you something?** It steps aside.
 - ✅ **Git commit or push?** It cheers.
 - 👯 **Subagents running?** Little WALL-E friends roll in, one per agent.
@@ -75,7 +75,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
-- 📦 **Packs itself while compacting.** During `/compact` it puts itself into a box, part by part — [see below](#-compacting).
+- 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
 - 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. Past three, a `+1`, `+2`… shows how many more run.
 - 🪶 **Tiny.** No daemon, no network, nothing to install.
@@ -89,7 +89,7 @@ The robot listens to Claude Code events and acts on them:
 | When Claude Code…                              | The robot…                                                             |
 | ---------------------------------------------- | ---------------------------------------------------------------------- |
 | fills the context past 25%                     | catches fire and asks you to `/compact` — [more](#-context-on-fire)    |
-| compacts the conversation (`/compact` or auto) | packs itself into a box until it ends — [more](#-compacting)           |
+| compacts the conversation (`/compact` or auto) | runs a box factory line until it ends — [more](#-compacting)           |
 | asks you a question or shows a survey          | steps aside so it does not get in the way                              |
 | clears or compacts a hot context               | cools down and goes back to play                                       |
 | commits or pushes with git                     | stamps a ✅ or waves off a 🚀 for 3 seconds                              |
@@ -129,20 +129,19 @@ to any value from 1 to 100. To turn the fire off, switch **Context on fire** off
 ## 📦 Compacting
 
 While the conversation compacts — your `/compact`, or Claude Code's own
-auto-compact — the robot steps to the middle and packs itself into a box, one part a second:
+auto-compact — the band turns into a factory line. No text, just the belt:
 
 ```text
-    .-----.
-    [o   o]  │       │          .-----.
-    /|━━━|\  │ o   o │   →→    │[^   ^]│   →→   ┌───────┐
-             └───────┘         │o|━━━|o│        │ robot │
-                               └───────┘        │ ↑ ↑ ↑ │
-                                                └───────┘
+            .-----.            └───────┘   ┌───────┐
+  (o)(o)    [o   o]   (o)(o)               │ robot │
+  =[##]=    /|━━━|\   =[##]=               │ ↑ ↑ ↑ │
+  (oooo)     o   o    (oooo)   =====>=====>└───────┘==>=====
 ```
 
-- 🦵 **Legs first**, then 🦾 **its body**, then its 🙂 **head hops in**.
-- 📦 **The lid closes**, the box shakes, then it climbs back out and packs again — a loop for as long as the compaction runs, while it says _"compacting… hold on!"_
-- When the compaction ends, it jumps out and goes back to what it did before.
+- 🤖 **The queue** alternates our robot and a WALL-E, walking up from the left edge.
+- 📦 **A new box drops in**, and the unit packs itself part by part: legs or treads first, then the body, then the head or eyes. The lid closes and the box shakes.
+- ➡️ **The closed box rides the belt** right and off the edge, and the next unit steps up — a loop for as long as the compaction runs.
+- When the compaction ends, the robot goes back to what it did before.
 
 ---
 
