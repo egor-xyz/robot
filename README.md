@@ -215,7 +215,22 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 ↳ Review the diff | tech-lead | Opus 5.5 [high] | 42k tok | 1:12
 ```
 
-Turn them off with the **Branch wave** and **Subagent lines** settings.
+**Changed files get one line.** Under it all, one line counts the files git would commit, with the lines added and removed:
+
+```text
+Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
+5 files changed | +249 | -24
+```
+
+**Click it, or run `/robot files`, for the list.** A panel opens with each file: the name on the left, `+N -N` on the right.
+
+- 🔎 Type in the search box to find a file.
+- ✨ The file under the mouse gets a soft background, and its name shimmers.
+- 🖱️ Click a file to select it. Then `↑` `↓` move, and `Enter` (or a second click) opens its diff, in color.
+- ↗ In the diff, `↗ open` opens the file in its default app. `← files` goes back.
+- `Esc` or **Close** closes the panel.
+
+Turn them off with the **Branch wave**, **Subagent lines** and **Changed files** settings.
 
 **Your theme decides the exact colors.** The line uses Claude Code's theme colors (warning, error, …), not fixed ones. It reads well in dark, light and color-blind themes. With a `-ansi` theme in `/theme`, it uses your terminal's own color scheme.
 
@@ -226,6 +241,7 @@ Turn them off with the **Branch wave** and **Subagent lines** settings.
 | Command  | Action                 |
 | -------- | ---------------------- |
 | `/robot` | Hide or show the robot |
+| `/robot files` | Open the changed-files panel |
 
 ### Settings
 
@@ -251,6 +267,7 @@ Every act has a switch. To change one:
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
 | Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
+| Changed files | `true` | One line under the status line: how many files git would commit, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.

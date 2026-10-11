@@ -12,6 +12,8 @@ import { robotWord } from './spinner'
 import { accountNameOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow } from './agents'
+import { MAX_NEW_FILES, changesGroupsOf, changesOf, countOf, countsOf, listRowOf, matchesOf, numstatOf, rowOf } from './changes'
+import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
 
 const TICK_MS = 250
@@ -87,6 +89,16 @@ const EFFORT = { plugin: 'robot', key: 'effort' } as const
 const BRANCH = { plugin: 'robot', key: 'branch' } as const
 const WAVE_AT = { plugin: 'robot', key: 'waveAt' } as const
 const AGENT_ROWS = { plugin: 'robot', key: 'agentRows' } as const
+const CHANGES = { plugin: 'robot', key: 'changes' } as const
+const CHANGES_QUERY = { plugin: 'robot', key: 'changesQuery' } as const
+/** The file the panel previews, with its diff; no path: the panel lists the files. */
+const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
+/** The key of the list mark the panel's focus ring is on: `row-3`, `close-mark`, or none. */
+const CHANGES_CURSOR = { plugin: 'robot', key: 'changesCursor' } as const
+/** The most of a diff the preview draws. */
+const MAX_DIFF_CHARS = 60_000
+/** The panel that lists the changed files. */
+const CHANGES_PANE = 'robot-files'
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -140,6 +152,81 @@ async function startWave($: EngineInterface): Promise<void> {
   await $.state.set(WAVE_AT, at)
 }
 
+/**
+ * Changes the subagent rows with `change`, safe against other hooks doing the same at once:
+ * several agents start together, and a plain read then write would keep only the last one.
+ */
+async function updateAgentRows($: EngineInterface, change: (rows: AgentRow[]) => AgentRow[]): Promise<void> {
+  for (let tries = 0; tries < 8; tries++) {
+    const held = await $.state.get(AGENT_ROWS)
+    const rows = held.value ?? []
+    const next = change(rows)
+    if (next === rows) return
+    const { isSet } = await $.state.set(AGENT_ROWS, next, { ifVersion: held.version })
+    if (isSet) return
+  }
+}
+
+/** Reads what `git` would commit: each changed or new file with its added and removed lines. */
+async function refreshChanges($: EngineInterface): Promise<void> {
+  try {
+    const cwd = await $.session.cwd()
+    const git = (args: string[]) => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
+    const top = await git(['rev-parse', '--show-toplevel'])
+    if (top.exitCode !== 0) return
+    const root = top.stdout.trim()
+    const tracked = await git(['-C', root, 'diff', 'HEAD', '--numstat'])
+    const others = await git(['-C', root, 'ls-files', '--others', '--exclude-standard'])
+    const paths = others.exitCode === 0 ? others.stdout.split('\n').filter(Boolean) : []
+    // A new file's lines come from a diff against nothing; past MAX_NEW_FILES they are not counted.
+    const fresh: FileChange[] = await Promise.all(paths.map(async (path, i) => {
+      if (i >= MAX_NEW_FILES) return { path, added: 0, removed: 0 }
+      const counted = await git(['-C', root, 'diff', '--no-index', '--numstat', '--', '/dev/null', path])
+      return { path, added: numstatOf(counted.stdout)[0]?.added ?? 0, removed: 0 }
+    }))
+    const changes = changesOf(tracked.exitCode === 0 ? numstatOf(tracked.stdout) : [], fresh)
+    const { value: was = [] } = await $.state.get(CHANGES)
+    if (JSON.stringify(was) !== JSON.stringify(changes)) await $.state.set(CHANGES, changes)
+  } catch (error) {
+    $.ui.log(`robot: changed files unavailable: ${String(error)}`, { to: 'debug' })
+  }
+}
+
+/** The list row the panel's focus ring mark `key` stands for: `row-3` → 3, `close-mark` → the Close row, else -1. */
+function cursorOf(key: string, count: number): number {
+  if (key === 'close-mark') return count + 1
+  const at = /^row-(\d+)$/.exec(key)
+  return at ? Number(at[1]) : -1
+}
+
+/** Opens the panel with the changed files; asked for, it has room at any width. */
+async function openChanges($: EngineInterface): Promise<void> {
+  await refreshChanges($)
+  await $.state.set(CHANGES_QUERY, '')
+  await $.state.set(CHANGES_PREVIEW, { path: '', root: '', diff: '' })
+  await $.state.set(CHANGES_CURSOR, '')
+  const opened = await $.ui.open({ id: CHANGES_PANE, title: 'Changed files', focus: true, closeOnEscape: true })
+  if (!opened.isPlaced) $.ui.toast('robot: no room for the changed files panel')
+}
+
+/** Shows a changed file's diff in the panel, as git has it against HEAD; a new file shows whole, as added. */
+async function previewChange($: EngineInterface, path: string): Promise<void> {
+  const cwd = await $.session.cwd()
+  const git = (args: string[]) => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
+  const top = await git(['rev-parse', '--show-toplevel'])
+  const root = top.stdout.trim()
+  const tracked = await git(['-C', root, 'diff', 'HEAD', '--', path])
+  const diff = tracked.stdout.trim() ? tracked.stdout : (await git(['-C', root, 'diff', '--no-index', '--', '/dev/null', path])).stdout
+  await $.state.set(CHANGES_PREVIEW, { path, root, diff: diff.slice(0, MAX_DIFF_CHARS) })
+}
+
+/** Opens a file in the app the system picks for it. */
+async function openExternally($: EngineInterface, path: string): Promise<void> {
+  const os = (await $.process.run(['uname', '-s'], { timeoutMs: 3_000 }).catch(() => undefined))?.stdout.trim()
+  const ran = await $.process.run(os === 'Darwin' ? ['open', '--', path] : ['xdg-open', path], { timeoutMs: 10_000 }).catch(() => undefined)
+  if (ran?.exitCode !== 0) $.ui.toast(`robot: could not open ${path}`)
+}
+
 /** Keeps the turn's effort level and redraws the status line when it changed. */
 async function noteEffort($: EngineInterface, level: string | undefined, isStatusOn: boolean, fixed: StatusFixed): Promise<void> {
   if (!level) return
@@ -152,7 +239,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, resetSettings: false,
 }
 
 async function resetSettings($: EngineInterface): Promise<void> {
@@ -181,6 +268,7 @@ export const register: Register = (on, options) => {
   const isFriendsOn = options.subagentFriends !== false
   const isWaveOn = options.branchWave !== false
   const isAgentLinesOn = options.agentLines !== false
+  const isChangesOn = options.changedFiles !== false
   // Which rate-limit windows the status line shows: both, or one.
   const windowKind = options.limitWindows === '5h' ? 'five_hour' : options.limitWindows === '7d' ? 'seven_day' : undefined
   const windows = windowKind ? [windowKind] : ['seven_day', 'five_hour']
@@ -191,7 +279,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     if (options.resetSettings === true) await resetSettings($)
-    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt' })
+    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files' })
 
     $.clock.every(TICK_MS, async () => {
       const { value: hidden = false } = await $.state.get(IS_HIDDEN)
@@ -223,9 +311,10 @@ export const register: Register = (on, options) => {
         const agents = await $.agent.list()
         const live = agents.filter(agent => ['pending', 'running', 'waiting'].includes(agent.status) && agent.type !== 'teammate')
         // An agent that ended without a turn.complete (stopped, failed) leaves its line here.
-        const { value: rows = [] } = await $.state.get(AGENT_ROWS)
-        const kept = rows.filter(row => live.some(agent => agent.id === row.id))
-        if (kept.length !== rows.length) await $.state.set(AGENT_ROWS, kept)
+        await updateAgentRows($, rows => {
+          const kept = rows.filter(row => live.some(agent => agent.id === row.id))
+          return kept.length !== rows.length ? kept : rows
+        })
         if (!isFriendsOn) return
         const running = live.length
         const { value: was = 0 } = await $.state.get(SUBAGENTS)
@@ -241,6 +330,10 @@ export const register: Register = (on, options) => {
       account = await accountOf($)
       await refreshStatus($, { account, windows, limitsAt, hotAt })
       $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
+    }
+    if (isChangesOn) {
+      await refreshChanges($)
+      $.clock.every(STATUS_MS, () => refreshChanges($))
     }
 
     return started
@@ -261,15 +354,12 @@ export const register: Register = (on, options) => {
     // A subagent's model request: its line counts the tokens and shows the model and effort it ran with.
     if (isAgentLinesOn && e.agentId && stepped.usage) {
       const { usage } = stepped
-      const { value: rows = [] } = await $.state.get(AGENT_ROWS)
-      if (rows.some(row => row.id === e.agentId)) {
-        await $.state.set(AGENT_ROWS, rows.map(row => (row.id !== e.agentId ? row : {
-          ...row,
-          model: usage.model || row.model,
-          effort: typeof e.effort === 'string' ? e.effort : row.effort,
-          tokens: row.tokens + stepTokensOf(usage),
-        })))
-      }
+      await updateAgentRows($, rows => (!rows.some(row => row.id === e.agentId) ? rows : rows.map(row => (row.id !== e.agentId ? row : {
+        ...row,
+        model: usage.model || row.model,
+        effort: typeof e.effort === 'string' ? e.effort : row.effort,
+        tokens: row.tokens + stepTokensOf(usage),
+      }))))
     }
     return stepped
   })
@@ -279,8 +369,7 @@ export const register: Register = (on, options) => {
     const started = await next(e)
     if (!isAgentLinesOn || started.deny !== undefined || !started.agentId || e.subagentType === 'teammate') return started
     const row: AgentRow = { id: started.agentId, type: e.subagentType, description: e.description, model: started.model, startedAt: Date.now(), tokens: 0 }
-    const { value: rows = [] } = await $.state.get(AGENT_ROWS)
-    await $.state.set(AGENT_ROWS, [...rows.filter(other => other.id !== row.id), row])
+    await updateAgentRows($, rows => [...rows.filter(other => other.id !== row.id), row])
     return started
   })
 
@@ -288,8 +377,7 @@ export const register: Register = (on, options) => {
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (e.agentId) {
-      const { value: rows = [] } = await $.state.get(AGENT_ROWS)
-      if (rows.some(row => row.id === e.agentId)) await $.state.set(AGENT_ROWS, rows.filter(row => row.id !== e.agentId))
+      await updateAgentRows($, rows => (rows.some(row => row.id === e.agentId) ? rows.filter(row => row.id !== e.agentId) : rows))
     }
     if (isNeedsOn && !e.agentId && e.reason === 'answer') await $.state.set(IS_ASKED, isQuestion(e.answer))
     return done
@@ -312,8 +400,17 @@ export const register: Register = (on, options) => {
   })
 
   // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS and the branch waves. Subagent commands count too.
+  // Claude changed a file: the changed-files line counts again.
+  on('tool.call', { tool: ['Edit', 'Write', 'NotebookEdit'] }, async ($, e, next) => {
+    const ran = await next(e)
+    if (isChangesOn && ran.deny === undefined) await refreshChanges($)
+    return ran
+  })
+
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
+    // Any command may change, add or commit files.
+    if (isChangesOn && ran.deny === undefined) await refreshChanges($)
     if (!isCheerOn && !isWaveOn) return ran
     if (ran.deny !== undefined || ran.isError === true) return ran
     const act = gitActOf(e.command)
@@ -337,7 +434,11 @@ export const register: Register = (on, options) => {
     return next({ ...e, props: { ...e.props, word: robotWord(seed) } })
   })
 
-  on('command.run', { command: 'robot' }, async $ => {
+  on('command.run', { command: 'robot' }, async ($, e) => {
+    if (e.args.trim() === 'files') {
+      await openChanges($)
+      return { text: 'Changed files.' }
+    }
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
     await $.state.set(IS_HIDDEN, hidden)
@@ -348,9 +449,10 @@ export const register: Register = (on, options) => {
   // The status line: a row of coloured parts above Claude Code's own hint line, which stays as it is.
   // The status line, then one line for each running subagent: rows above Claude Code's own hint line, which stays as it is.
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
-    if (!isStatusOn && !isAgentLinesOn) return next(e)
+    if (!isStatusOn && !isAgentLinesOn && !isChangesOn) return next(e)
     const { value: status = [] } = await $.state.get(STATUS)
     const { value: agentRows = [] } = isAgentLinesOn ? await $.state.get(AGENT_ROWS) : { value: [] }
+    const { value: changes = [] } = isChangesOn ? await $.state.get(CHANGES) : { value: [] }
     const theirs = await next(e)
     // A few cells of room for the line's indent and the right edge.
     const columns = (e.viewport?.columns ?? 80) - STATUS_MARGIN
@@ -370,9 +472,11 @@ export const register: Register = (on, options) => {
       const more = moreOf(agentRows.length)
       if (more.length > 0) lines.push([AGENT_MARK, ...more])
     }
-    if (lines.length === 0) return theirs
+    // The changed files: one line, a button that opens the panel with the list.
+    const changed = changes.length > 0 ? fitStatus(changesGroupsOf(changes as FileChange[]), columns) : []
+    if (lines.length === 0 && changed.length === 0) return theirs
     const elements = $.ui.resolve(e)
-    const { Box, Text } = elements
+    const { Box, Text, Button } = elements
     // Mobile and the IDE draw no Client: there the branch stays still, in its blue.
     const Client = 'Client' in elements ? elements.Client : undefined
     return (
@@ -390,9 +494,136 @@ export const register: Register = (on, options) => {
             )}
           </Box>
         ))}
+        {changed.length > 0 && (
+          Client ? (
+            // Under the pointer it shimmers as the panel's rows do; a click opens the panel.
+            <Client key="changes" module="./changes-line.tsx" width="100%" props={{ spans: changed.map(span => ({ text: span.text, color: span.color })) }} />
+          ) : (
+            <Button key="changes" plain onPress={() => void openChanges($)}>
+              {changed.map(span => (
+                <Text color={span.color || undefined}>{span.text}</Text>
+              ))}
+            </Button>
+          )
+        )}
         {theirs}
       </Box>
     )
+  })
+
+  // The changed-files panel: each file with its added and removed lines, as git counts them.
+  on('ui.render', { component: 'Pane', requestId: CHANGES_PANE }, async ($, e) => {
+    const { value: changes = [] } = await $.state.get(CHANGES)
+    const { value: query = '' } = await $.state.get(CHANGES_QUERY)
+    const { value: preview = { path: '', root: '', diff: '' } } = await $.state.get(CHANGES_PREVIEW)
+    const { value: cursor = '' } = await $.state.get(CHANGES_CURSOR)
+    const elements = $.ui.resolve(e)
+    const { Box, Text, Button } = elements
+    // The mobile app draws no field and no code block: there the list shows whole, and a diff as plain text.
+    const Input = 'Input' in elements ? elements.Input : undefined
+    const Code = 'Code' in elements ? elements.Code : undefined
+    const Client = 'Client' in elements ? elements.Client : undefined
+    const columns = Math.max(20, e.props.bodyColumns - 2)
+
+    // A file picked: its diff, as filetree previews a file, with a way back and a way out.
+    if (preview.path) {
+      const change = changes.find(other => other.path === preview.path)
+      return (
+        <Box flexDirection="column" paddingX={1}>
+          <Box flexDirection="row">
+            <Button key="back" plain label="← files" hotkey="b" onPress={() => void $.state.set(CHANGES_PREVIEW, { path: '', root: '', diff: '' })} />
+            <Text> </Text>
+            <Box flexShrink={1} flexGrow={1}>
+              <Text bold wrap="truncate-start">{preview.path}</Text>
+            </Box>
+            {change && <Text color="success">{change.added > 0 ? ` +${change.added}` : ''}</Text>}
+            {change && <Text color="error">{change.removed > 0 ? ` -${change.removed}` : ''}</Text>}
+            <Text> </Text>
+            <Button key="external" plain dimColor label="↗ open" hotkey="o" onPress={() => void openExternally($, `${preview.root}/${preview.path}`)} />
+          </Box>
+          {!preview.diff.trim() ? (
+            <Text color="inactive">No changes to show</Text>
+          ) : Code ? (
+            <Code source={preview.diff} format="diff" path={preview.path} />
+          ) : (
+            <Text>{preview.diff}</Text>
+          )}
+        </Box>
+      )
+    }
+
+    const shown = matchesOf(changes, query)
+    return (
+      <Box flexDirection="column" paddingX={1}>
+        <Text bold>{changes.length > 0 ? countOf(changes.length) : 'No changed files'}</Text>
+        {/* Typing filters the list; Tab walks the files, the pointer lights the one under it. */}
+        {Input && <Input key="search" placeholder="Search files" value={query} autoFocus onInput={value => void $.state.set(CHANGES_QUERY, value)} onSubmit={() => undefined} />}
+        {Client ? (
+          // The filetree way: a soft background and a shimmer on the row under the pointer.
+          // ↑ ↓ walk the engine's focus ring, so each row has a one-cell mark in it; the
+          // ui.focus hook hands the list the mark's row, and Enter presses the mark.
+          <Box flexDirection="row">
+            <Box flexDirection="column" width={2}>
+              {shown.map((change, i) => (
+                <Button key={`row-${i}`} plain onPress={() => void previewChange($, change.path)}>
+                  <Text> </Text>
+                </Button>
+              ))}
+              <Text> </Text>
+              <Button key="close-mark" plain onPress={() => void $.ui.close({ id: CHANGES_PANE })}>
+                <Text> </Text>
+              </Button>
+            </Box>
+            <Box flexGrow={1}>
+              <Client key="files" module="./files-list.tsx" width="100%" props={{ rows: shown.map(change => listRowOf(change, columns - 2)), cursor: cursorOf(cursor, shown.length) }} />
+            </Box>
+          </Box>
+        ) : (
+          <Box key="files" flexDirection="column">
+            {shown.map(change => {
+              const row = rowOf(change, columns)
+              return (
+                <Button key={change.path} plain onPress={() => void previewChange($, change.path)}>
+                  <Text>{row.path}</Text>
+                  <Text>{row.gap}</Text>
+                  <Text color="success">{change.added > 0 ? `+${change.added}` : ''}</Text>
+                  <Text color="error">{change.removed > 0 ? `${change.added > 0 ? ' ' : ''}-${change.removed}` : ''}</Text>
+                </Button>
+              )
+            })}
+          </Box>
+        )}
+        {changes.length > 0 && shown.length === 0 && <Text color="inactive">No file matches</Text>}
+        {!Client && (
+          <Box marginTop={1}>
+            <Button key="close" label="Close" hotkey="c" onPress={() => void $.ui.close({ id: CHANGES_PANE })} />
+          </Box>
+        )}
+      </Box>
+    )
+  })
+
+  // The arrows, Tab or a click moved the panel's focus ring: the list lights the mark's row.
+  on('ui.focus', { component: 'Pane', requestId: CHANGES_PANE }, async ($, e, next) => {
+    const result = await next(e)
+    if (!result.deny) await $.state.set(CHANGES_CURSOR, e.element ?? '')
+    return result
+  })
+
+  // The changed-files line clicked: the panel opens.
+  on('ui.message', { component: 'PromptHint' }, async ($, e, next) => {
+    if (e.element !== 'changes') return next(e)
+    await openChanges($)
+    return {}
+  })
+
+  // A file picked in the list (a second click): the panel previews its diff. Close closes it.
+  on('ui.message', async ($, e, next) => {
+    if (e.requestId !== CHANGES_PANE || e.element !== 'files') return next(e)
+    const { pick, close } = (e.data ?? {}) as { pick?: unknown; close?: unknown }
+    if (close === true) await $.ui.close({ id: CHANGES_PANE })
+    else if (typeof pick === 'string' && pick) await previewChange($, pick)
+    return {}
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
