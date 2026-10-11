@@ -253,6 +253,12 @@ async function refreshChanges($: EngineInterface): Promise<void> {
   }
 }
 
+/** Rows in one part of the files list: well under a Client's 100,000-character tree. */
+const LIST_PART = 40
+
+/** Where each part of a `count`-row list starts; one part for an empty list (it holds the Close row). */
+const partsOf = (count: number): number[] => Array.from({ length: Math.max(1, Math.ceil(count / LIST_PART)) }, (_, i) => i * LIST_PART)
+
 /** The list row the panel's focus ring mark `key` stands for: `row-3` → 3, `close-mark` → the Close row, else -1. */
 function cursorOf(key: string, count: number): number {
   if (key === 'close-mark') return count + 1
@@ -663,8 +669,21 @@ export const register: Register = (on, options) => {
                 <Text> </Text>
               </Button>
             </Box>
-            <Box flexGrow={1}>
-              <Client key="files" module="./files-list.tsx" width={columns - 2} props={{ rows, cursor: cursorOf(cursor, rows.length) }} />
+            {/* A Client's tree holds at most 100,000 characters: a long list is drawn in parts, the last with the Close row. */}
+            <Box flexGrow={1} flexDirection="column">
+              {partsOf(rows.length).map(start => {
+                const at = cursorOf(cursor, rows.length)
+                const part = rows.slice(start, start + LIST_PART)
+                const isLast = start + LIST_PART >= rows.length
+                return (
+                  <Client
+                    key={`files-${start}`}
+                    module="./files-list.tsx"
+                    width={columns - 2}
+                    props={{ rows: part, cursor: (at >= start && at < start + part.length) || (isLast && at === start + part.length + 1) ? at - start : -1, hasClose: isLast }}
+                  />
+                )
+              })}
             </Box>
           </Box>
         ) : (
@@ -709,7 +728,7 @@ export const register: Register = (on, options) => {
 
   // A file picked in the list (a second click): the panel previews its diff. Close closes it.
   on('ui.message', async ($, e, next) => {
-    if (e.requestId !== CHANGES_PANE || e.element !== 'files') return next(e)
+    if (e.requestId !== CHANGES_PANE || !e.element?.startsWith('files-')) return next(e)
     const { pick, group, close } = (e.data ?? {}) as { pick?: unknown; group?: unknown; close?: unknown }
     if (close === true) await $.ui.close({ id: CHANGES_PANE })
     else if (typeof pick === 'string' && pick) await previewChange($, pick, group === 'pr' ? 'pr' : 'local')

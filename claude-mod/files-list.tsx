@@ -2,8 +2,11 @@ import type { ClientModule } from 'claude-code'
 
 import { STATUS_COLORS, type ListRow } from './changes'
 
-/** `cursor`: the row the keyboard is on (the engine's focus ring, see register.tsx), or -1. */
-export type ListProps = { rows: ListRow[]; cursor: number }
+/**
+ * `cursor`: the row the keyboard is on (the engine's focus ring, see register.tsx), or -1.
+ * `hasClose`: this part of the list ends with the Close row (a long list is drawn in parts, the last one has it).
+ */
+export type ListProps = { rows: ListRow[]; cursor: number; hasClose?: boolean }
 /** The Close row under the files, with one empty row between. */
 const CLOSE = 'Close'
 type Local = { hover: number; picked: number; phase: number; ref: { props: ListProps; cursor: number; stop?: () => void; light?: (next: Partial<Local>) => void } }
@@ -45,7 +48,7 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
         const now = surface.state
         if (!now) return
         const at = now.hover >= 0 ? now.hover : ref.props.cursor >= 0 ? ref.props.cursor : now.picked
-        const name = at === ref.props.rows.length + 1 ? CLOSE : ref.props.rows[at]?.name
+        const name = at === ref.props.rows.length + 1 && ref.props.hasClose !== false ? CLOSE : ref.props.rows[at]?.name
         if (!name || now.phase >= sweepOf(name.length)) {
           ref.stop?.()
           ref.stop = undefined
@@ -59,9 +62,10 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
       const cur = surface.state
       if (!cur) return
       const count = ref.props.rows.length
-      const at = (e.y >= 0 && e.y < count && !ref.props.rows[e.y]?.heading) || e.y === count + 1 ? e.y : -1
+      const at = (e.y >= 0 && e.y < count && !ref.props.rows[e.y]?.heading) || (e.y === count + 1 && ref.props.hasClose !== false) ? e.y : -1
+      // A long list is drawn in parts: the pointer leaving this one takes its pick too, so one row stays lit.
       if (e.type === 'leave') {
-        if (cur.hover !== -1) surface.setState({ ...cur, hover: -1 })
+        if (cur.hover !== -1 || cur.picked !== -1) surface.setState({ ...cur, hover: -1, picked: -1 })
         return
       }
       // As filetree: a click selects a file; a click on the selected file, or on Close, acts.
@@ -115,14 +119,16 @@ const FilesList: ClientModule<ListProps, Local> = (props, surface) => {
           </Box>
         )
       })}
-      <Text> </Text>
-      <Box flexDirection="row" height={1}>
-        <Text bold>
-          {lit === props.rows.length + 1
-            ? [...CLOSE].map((char, at) => <Text color={shadeOf(at, state.phase, CLOSE.length)}>{char}</Text>)
-            : <Text color="inactive">{CLOSE}</Text>}
-        </Text>
-      </Box>
+      {props.hasClose !== false && <Text> </Text>}
+      {props.hasClose !== false && (
+        <Box flexDirection="row" height={1}>
+          <Text bold>
+            {lit === props.rows.length + 1
+              ? [...CLOSE].map((char, at) => <Text color={shadeOf(at, state.phase, CLOSE.length)}>{char}</Text>)
+              : <Text color="inactive">{CLOSE}</Text>}
+          </Text>
+        </Box>
+      )}
     </Box>
   )
 }
