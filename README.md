@@ -78,7 +78,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
 - 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. Past three, a `+1`, `+2`… shows how many more run.
-- 📊 **Status line.** A colored line under the prompt: account, model, effort, branch, usage limits, cost and context — [see below](#-status-line).
+- 📊 **Custom status line.** Under the prompt: account, model, effort, branch, usage limits, cost and context — [see below](#-status-line).
 - 🙋 **Needs you.** When Claude ends its turn with a question, the robot dances and says _"need a human"_ in a comic bubble.
 - 💬 **Robot spinner words.** One robot word per turn: _"Beaming…"_, _"Recharging…"_.
 - ⚙️ **Every part has a switch.** Turn each act on or off — [see settings](#settings).
@@ -184,7 +184,7 @@ TegoAI Team | Opus 5.5 [high] | robot | feat/login | 7d 27% (1d) | 5h 30% (2h) |
 
 ## 📊 Status line
 
-Under the prompt, the robot draws one colored line. Claude Code's own hint line stays under it.
+Under the prompt, the robot draws a custom status line. Claude Code's own hint line stays under it.
 
 <img width="800" alt="The robot status line: calm in grey, and with limits, cost and context that need attention in yellow and red" src="docs/media/statusline.svg" />
 
