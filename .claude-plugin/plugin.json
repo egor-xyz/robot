@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -90,6 +90,12 @@
       "type": "boolean",
       "title": "Branch wave",
       "description": "The branch name waves in colors for 3 seconds when the branch changes, and after a git commit or push. false keeps it still.",
+      "default": true
+    },
+    "agentLines": {
+      "type": "boolean",
+      "title": "Subagent lines",
+      "description": "While subagents run, one line for each under the status line: its task, type, model, tokens and time, up to 3. false hides them.",
       "default": true
     },
     "resetSettings": {
