@@ -19,7 +19,7 @@ test('the line reads every part in order, the windows as meters with time left',
     rateLimits: LIMITS, windows: BOTH, limitsAt: 0, costUsd: 13.344, contextPercent: 23.4, hotAt: 25, now: NOW,
   }))
 
-  expect(line).toBe('TegoAI Team | Opus 5.5 [medium] | robot | feat/x | 7d ━━─── 23% (2d) | 5h ━──── 6% (4h) | $13.34 | ctx 23%')
+  expect(line).toBe('TegoAI Team | Opus 5.5 [medium] | robot | feat/x | 7d 23% (2d) | 5h 6% (4h) | $13.34 | ctx 23%')
 })
 
 test('missing parts are left out, and a worktree named like its branch shows once, as the branch', () => {
@@ -41,8 +41,8 @@ test('a worktree folder and a branch match when one ends with the other', () => 
 test('only the chosen windows show, and only from the threshold', () => {
   const base = { rateLimits: LIMITS, limitsAt: 0, hotAt: 25, now: NOW }
 
-  expect(plain(statusOf({ ...base, windows: ['five_hour'] }))).toBe('5h ━──── 6% (4h)')
-  expect(plain(statusOf({ ...base, windows: BOTH, limitsAt: 20 }))).toBe('7d ━━─── 23% (2d)')
+  expect(plain(statusOf({ ...base, windows: ['five_hour'] }))).toBe('5h 6% (4h)')
+  expect(plain(statusOf({ ...base, windows: BOTH, limitsAt: 20 }))).toBe('7d 23% (2d)')
 })
 
 test('time left is coarse, never negative, and skipped without a reset time', () => {
@@ -62,7 +62,7 @@ test('each part has its own colour, and a limit is coloured by how full it is', 
   const spans = statusOf({ project: 'robot', rateLimits: [{ kind: 'seven_day', percentUsed: 85 }], windows: ['seven_day'], limitsAt: 0, contextPercent: 10, hotAt: 25, now: NOW })
 
   expect(spans.find(span => span.text === 'robot')?.color).toBe(hexOf(117))
-  expect(spans.find(span => span.text === '7d ━━━━━ 85%')?.color).toBe(hexOf(203))
+  expect(spans.find(span => span.text === '7d 85%')?.color).toBe(hexOf(203))
   expect(spans.find(span => span.text === 'ctx 10%')?.color).toBe(hexOf(244))
 })
 
