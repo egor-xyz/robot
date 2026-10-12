@@ -343,7 +343,11 @@ async function checkCold($: EngineInterface, ttlSetting: unknown): Promise<void>
     // A request may have started while the usage was read: it made the cache warm, so skip the write.
     const { value: nowAt = 0 } = await $.state.get(CACHE_AT)
     if (nowAt !== at) return
-    if (tokens !== was) await $.state.set(COLD_TOKENS, tokens)
+    if (tokens === was) return
+    await $.state.set(COLD_TOKENS, tokens)
+    // A request that started during that write warmed the cache: undo the cold mark.
+    const { value: afterAt = 0 } = await $.state.get(CACHE_AT)
+    if (afterAt !== at && tokens !== 0) await $.state.set(COLD_TOKENS, 0)
   } catch (error) {
     $.ui.log(`robot: cache state unavailable: ${String(error)}`, { to: 'debug' })
   }
@@ -458,7 +462,8 @@ export const register: Register = (on, options) => {
     })
 
     if (isColdOn && (isRobotOn || isStatusOn)) {
-      void loadTtl($)
+      // Check once right away: a cold mark left in $.state (by a reload or an older version) must not wait for the first tick.
+      void loadTtl($).then(() => checkCold($, options.cacheTtl))
       $.clock.every(COLD_MS, () => checkCold($, options.cacheTtl))
     }
 
