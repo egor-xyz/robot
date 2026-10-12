@@ -32,6 +32,8 @@ test('reading at least 90% of the previous prompt after a long break proves the 
 test('a read that only covers a small shared prefix, or no previous prompt, learns nothing', () => {
   expect(learnedTtlOf(6 * MIN, usage(20_000, 100_000), 120_000)).toBeUndefined()
   expect(learnedTtlOf(6 * MIN, usage(90_000), 0)).toBeUndefined()
+  // A young chat is mostly the shared prefix, which another session may keep warm.
+  expect(learnedTtlOf(6 * MIN, usage(21_000), 22_000)).toBeUndefined()
 })
 
 test('learning needs a break past 5m plus the margin and under 1h', () => {

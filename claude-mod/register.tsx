@@ -332,10 +332,10 @@ async function checkCold($: EngineInterface, ttlSetting: unknown): Promise<void>
     const { value: learned } = await $.state.get(CACHE_TTL)
     const cold = isColdAt(at, Date.now(), ttlOf(ttlSetting, learned))
     const tokens = cold ? Math.round((await $.session.usage()).context?.tokens ?? 0) : 0
+    const { value: was = 0 } = await $.state.get(COLD_TOKENS)
     // A request may have started while the usage was read: it made the cache warm, so skip the write.
     const { value: nowAt = 0 } = await $.state.get(CACHE_AT)
     if (nowAt !== at) return
-    const { value: was = 0 } = await $.state.get(COLD_TOKENS)
     if (tokens !== was) await $.state.set(COLD_TOKENS, tokens)
   } catch (error) {
     $.ui.log(`robot: cache state unavailable: ${String(error)}`, { to: 'debug' })
