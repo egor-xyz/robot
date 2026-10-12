@@ -26,6 +26,7 @@ the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO
 It also follows what Claude Code does:
 
 - 🔥 **Context too big?** Its head catches fire.
+- 🧊 **Cache gone cold?** Ice cubes gather around it.
 - 📦 **Compacting?** Robots and WALL-Es ride a factory line into boxes.
 - 🙈 **Claude asks you something?** It steps aside.
 - ✅ **Git commit or push?** It cheers.
@@ -75,6 +76,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
+- 🧊 **Freezes when the cache goes cold.** After a break, ice cubes gather around it and the status line says `❄ cache cold` — [see below](#-cache-cold).
 - 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
 - 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. Past three, a `+1`, `+2`… shows how many more run.
@@ -129,6 +131,42 @@ normal animations.
 
 **Change when it catches fire:** set **Fire at (% context)** to any value from 1 to 100, or switch
 **Context on fire** off — [how to change settings](#settings).
+
+---
+
+## 🧊 Cache cold
+
+Claude keeps your chat in a short-term cache. After 5 minutes with no request
+(1 hour in some sessions), the cache expires. The robot freezes:
+
+```text
+   🧊.-----.🧊
+    [o   o]    ❄ cache cold · 117k
+    /|━━━|\
+     o   o
+```
+
+- 🧊 **Ice cubes gather.** The robot stands still, its head turns blue, snow
+  twinkles and its eyes chatter.
+- ❄ **The status line says so.** `❄ cache cold · 117k` sits at the end of the
+  line. `117k` is the context your next message re-reads.
+- 💸 **The next message costs more.** It re-reads the whole context at full
+  price, about 10-20 times a cache read. Only that one message pays. Then the
+  cache is warm again, and the ice and the `❄` part go away.
+
+What to do:
+
+- Same task? Just send.
+- Switching topics? `/clear` first.
+- Big context you still need? `/compact` first, so the re-read is small.
+
+The robot does not ping Claude and spends no tokens. It does not read the cache
+time from Claude Code. It counts the minutes since your last message. With
+**Cache TTL** on `auto`, it assumes 5 minutes, and switches to 1 hour once the
+session shows a cache that lived longer. Set **Cache TTL** to `5m` or `1h` to
+choose yourself. When the head is also on fire, the ice wins.
+
+**Switch it off:** set **Cache cold** to `false` — [how to change settings](#settings).
 
 ---
 
@@ -203,6 +241,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
 | `$21.97` | session cost | grey → 🟡 above $100 |
 | `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
+| `❄ cache cold · 117k` | the prompt cache expired; the context your next message re-reads. Shows only while cold, at the end of the line. | 🔵 blue |
 
 **Grey means calm.** A part gets a color only when it needs your attention.
 
@@ -273,6 +312,8 @@ Every act has a switch. To change one:
 | Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. |
 | Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
+| Cache cold | `true` | `false` turns the [ice cubes](#-cache-cold) and the status line's `❄ cache cold` part off. |
+| Cache TTL | `auto` | How long the prompt cache lives: `auto` (5m until the session shows a 1-hour cache), `5m` or `1h`. |
 | Compacting factory line | `true` | `false` turns the [factory line](#-compacting) off. |
 | Git cheer | `true` | `false` stops the ✅ / 🚀 on commit and push. |
 | Subagent friends | `true` | `false` hides the [WALL-E friends](#-subagent-friends). |
