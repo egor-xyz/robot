@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.8.12",
+  "version": "0.9.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -20,7 +20,7 @@
     "statusLine": {
       "type": "boolean",
       "title": "Status line",
-      "description": "A line under the prompt: account | model [effort] | project | branch | 7d and 5h limits with time left | cost | context %.",
+      "description": "A line under the prompt: account | model [effort] | project | branch | 7d and 5h limits with time left | cost | context % | ❄ cache cold.",
       "default": true
     },
     "contextFire": {
@@ -36,6 +36,23 @@
       "default": 25,
       "min": 1,
       "max": 100
+    },
+    "cacheCold": {
+      "type": "boolean",
+      "title": "Cache cold",
+      "description": "After a break long enough for the prompt cache to expire, ice cubes gather around the robot and the status line shows ❄ cache cold with the context your next message re-reads at full price. false turns both off.",
+      "default": true
+    },
+    "cacheTtl": {
+      "type": "string",
+      "title": "Cache TTL",
+      "description": "How long the prompt cache lives after the last request: auto (5m until the session shows a 1-hour cache), 5m or 1h.",
+      "default": "auto",
+      "options": [
+        "auto",
+        "5m",
+        "1h"
+      ]
     },
     "compactFactory": {
       "type": "boolean",

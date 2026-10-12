@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
@@ -9,9 +9,10 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
+import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
-import type { AgentRow } from './agents'
+import type { AgentRow, StepUsage } from './agents'
+import { isColdAt, learnedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
@@ -22,6 +23,8 @@ const ROWS = 4
 const BODY_CELLS = 10
 const MIN_TRACK = 12
 const HEAT_MS = 2000
+// How often the cache's age is checked against its TTL.
+const COLD_MS = 5000
 // Default context usage (percent) at which the head catches fire; the `hotAt` option overrides it.
 const HOT_AT = 25
 // An animation that never ends by itself: how the robot is held walking or dancing while hot.
@@ -90,6 +93,14 @@ const BRANCH = { plugin: 'robot', key: 'branch' } as const
 const WAVE_AT = { plugin: 'robot', key: 'waveAt' } as const
 const AGENT_ROWS = { plugin: 'robot', key: 'agentRows' } as const
 const CHANGES = { plugin: 'robot', key: 'changes' } as const
+/** ms: the start of the main loop's last model request; 0 or absent: none yet. */
+const CACHE_AT = { plugin: 'robot', key: 'cacheAt' } as const
+/** ms: the start of any subagent's last model request. */
+const AGENT_STEP_AT = { plugin: 'robot', key: 'agentStepAt' } as const
+/** '1h' once the session showed a 1-hour cache; absent: not learned. */
+const CACHE_TTL = { plugin: 'robot', key: 'cacheTtl' } as const
+/** The context the next request re-reads while the cache is cold; 0: warm. */
+const COLD_TOKENS = { plugin: 'robot', key: 'coldTokens' } as const
 const CHANGES_QUERY = { plugin: 'robot', key: 'changesQuery' } as const
 /** The file the panel previews, with its diff; no path: the panel lists the files. */
 const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
@@ -307,7 +318,39 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, cacheCold: true, cacheTtl: 'auto', resetSettings: false,
+}
+
+/** The cache has outlived its TTL: keep the context it would re-read in $.state, or 0 once it is warm. */
+async function checkCold($: EngineInterface, ttlSetting: unknown): Promise<void> {
+  try {
+    const { value: at = 0 } = await $.state.get(CACHE_AT)
+    const { value: learned } = await $.state.get(CACHE_TTL)
+    const cold = isColdAt(at, Date.now(), ttlOf(ttlSetting, learned))
+    const tokens = cold ? Math.round((await $.session.usage()).context?.tokens ?? 0) : 0
+    const { value: was = 0 } = await $.state.get(COLD_TOKENS)
+    if (tokens !== was) await $.state.set(COLD_TOKENS, tokens)
+  } catch (error) {
+    $.ui.log(`robot: cache state unavailable: ${String(error)}`, { to: 'debug' })
+  }
+}
+
+/** The main loop sends a request: the cache is warm again. Returns the break before it, in ms (0 for the first request). */
+async function warmCache($: EngineInterface, now: number): Promise<number> {
+  const { value: cacheAt = 0 } = await $.state.get(CACHE_AT)
+  const { value: agentStepAt = 0 } = await $.state.get(AGENT_STEP_AT)
+  const { value: coldTokens = 0 } = await $.state.get(COLD_TOKENS)
+  await $.state.set(CACHE_AT, now)
+  if (coldTokens !== 0) await $.state.set(COLD_TOKENS, 0)
+  return cacheAt > 0 ? now - Math.max(cacheAt, agentStepAt) : 0
+}
+
+/** A long break that still read the cache shows the 1-hour kind: remember it. */
+async function learnTtl($: EngineInterface, breakMs: number, usage: StepUsage): Promise<void> {
+  const learned = learnedTtlOf(breakMs, usage)
+  if (!learned) return
+  const { value: was } = await $.state.get(CACHE_TTL)
+  if (was !== learned) await $.state.set(CACHE_TTL, learned)
 }
 
 async function resetSettings($: EngineInterface): Promise<void> {
@@ -337,6 +380,8 @@ export const register: Register = (on, options) => {
   const isWaveOn = options.branchWave !== false
   const isAgentLinesOn = options.agentLines !== false
   const isChangesOn = options.changedFiles !== false
+  // The `cacheCold` option turns the ice cubes and the status part off; on unless set to false.
+  const isColdOn = options.cacheCold !== false
   // Which rate-limit windows the status line shows: both, or one.
   const windowKind = options.limitWindows === '5h' ? 'five_hour' : options.limitWindows === '7d' ? 'seven_day' : undefined
   const windows = windowKind ? [windowKind] : ['seven_day', 'five_hour']
@@ -372,6 +417,8 @@ export const register: Register = (on, options) => {
         $.ui.log(`robot: context usage unavailable: ${String(error)}`, { to: 'debug' })
       }
     })
+
+    if (isColdOn && (isRobotOn || isStatusOn)) $.clock.every(COLD_MS, () => checkCold($, options.cacheTtl))
 
     const checkAgents = async () => {
       if (!isFriendsOn && !isAgentLinesOn) return
@@ -427,7 +474,14 @@ export const register: Register = (on, options) => {
   // Kept in $.state: the module reloads (as at the end of a turn while developing) and forgets its variables.
   on('turn.step', async function* ($, e, next) {
     if (!e.agentId && typeof e.effort === 'string') await noteEffort($, e.effort, isStatusOn, { account, windows, limitsAt, hotAt })
+    const startedAt = Date.now()
+    let breakMs = 0
+    if (isColdOn) {
+      if (e.agentId) await $.state.set(AGENT_STEP_AT, startedAt)
+      else breakMs = await warmCache($, startedAt)
+    }
     const stepped = yield* next(e)
+    if (isColdOn && !e.agentId && stepped.usage) await learnTtl($, breakMs, stepped.usage)
     // A subagent's model request: its line counts the tokens and shows the model and effort it ran with.
     if (isAgentLinesOn && e.agentId && stepped.usage) {
       const { usage } = stepped
@@ -531,6 +585,7 @@ export const register: Register = (on, options) => {
     const { value: agentRows = [] } = isAgentLinesOn ? await $.state.get(AGENT_ROWS) : { value: [] }
     const { value: changes = [] } = isChangesOn ? await $.state.get(CHANGES) : { value: [] }
     const { value: pr = NO_PR } = isChangesOn ? await $.state.get(CHANGES_PR) : { value: undefined }
+    const { value: coldTokens = 0 } = isColdOn && isStatusOn ? await $.state.get(COLD_TOKENS) : { value: 0 }
     const theirs = await next(e)
     // A few cells of room for the line's indent and the right edge.
     const columns = (e.viewport?.columns ?? 80) - STATUS_MARGIN
@@ -540,6 +595,7 @@ export const register: Register = (on, options) => {
       let groups = status.filter(group => Array.isArray(group.spans))
       // The shimmer module runs its own fast clock, so the line itself does not redraw while the branch shimmers.
       if (isWaveOn && waveAt >= 0) groups = wavedOf(groups)
+      if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
       lines.push(fitStatus(groups, columns))
     }
     if (agentRows.length > 0) {
@@ -749,7 +805,10 @@ export const register: Register = (on, options) => {
     const { value: celebration } = await $.state.get(CELEBRATION)
     const { value: subagents = 0 } = await $.state.get(SUBAGENTS)
     const isCelebrating = !isCompacting && celebration !== undefined && at - celebration.at < CELEBRATE_TICKS
-    const isHot = isFireOn && percent >= hotAt
+    const { value: coldTokens = 0 } = isColdOn ? await $.state.get(COLD_TOKENS) : { value: 0 }
+    const isCold = coldTokens > 0
+    // Cold beats fire: the frozen robot shows no flames.
+    const isHot = isFireOn && percent >= hotAt && !isCold
     // Only once the turn is over: a working engine means the person already answered.
     const { value: isAsked = false } = await $.state.get(IS_ASKED)
     const isNeeded = isNeedsOn && isAsked && !e.props.isWorking
@@ -772,7 +831,8 @@ export const register: Register = (on, options) => {
       } else if (!wanted && shown.state.dur === FOREVER) {
         shown.state = { ...shown.state, dur: shown.state.t }
       }
-      if (!isHot || isHotStep(at) || !shown.frame) {
+      // Cold: the robot freezes where it stands.
+      if (!shown.frame || (!isCold && (!isHot || isHotStep(at)))) {
         const drawn = step(shown.state, track, randomInt)
         shown.state = drawn.state
         shown.frame = drawn.frame
@@ -785,12 +845,14 @@ export const register: Register = (on, options) => {
       friendsAt = at
     }
     // Priority: compacting, then needs-you, then celebrating, then the robot as it walks (hot or not).
+    // Cold ice, or fire; cold wins (isHot is already false then).
+    const decorated = (f: Frame) => (isCold ? chilled(f, true, at) : heated(f, isHot, at))
     let frame: Frame
     if (isCompacting) {
       frame = factory(columns, at - packedFrom, packedSeed)
     } else if (isNeeded) {
       if (!shown.frame) return next(e)
-      frame = withFriends(speech(heated(shown.frame, isHot, at), typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED), columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false)
+      frame = withFriends(speech(decorated(shown.frame), typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED), columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false)
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {
@@ -798,7 +860,7 @@ export const register: Register = (on, options) => {
     } else {
       const robot = isHot && talkAt(at) >= 0
         ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
-        : heated(shown.frame, isHot, at)
+        : decorated(shown.frame)
       // The cat act fills both sides of the robot: the friends stay out of it.
       frame = shown.state.state === 'catpeek'
         ? robot
