@@ -166,34 +166,55 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
 const ICE = hexOf(32)
 const SNOW = ['*', ' ', '·', ' ']
 
-/** Chills the robot: icy-blue head rows, a 🧊 on each side of the head top, snow twinkling left of the head and chattering eyes, moving with the tick. */
+/** The index of the first cell of `text` in `cells`, or -1. */
+const indexOfCells = (cells: Cell[], text: string): number => {
+  const chars = [...text]
+  return cells.findIndex((_, i) => chars.every((char, k) => cells[i + k]?.char === char))
+}
+
+/**
+ * Chills the robot: the whole robot icy blue, 🧊 on each side of the head top and of the feet,
+ * snow twinkling beside the head and the body, and chattering eyes, moving with the tick.
+ * Places go by screen column, so a 2-cell emoji in a row does not shift them; each row stays
+ * within the head top's columns plus 2 cells, as heated does. The eyes row keeps its spaces:
+ * speech measures its bubble from that row.
+ */
 export function chilled(frame: Frame, isCold: boolean, tick: number): Frame {
   if (!isCold) return frame
-  const orange = hexOf(ORANGE_INDEX)
+  const top = cellsOfFrameRow(frame[0] ?? [])
+  const headAt = indexOfCells(top, HEAD_TOP)
+  const atCol = cellsOf(top.slice(0, headAt).map(cell => cell.char).join(''))
+  const endCol = atCol + HEAD_TOP.length
+  const cube = { char: '🧊', color: ICE }
+  const snowOf = (k: number) => ({ char: SNOW[(tick + k) % SNOW.length] ?? ' ', color: ICE })
   return frame.map((row, rowIndex) => {
-    if (rowIndex > 1) return row
-    const recoloured = row.map(span => (span.color === orange ? { ...span, color: ICE } : span))
-    const cells = cellsOfFrameRow(recoloured)
-    const text = cells.map(cell => cell.char).join('')
-    if (rowIndex === 0) {
-      const at = text.indexOf(HEAD_TOP)
-      if (at < 0) return recoloured
-      const end = at + HEAD_TOP.length
-      // Right side first, so the left splice does not shift it. The row grows to end + 2 cells, no wider than heated.
-      while (cells.length < end + 2) cells.push({ char: ' ', color: DEFAULT_COLOR })
-      const isRoomRight = cells[end]?.char === ' ' && cells[end + 1]?.char === ' '
-      if (isRoomRight) cells.splice(end, 2, { char: '🧊', color: ICE })
-      const snow = cells[at - 1]
-      if (at >= 1 && snow?.char === ' ') cells[at - 1] = { char: SNOW[tick % SNOW.length] ?? ' ', color: ICE }
-      // One 2-cell cube replaces two spaces, so the head does not move.
-      if (at >= 3 && cells[at - 3]?.char === ' ' && cells[at - 2]?.char === ' ') cells.splice(at - 3, 2, { char: '🧊', color: ICE })
+    const cells = cellsOfFrameRow(row.map(span => (span.color ? { ...span, color: ICE } : span)))
+    if (headAt < 0) return spansOfCells(cells)
+    if (rowIndex === 1) {
+      const eyes = indexOfCells(cells, EYES)
+      const eye = tick % 2 === 0 ? 'o' : '-'
+      if (eyes >= 0) for (const i of [eyes + 1, eyes + 5]) cells[i] = { char: eye, color: ICE }
       return spansOfCells(cells)
     }
-    const at = text.indexOf(EYES)
-    if (at < 0) return recoloured
-    const eye = tick % 2 === 0 ? 'o' : '-'
-    cells[at + 1] = { char: eye, color: cells[at + 1]?.color ?? ICE }
-    cells[at + 5] = { char: eye, color: cells[at + 5]?.color ?? ICE }
+    // The cell that starts at screen column `col`, padding the row with spaces; -1 inside a 2-cell char.
+    const indexAt = (col: number): number => {
+      let at = 0
+      for (let i = 0; ; i++) {
+        if (i >= cells.length) cells.push({ char: ' ', color: DEFAULT_COLOR })
+        if (at === col) return i
+        at += cellsOf(cells[i]?.char ?? ' ')
+        if (at > col) return -1
+      }
+    }
+    const isSpaceAt = (col: number) => col >= 0 && cells[indexAt(col)]?.char === ' '
+    const isCubeRow = rowIndex === 0 || rowIndex === 3
+    // Right side first, so the left splice does not shift it.
+    if (isCubeRow && isSpaceAt(endCol) && isSpaceAt(endCol + 1)) cells.splice(indexAt(endCol), 2, cube)
+    else if (rowIndex === 2 && isSpaceAt(endCol)) cells[indexAt(endCol)] = snowOf(rowIndex)
+    if (rowIndex !== 3 && isSpaceAt(atCol - 1)) cells[indexAt(atCol - 1)] = snowOf(rowIndex + 2)
+    // One 2-cell cube replaces two spaces, so the robot does not move.
+    if (isCubeRow && isSpaceAt(atCol - 3) && isSpaceAt(atCol - 2)) cells.splice(indexAt(atCol - 3), 2, cube)
+    while (cells.at(-1)?.char === ' ') cells.pop()
     return spansOfCells(cells)
   })
 }

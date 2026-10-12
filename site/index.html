@@ -132,8 +132,9 @@ h2 { font-size: clamp(2.1rem, 5.6vw, 4.3rem); line-height: 1.14; font-weight: 80
 .head { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin-bottom: 56px; }
 .bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; }
 .bento > * { grid-column: span 2; }
+.bento > .wide { grid-column: span 3; }
 @media (max-width: 900px) { .bento > * { grid-column: span 3; } }
-@media (max-width: 620px) { .bento > * { grid-column: span 6; } }
+@media (max-width: 620px) { .bento > *, .bento > .wide { grid-column: span 6; } }
 .tilt { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .3s ease-out; height: 100%; }
 .tilt::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s;
   background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--c) 22%, transparent), transparent 55%); }
@@ -346,13 +347,21 @@ footer nav { display: flex; gap: 20px; }
       <h2 class="reveal">Calm, it plays.<br><span class="rb">Claude acts, it reacts.</span></h2>
     </div>
     <div class="bento">
-      <div class="reveal"><article class="card panel tilt" style="--c:var(--fire)">
+      <div class="reveal wide"><article class="card panel tilt" style="--c:var(--fire)">
         <pre class="art">  .<i class="em">🔥</i>-<i class="em">🔥</i>.
   [O   O]   <span style="color:var(--fg)">context 31%</span>
   /|───|\   <span style="color:var(--fg)">/compact me!</span>
    o   o</pre>
         <h3>Context too big?</h3>
         <p>Past 25% context, its head catches fire. It paces, panics and asks you to <code>/compact</code>.</p>
+      </article></div>
+      <div class="reveal wide"><article class="card panel tilt" style="--c:var(--moon)">
+        <pre class="art" style="color:var(--moon)"><i class="em">🧊</i>·.-----.<i class="em">🧊</i>
+   [o   o]   <span style="color:var(--fg)">b-b-brr…</span>
+  */|───|\·  <span style="color:var(--fg)">cache frozen!</span>
+<i class="em">🧊</i>  o   o <i class="em">🧊</i></pre>
+        <h3>Cache gone cold?</h3>
+        <p>After a break, the prompt cache expires and your next message costs more. The robot freezes blue in ice, and the status line shows <code>❄ cache cold · 117k</code>.</p>
       </article></div>
       <div class="reveal"><article class="card panel tilt" style="--c:var(--wave)">
         <pre class="art">  ┌───────┐
@@ -375,14 +384,14 @@ footer nav { display: flex; gap: 20px; }
         <h3>Git commit or push?</h3>
         <p>It cheers for 3 seconds. Its friends hop too.</p>
       </article></div>
-      <div class="reveal"><article class="card panel tilt" style="--c:var(--concert)">
+      <div class="reveal wide"><article class="card panel tilt" style="--c:var(--concert)">
         <pre class="art"><span style="color:var(--muted)">? Which one</span>
 ❯ 1. This one
 <span style="color:var(--muted)">  2. That one</span></pre>
         <h3>Claude asks you?</h3>
         <p>It steps aside. It never blocks your answer.</p>
       </article></div>
-      <div class="reveal"><article class="card panel tilt" style="--c:var(--ufo)">
+      <div class="reveal wide"><article class="card panel tilt" style="--c:var(--ufo)">
         <pre class="art">  <i class="em">🛸</i>       <span style="color:var(--walk)">.-----.</span>
  /  \      <span style="color:var(--walk)">[O   O]</span>
   <i class="em">🐄</i>       <span style="color:var(--walk)">/|───|\</span></pre>
@@ -697,7 +706,7 @@ footer nav { display: flex; gap: 20px; }
     </div>
     <div class="facts">
       <div class="fact panel reveal" style="--c:var(--concert)"><h3>Needs you</h3><p>Claude ends its turn with a question for you? The robot dances and says "need a human" in a comic speech bubble. It goes away when you send your next message.</p></div>
-      <div class="fact panel reveal" style="--c:var(--moon)"><h3>Cache cold</h3><p>After a break the prompt cache goes cold. Ice cubes gather around the robot, and the status line shows <code>❄ cache cold · 117k</code>: the context your next message re-reads at full price.</p></div>
+      <div class="fact panel reveal" style="--c:var(--moon)"><h3>Cache cold</h3><p>After a break the prompt cache goes cold. Ice cubes gather around the robot, it turns blue and says "b-b-brr… cache frozen!", and the status line shows <code>❄ cache cold · 117k</code>: the context your next message re-reads at full price.</p></div>
       <div class="fact panel reveal" style="--c:var(--ufo)"><h3>Robot spinner words</h3><p>The spinner shows a robot word each turn, like "Beaming…" or "Recharging…".</p></div>
     </div>
   </div>

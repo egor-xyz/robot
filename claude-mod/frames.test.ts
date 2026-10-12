@@ -499,13 +499,12 @@ test('a warm robot is left as it was', () => {
   expect(chilled(HEAD, false, 0)).toBe(HEAD)
 })
 
-test('a cold head turns its orange head rows icy blue and keeps other rows', () => {
-  const out = chilled(HEAD, true, 0)
+test('a cold robot turns icy blue all over, with ice cubes by its head and its feet', () => {
+  const out = chilled(WALKED, true, 0)
 
-  for (const row of [0, 1]) expect(out[row]?.some(span => span.color === hexOf(208))).toBe(false)
-  expect(out[0]?.some(span => span.color === hexOf(32))).toBe(true)
-  expect(out[2]).toEqual(HEAD[2])
-  expect(out[3]).toEqual(HEAD[3])
+  for (const row of out) expect(row.every(span => span.color === hexOf(32) || span.color === DEFAULT_COLOR)).toBe(true)
+  for (const row of [0, 3]) expect(textOf(out[row] ?? []).match(/🧊/g)?.length).toBe(2)
+  expect(textOf(out[2] ?? [])).toContain('/|---|\\')
 })
 
 // HEAD has only 2 leading spaces, too few for a left cube: a robot a little way in from the edge has room.
@@ -527,8 +526,7 @@ test('two ice cubes sit either side of the head top, which does not move; the ro
 test('the eyes chatter between o and -, keeping 7 cells', () => {
   const eyes = [0, 1, 2, 3].map(tick => textOf(chilled(HEAD, true, tick)[1] ?? []))
 
-  expect(eyes).toEqual(['  [o   o]', '  [-   -]', '  [o   o]', '  [-   -]'])
-  for (const row of eyes) expect(cellsOf(row)).toBe(cellsOf(textOf(HEAD[1] ?? [])))
+  expect(eyes.map(row => row.slice(2, 9))).toEqual(['[o   o]', '[-   -]', '[o   o]', '[-   -]'])
 })
 
 test('the snow twinkles across ticks and only ever lands on a space', () => {
@@ -567,4 +565,18 @@ test('a bubble on the left of a chilled robot keeps the head top over the eyes',
   expect(textOf(out[0] ?? [])).toContain('🧊')
   expect(textOf(out[1] ?? [])).toContain('│ hi')
   expect(colOf(out[0] ?? [], '.-----.')).toBe(colOf(out[1] ?? [], '['))
+})
+
+test('the snow never moves a chilled robot\'s speech bubble', () => {
+  const say = [[{ text: 'b-b-brr…', color: DEFAULT_COLOR }]]
+  const borders = [0, 1, 2, 3].map(tick => textOf(speech(chilled(WALKED, true, tick), say, 60)[0] ?? []).indexOf('╭'))
+
+  expect(new Set(borders).size).toBe(1)
+})
+
+test('a 2-cell emoji before the robot does not push the ice past the row', () => {
+  const ufo: Frame = [...WALKED.slice(0, 3), [{ text: '🐄  o   o', color: '#ff8700' }]]
+  const feet = textOf(chilled(ufo, true, 0)[3] ?? [])
+
+  expect(cellsOf(feet)).toBeLessThanOrEqual(cellsOf(textOf(WALKED[0] ?? [])) + 2)
 })

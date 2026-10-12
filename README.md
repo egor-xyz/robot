@@ -140,16 +140,17 @@ Claude keeps your chat in a short-term cache. After 5 minutes with no request
 (1 hour in some sessions), the cache expires. The robot freezes:
 
 ```text
- 🧊*.-----.🧊
-    [o   o]
-    /|---|\
-     o   o
+   🧊·.-----.🧊   ╭───────────────╮
+      [o   o]    <  b-b-brr…      │
+     */|━━━|\·    │ cache frozen! │
+   🧊  o   o 🧊   ╰───────────────╯
 >
  ctx 58% | opus | ❄ cache cold · 117k
 ```
 
-- 🧊 **Ice cubes gather.** The robot stands still, its head turns blue, snow
-  twinkles and its eyes chatter.
+- 🧊 **Ice cubes gather.** The robot stands still and turns blue all over. Ice
+  cubes sit by its head and its feet, snow twinkles and its eyes chatter.
+  Every 30 seconds it says _"b-b-brr… cache frozen!"_.
 - ❄ **The status line says so.** `❄ cache cold · 117k` sits at the end of the
   line. `117k` is the context your next message re-reads.
 - 💸 **The next message costs more.** It re-reads the whole context at full

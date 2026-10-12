@@ -56,6 +56,11 @@ const sayOf = (percent: number): Span[][] => [
   [{ text: `context ${percent}%`, color: DEFAULT_COLOR }],
   [{ text: '/compact', color: COMMAND_COLOR }, { text: ' me!', color: DEFAULT_COLOR }],
 ]
+/** What the frozen robot says now and then, while the prompt cache is cold. */
+const COLD_SAY: Span[][] = [
+  [{ text: 'b-b-brr…', color: DEFAULT_COLOR }],
+  [{ text: 'cache frozen!', color: DEFAULT_COLOR }],
+]
 
 // Default rate-limit usage (percent) from which the meter shows; 0 shows it whenever there is a reading.
 /** Rate-limit usage, in percent, from which a window shows in the status line: 0 shows it always. */
@@ -877,7 +882,9 @@ export const register: Register = (on, options) => {
     } else {
       const robot = isHot && talkAt(at) >= 0
         ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
-        : decorated(shown.frame)
+        : isCold && talkAt(at) >= 0
+          ? speech(chilled(shown.frame, true, at), typedSoFar(COLD_SAY, (talkAt(at) + 1) * TYPE_SPEED), columns)
+          : decorated(shown.frame)
       // The cat act fills both sides of the robot: the friends stay out of it.
       frame = shown.state.state === 'catpeek'
         ? robot
