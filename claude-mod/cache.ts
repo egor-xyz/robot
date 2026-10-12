@@ -7,9 +7,10 @@ export const LEARN_MARGIN_MS = 30_000
 /** A smaller prompt is mostly the shared system prompt and tools, which other sessions keep warm: its read proves nothing. */
 export const LEARN_MIN_PROMPT = 50_000
 
-/** The TTL in use: the setting when it is '5m' or '1h', else the learned one, else '5m'. */
+/** The TTL in use: the setting when it is '5m' or '1h'; on 'auto' the learned one, else '5m'; unset or junk: '1h', the default. */
 export function ttlOf(setting: unknown, learned: unknown): CacheTtl {
   if (setting === '5m' || setting === '1h') return setting
+  if (setting !== 'auto') return '1h'
   if (learned === '1h' || learned === '5m') return learned
   return '5m'
 }
@@ -18,6 +19,13 @@ export function ttlOf(setting: unknown, learned: unknown): CacheTtl {
 export function learnedTtlOf(breakMs: number, usage: StepUsage, prevPrompt: number): CacheTtl | undefined {
   const isLong = breakMs > TTL_MS['5m'] + LEARN_MARGIN_MS && breakMs < TTL_MS['1h']
   return isLong && prevPrompt >= LEARN_MIN_PROMPT && usage.cache_read_input_tokens >= 0.9 * prevPrompt ? '1h' : undefined
+}
+
+/** The TTL saved by an earlier session, when it was learned on the same account (null: no signed-in account). */
+export function storedTtlOf(stored: unknown, account: string | null): CacheTtl | undefined {
+  if (typeof stored !== 'object' || stored === null) return undefined
+  const { ttl, account: storedAccount } = stored as { ttl?: unknown; account?: unknown }
+  return ttl === '1h' && storedAccount === account ? ttl : undefined
 }
 
 /** Cold: there was a main request (lastAt > 0) and it is at least the TTL old. */

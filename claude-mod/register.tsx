@@ -12,7 +12,7 @@ import { robotWord } from './spinner'
 import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
-import { isColdAt, learnedTtlOf, ttlOf } from './cache'
+import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
@@ -110,6 +110,8 @@ const CACHE_PROMPT = { plugin: 'robot', key: 'cachePrompt' } as const
 const CACHE_TTL = { plugin: 'robot', key: 'cacheTtl' } as const
 /** The context the next request re-reads while the cache is cold; 0: warm. */
 const COLD_TOKENS = { plugin: 'robot', key: 'coldTokens' } as const
+/** The learned cache TTL and the account it was learned on, kept across sessions in $.store. */
+const STORE_TTL = 'learnedCacheTtl'
 const CHANGES_QUERY = { plugin: 'robot', key: 'changesQuery' } as const
 /** The file the panel previews, with its diff; no path: the panel lists the files. */
 const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
@@ -327,7 +329,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, cacheCold: true, cacheTtl: 'auto', resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, cacheCold: true, cacheTtl: '1h', resetSettings: false,
 }
 
 /** The cache has outlived its TTL: keep the context it would re-read in $.state, or 0 once it is warm. */
@@ -363,12 +365,30 @@ async function warmCache($: EngineInterface, now: number): Promise<{ breakMs: nu
   return { breakMs: endAt >= cacheAt && cacheAt > 0 ? now - Math.max(endAt, agentStepAt) : 0, prevPrompt }
 }
 
+/** A TTL learned in an earlier session on the same account: the account's cache kind does not change per chat. */
+async function loadTtl($: EngineInterface): Promise<void> {
+  try {
+    const { value: learned } = await $.state.get(CACHE_TTL)
+    if (learned) return
+    const stored = storedTtlOf(await $.store.get(STORE_TTL), (await accountOf($)) ?? null)
+    if (stored) await $.state.set(CACHE_TTL, stored)
+  } catch (error) {
+    $.ui.log(`robot: saved cache TTL unavailable: ${String(error)}`, { to: 'debug' })
+  }
+}
+
 /** A long break that still read the cache shows the 1-hour kind: remember it. */
 async function learnTtl($: EngineInterface, breakMs: number, usage: StepUsage, prevPrompt: number): Promise<void> {
   const learned = learnedTtlOf(breakMs, usage, prevPrompt)
   if (!learned) return
   const { value: was } = await $.state.get(CACHE_TTL)
   if (was !== learned) await $.state.set(CACHE_TTL, learned)
+  // Kept for later sessions too; a failed disk write must not stop this session's learning.
+  try {
+    await $.store.set(STORE_TTL, { ttl: learned, account: (await accountOf($)) ?? null })
+  } catch (error) {
+    $.ui.log(`robot: cache TTL not saved: ${String(error)}`, { to: 'debug' })
+  }
 }
 
 async function resetSettings($: EngineInterface): Promise<void> {
@@ -376,6 +396,7 @@ async function resetSettings($: EngineInterface): Promise<void> {
   for (const [field, value] of Object.entries(DEFAULTS).sort(([a], [b]) => Number(a === 'resetSettings') - Number(b === 'resetSettings'))) {
     await $.config.set({ key: `robot.${field}`, value }).catch(() => undefined)
   }
+  await $.store.delete(STORE_TTL).catch(() => undefined)
   await $.ui.toast('Robot settings are back to default')
 }
 
@@ -436,7 +457,10 @@ export const register: Register = (on, options) => {
       }
     })
 
-    if (isColdOn && (isRobotOn || isStatusOn)) $.clock.every(COLD_MS, () => checkCold($, options.cacheTtl))
+    if (isColdOn && (isRobotOn || isStatusOn)) {
+      void loadTtl($)
+      $.clock.every(COLD_MS, () => checkCold($, options.cacheTtl))
+    }
 
     const checkAgents = async () => {
       if (!isFriendsOn && !isAgentLinesOn) return

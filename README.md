@@ -136,8 +136,8 @@ normal animations.
 
 ## 🧊 Cache cold
 
-Claude keeps your chat in a short-term cache. After 5 minutes with no request
-(1 hour in some sessions), the cache expires. The robot freezes:
+Claude keeps your chat in a short-term cache. After 1 hour with no request
+(5 minutes on some accounts), the cache expires. The robot freezes:
 
 ```text
    🧊·.-----.🧊   ╭───────────────╮
@@ -164,10 +164,9 @@ What to do:
 - Big context you still need? `/compact` first, so the re-read is small.
 
 The robot does not ping Claude and spends no tokens. It does not read the cache
-time from Claude Code. It counts the minutes since Claude's last request. With
-**Cache TTL** on `auto`, it assumes 5 minutes, and switches to 1 hour once the
-session shows a cache that lived longer. Set **Cache TTL** to `5m` or `1h` to
-choose yourself. When the head is also on fire, the ice wins.
+time from Claude Code. It counts the minutes since Claude's last request. **Cache TTL** is `1h` by default. Is your cache 5 minutes (for example, an API
+key)? Set it to `5m`. With `auto`, the robot assumes 5 minutes, and switches to
+1 hour, also for later chats, once a chat shows a cache that lived longer. When the head is also on fire, the ice wins.
 
 **Switch it off:** set **Cache cold** to `false` — [how to change settings](#settings).
 
@@ -316,7 +315,7 @@ Every act has a switch. To change one:
 | Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
 | Cache cold | `true` | `false` turns the [ice cubes](#-cache-cold) and the status line's `❄ cache cold` part off. |
-| Cache TTL | `auto` | How long the prompt cache lives: `auto` (5m until the session shows a 1-hour cache), `5m` or `1h`. |
+| Cache TTL | `1h` | How long the prompt cache lives: `1h`, `5m`, or `auto` (5m until a chat shows a 1-hour cache). |
 | Compacting factory line | `true` | `false` turns the [factory line](#-compacting) off. |
 | Git cheer | `true` | `false` stops the ✅ / 🚀 on commit and push. |
 | Subagent friends | `true` | `false` hides the [WALL-E friends](#-subagent-friends). |

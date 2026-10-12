@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { StepUsage } from './agents'
-import { isColdAt, learnedTtlOf, ttlOf } from './cache'
+import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 
 const MIN = 60_000
 const usage = (read: number, written = 0, fresh = 0): StepUsage => ({ input_tokens: fresh, output_tokens: 10, cache_read_input_tokens: read, cache_creation_input_tokens: written })
@@ -14,12 +14,13 @@ test('cold needs a request, and the full TTL gone', () => {
   expect(isColdAt(1000, 1000 + 60 * MIN, '1h')).toBe(true)
 })
 
-test('a set TTL beats the learned one; auto and garbage fall back to learned, then 5m', () => {
+test('a set TTL beats the learned one; auto falls back to learned, then 5m; unset or junk is the 1h default', () => {
   expect(ttlOf('1h', '5m')).toBe('1h')
   expect(ttlOf('5m', '1h')).toBe('5m')
-  for (const setting of ['auto', undefined, 7]) expect(ttlOf(setting, '1h')).toBe('1h')
+  expect(ttlOf('auto', '1h')).toBe('1h')
   expect(ttlOf('auto', undefined)).toBe('5m')
-  expect(ttlOf(undefined, 'junk')).toBe('5m')
+  expect(ttlOf('auto', 'junk')).toBe('5m')
+  for (const setting of [undefined, 7, 'junk']) expect(ttlOf(setting, '5m')).toBe('1h')
 })
 
 test('reading at least 90% of the previous prompt after a long break proves the 1-hour cache', () => {
@@ -42,4 +43,14 @@ test('learning needs a break past 5m plus the margin and under 1h', () => {
   expect(learnedTtlOf(5 * MIN + 30_001, usage(90_000), 90_000)).toBe('1h')
   expect(learnedTtlOf(60 * MIN, usage(90_000), 90_000)).toBeUndefined()
   expect(learnedTtlOf(90 * MIN, usage(90_000), 90_000)).toBeUndefined()
+})
+
+test('a saved 1h counts only on the account that learned it', () => {
+  expect(storedTtlOf({ ttl: '1h', account: 'Acme' }, 'Acme')).toBe('1h')
+  expect(storedTtlOf({ ttl: '1h', account: null }, null)).toBe('1h')
+  expect(storedTtlOf({ ttl: '1h', account: 'Acme' }, 'Other')).toBeUndefined()
+  expect(storedTtlOf({ ttl: '1h', account: 'Acme' }, null)).toBeUndefined()
+  expect(storedTtlOf({ ttl: '5m', account: 'Acme' }, 'Acme')).toBeUndefined()
+  expect(storedTtlOf('1h', 'Acme')).toBeUndefined()
+  expect(storedTtlOf(undefined, null)).toBeUndefined()
 })
