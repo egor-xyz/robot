@@ -75,9 +75,21 @@ export function leftOf(resetsAt: string | undefined, now: number): string | unde
 /** One part of the status line; on a narrow screen the lowest rank goes first. */
 export type StatusGroup = { rank: number; spans: Span[] }
 
-// Who stays longest on a narrow screen: ctx, then the model, the limits, the branch, cost, project, account.
-const RANK = { account: 1, project: 2, cost: 3, branch: 4, sevenDay: 5, fiveHour: 6, model: 7, ctx: 8 }
+// Who stays longest on a narrow screen: cache cold, then ctx, the model, the limits, the branch, cost, project, account.
+const RANK = { account: 1, project: 2, cost: 3, branch: 4, sevenDay: 5, fiveHour: 6, model: 7, ctx: 8, cold: 9 }
 const SEPARATOR: Span = { text: ' | ', color: LINE }
+
+/** Tokens, short: `850`, `16k`, `1.2M`. */
+export function tokensOf(tokens: number): string {
+  if (tokens < 1000) return String(Math.max(0, Math.round(tokens)))
+  if (tokens < 1_000_000) return `${Math.round(tokens / 1000)}k`
+  return `${(tokens / 1_000_000).toFixed(1)}M`
+}
+
+/** The cache-cold part: `❄ cache cold · 117k`, the context the next request re-reads. */
+export function coldGroupOf(tokens: number): StatusGroup {
+  return { rank: RANK.cold, spans: [{ text: `❄ cache cold · ${tokensOf(tokens)}`, color: 'ide' }] }
+}
 
 /** The status line's parts in order: account | model [effort] | project | branch | 7d … | 5h … | $cost | ctx N%. */
 export function groupsOf(parts: StatusParts): StatusGroup[] {

@@ -162,6 +162,46 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
   })
 }
 
+// Cold: the icy blue of the head, readable on light and dark; snow beside the head top.
+const ICE = hexOf(32)
+const SNOW = ['*', ' ', '·', ' ']
+
+/** Chills the robot: icy-blue head rows, a 🧊 on each side of the head top, snow twinkling between them and chattering eyes, moving with the tick. */
+export function chilled(frame: Frame, isCold: boolean, tick: number): Frame {
+  if (!isCold) return frame
+  const orange = hexOf(ORANGE_INDEX)
+  return frame.map((row, rowIndex) => {
+    if (rowIndex > 1) return row
+    const recoloured = row.map(span => (span.color === orange ? { ...span, color: ICE } : span))
+    const cells = cellsOfFrameRow(recoloured)
+    const text = cells.map(cell => cell.char).join('')
+    if (rowIndex === 0) {
+      const at = text.indexOf(HEAD_TOP)
+      if (at < 0) return recoloured
+      const end = at + HEAD_TOP.length
+      // Right side first, so the left splice does not shift it. The row grows by 3 cells: a space and a 2-cell cube.
+      while (cells.length < end + 2) cells.push({ char: ' ', color: DEFAULT_COLOR })
+      const isRoomRight = cells[end]?.char === ' ' && cells[end + 1]?.char === ' '
+      const snowAt = [{ index: at - 1, side: 0 }, { index: end, side: 2 }]
+      for (const { index, side } of snowAt) {
+        const cell = cells[index]
+        if (index < 0 || !cell || cell.char !== ' ') continue
+        cells[index] = { char: SNOW[(tick + side) % SNOW.length] ?? ' ', color: ICE }
+      }
+      if (isRoomRight) cells[end + 1] = { char: '🧊', color: ICE }
+      // One 2-cell cube replaces two spaces, so the head does not move.
+      if (at >= 3 && cells[at - 3]?.char === ' ' && cells[at - 2]?.char === ' ') cells.splice(at - 3, 2, { char: '🧊', color: ICE })
+      return spansOfCells(cells)
+    }
+    const at = text.indexOf(EYES)
+    if (at < 0) return recoloured
+    const eye = tick % 2 === 0 ? 'o' : '-'
+    cells[at + 1] = { char: eye, color: cells[at + 1]?.color ?? ICE }
+    cells[at + 5] = { char: eye, color: cells[at + 5]?.color ?? ICE }
+    return spansOfCells(cells)
+  })
+}
+
 // The robot body ends this many cells after its position.
 const BODY_END = 9
 

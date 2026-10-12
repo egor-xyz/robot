@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Frame, FriendMood, Span } from './frames'
 import type { Friend } from './friends'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, chilled, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -491,4 +491,57 @@ test('friends never pass the columns', () => {
       }
     }
   }
+})
+
+const colOf = (row: Frame[number], needle: string) => cellsOf(textOf(row).slice(0, textOf(row).indexOf(needle)))
+
+test('a warm robot is left as it was', () => {
+  expect(chilled(HEAD, false, 0)).toBe(HEAD)
+})
+
+test('a cold head turns its orange head rows icy blue and keeps other rows', () => {
+  const out = chilled(HEAD, true, 0)
+
+  for (const row of [0, 1]) expect(out[row]?.some(span => span.color === hexOf(208))).toBe(false)
+  expect(out[0]?.some(span => span.color === hexOf(32))).toBe(true)
+  expect(out[2]).toEqual(HEAD[2])
+  expect(out[3]).toEqual(HEAD[3])
+})
+
+// HEAD has only 2 leading spaces, too few for a left cube: a robot a little way in from the edge has room.
+const WALKED: Frame = [[{ text: '    .-----.', color: '#ff8700' }], ...HEAD.slice(1)]
+
+test('two ice cubes sit either side of the head top, which does not move; the row grows by 3 cells', () => {
+  for (const tick of [0, 1, 2, 3]) {
+    const top = textOf(chilled(WALKED, true, tick)[0] ?? [])
+    const head = top.indexOf('.-----.')
+
+    expect(top.match(/🧊/g)?.length).toBe(2)
+    expect(top.indexOf('🧊')).toBeLessThan(head)
+    expect(top.lastIndexOf('🧊')).toBeGreaterThan(head)
+    expect(colOf(chilled(WALKED, true, tick)[0] ?? [], '.-----.')).toBe(colOf(WALKED[0] ?? [], '.-----.'))
+    expect(cellsOf(top)).toBe(cellsOf(textOf(WALKED[0] ?? [])) + 3)
+  }
+})
+
+test('the eyes chatter between o and -, keeping 7 cells', () => {
+  const eyes = [0, 1, 2, 3].map(tick => textOf(chilled(HEAD, true, tick)[1] ?? []))
+
+  expect(eyes).toEqual(['  [o   o]', '  [-   -]', '  [o   o]', '  [-   -]'])
+  for (const row of eyes) expect(cellsOf(row)).toBe(cellsOf(textOf(HEAD[1] ?? [])))
+})
+
+test('the snow twinkles across ticks and only ever lands on a space', () => {
+  const tops = [0, 1, 2, 3].map(tick => textOf(chilled(HEAD, true, tick)[0] ?? []))
+
+  expect(new Set(tops).size).toBeGreaterThan(1)
+  for (const top of tops) expect(top).toContain('.-----.')
+})
+
+test('a head with no room on the left gets no left cube and does not throw', () => {
+  const tight: Frame = [[{ text: ' .-----.', color: '#ff8700' }], HEAD[1] ?? [], HEAD[2] ?? [], HEAD[3] ?? []]
+  const top = textOf(chilled(tight, true, 0)[0] ?? [])
+
+  expect(top.match(/🧊/g)?.length).toBe(1)
+  expect(top.indexOf('🧊')).toBeGreaterThan(top.indexOf('.-----.'))
 })

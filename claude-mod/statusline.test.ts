@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
+import { cellsOf } from './frames'
 import type { Span } from './frames'
-import { accountNameOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, textOfStatus, wavedOf } from './statusline'
+import { accountNameOf, coldGroupOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, textOfStatus, wavedOf } from './statusline'
 import { shadeOf } from './shimmer'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
@@ -143,4 +144,25 @@ test('only the branch waves', () => {
   expect(textOfStatus(fitStatus(waved, Number.POSITIVE_INFINITY))).toBe('robot | main')
   expect(waved.find(group => group.spans[0]?.text === 'robot')?.spans[0]?.color).toBe('planMode')
   expect(waved.find(group => group.spans[0]?.text === 'main')?.spans[0]?.color).toBe(SHIMMER)
+})
+
+test('the cache-cold part reads ❄ cache cold with the context to re-read, in the ide colour, 19 cells', () => {
+  const { spans } = coldGroupOf(117_000)
+
+  expect(textOfStatus(spans)).toBe('❄ cache cold · 117k')
+  expect(spans.map(span => span.color)).toEqual(['ide'])
+  expect(cellsOf(textOfStatus(spans))).toBe(19)
+})
+
+test('on a narrow screen the cache-cold part outlives ctx, and both keep their order', () => {
+  const groups = [
+    ...groupsOf({
+      account: 'TegoAI Team', model: 'Opus 5.5', effort: 'medium', project: 'robot', branch: 'feat/x',
+      rateLimits: LIMITS, windows: BOTH, limitsAt: 0, costUsd: 13.344, contextPercent: 23.4, hotAt: 25, now: NOW,
+    }),
+    coldGroupOf(117_000),
+  ]
+
+  expect(plain(fitStatus(groups, 19))).toBe('❄ cache cold · 117k')
+  expect(plain(fitStatus(groups, 30))).toBe('ctx 23% | ❄ cache cold · 117k')
 })
