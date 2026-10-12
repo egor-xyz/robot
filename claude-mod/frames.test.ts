@@ -511,7 +511,7 @@ test('a cold head turns its orange head rows icy blue and keeps other rows', () 
 // HEAD has only 2 leading spaces, too few for a left cube: a robot a little way in from the edge has room.
 const WALKED: Frame = [[{ text: '    .-----.', color: '#ff8700' }], ...HEAD.slice(1)]
 
-test('two ice cubes sit either side of the head top, which does not move; the row grows by 3 cells', () => {
+test('two ice cubes sit either side of the head top, which does not move; the row grows by 2 cells', () => {
   for (const tick of [0, 1, 2, 3]) {
     const top = textOf(chilled(WALKED, true, tick)[0] ?? [])
     const head = top.indexOf('.-----.')
@@ -520,7 +520,7 @@ test('two ice cubes sit either side of the head top, which does not move; the ro
     expect(top.indexOf('🧊')).toBeLessThan(head)
     expect(top.lastIndexOf('🧊')).toBeGreaterThan(head)
     expect(colOf(chilled(WALKED, true, tick)[0] ?? [], '.-----.')).toBe(colOf(WALKED[0] ?? [], '.-----.'))
-    expect(cellsOf(top)).toBe(cellsOf(textOf(WALKED[0] ?? [])) + 3)
+    expect(cellsOf(top)).toBe(cellsOf(textOf(WALKED[0] ?? [])) + 2)
   }
 })
 
@@ -544,4 +544,27 @@ test('a head with no room on the left gets no left cube and does not throw', () 
 
   expect(top.match(/🧊/g)?.length).toBe(1)
   expect(top.indexOf('🧊')).toBeGreaterThan(top.indexOf('.-----.'))
+})
+
+test('the chilled head top is never wider than the heated one, wherever the robot stands', () => {
+  for (const pad of [0, 1, 2, 4, 30]) {
+    const frame: Frame = [[{ text: `${' '.repeat(pad)}.-----.`, color: '#ff8700' }], ...HEAD.slice(1)]
+    for (const tick of [0, 1, 2, 3]) {
+      expect(cellsOf(textOf(chilled(frame, true, tick)[0] ?? []))).toBeLessThanOrEqual(cellsOf(textOf(heated(frame, true, tick)[0] ?? [])))
+    }
+  }
+})
+
+test('a bubble on the left of a chilled robot keeps the head top over the eyes', () => {
+  const walked: Frame = [
+    [{ text: '            .-----.', color: '#ff8700' }],
+    [{ text: '            [', color: '#ff8700' }, { text: 'o   o', color: '#ff87ff' }, { text: ']', color: '#ff8700' }],
+    ...HEAD.slice(2),
+  ]
+  // 29 columns: the bubble needs 30 on the right, so it goes left.
+  const out = speech(chilled(walked, true, 0), [[{ text: 'hi', color: DEFAULT_COLOR }]], 29)
+
+  expect(textOf(out[0] ?? [])).toContain('🧊')
+  expect(textOf(out[1] ?? [])).toContain('│ hi')
+  expect(colOf(out[0] ?? [], '.-----.')).toBe(colOf(out[1] ?? [], '['))
 })

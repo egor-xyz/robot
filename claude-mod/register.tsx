@@ -97,6 +97,10 @@ const CHANGES = { plugin: 'robot', key: 'changes' } as const
 const CACHE_AT = { plugin: 'robot', key: 'cacheAt' } as const
 /** ms: the start of any subagent's last model request. */
 const AGENT_STEP_AT = { plugin: 'robot', key: 'agentStepAt' } as const
+/** ms: the end of the main loop's last model request. */
+const CACHE_END_AT = { plugin: 'robot', key: 'cacheEndAt' } as const
+/** The prompt size (read + written + fresh tokens) of the main loop's last model request. */
+const CACHE_PROMPT = { plugin: 'robot', key: 'cachePrompt' } as const
 /** '1h' once the session showed a 1-hour cache; absent: not learned. */
 const CACHE_TTL = { plugin: 'robot', key: 'cacheTtl' } as const
 /** The context the next request re-reads while the cache is cold; 0: warm. */
@@ -328,6 +332,9 @@ async function checkCold($: EngineInterface, ttlSetting: unknown): Promise<void>
     const { value: learned } = await $.state.get(CACHE_TTL)
     const cold = isColdAt(at, Date.now(), ttlOf(ttlSetting, learned))
     const tokens = cold ? Math.round((await $.session.usage()).context?.tokens ?? 0) : 0
+    // A request may have started while the usage was read: it made the cache warm, so skip the write.
+    const { value: nowAt = 0 } = await $.state.get(CACHE_AT)
+    if (nowAt !== at) return
     const { value: was = 0 } = await $.state.get(COLD_TOKENS)
     if (tokens !== was) await $.state.set(COLD_TOKENS, tokens)
   } catch (error) {
@@ -335,19 +342,25 @@ async function checkCold($: EngineInterface, ttlSetting: unknown): Promise<void>
   }
 }
 
-/** The main loop sends a request: the cache is warm again. Returns the break before it, in ms (0 for the first request). */
-async function warmCache($: EngineInterface, now: number): Promise<number> {
+/**
+ * The main loop sends a request: the cache is warm again. Returns the break before it (ms since the previous main
+ * request ended or the last subagent request started; 0 when unknown) and that previous request's prompt size.
+ */
+async function warmCache($: EngineInterface, now: number): Promise<{ breakMs: number; prevPrompt: number }> {
   const { value: cacheAt = 0 } = await $.state.get(CACHE_AT)
+  const { value: endAt = 0 } = await $.state.get(CACHE_END_AT)
+  const { value: prevPrompt = 0 } = await $.state.get(CACHE_PROMPT)
   const { value: agentStepAt = 0 } = await $.state.get(AGENT_STEP_AT)
   const { value: coldTokens = 0 } = await $.state.get(COLD_TOKENS)
   await $.state.set(CACHE_AT, now)
   if (coldTokens !== 0) await $.state.set(COLD_TOKENS, 0)
-  return cacheAt > 0 ? now - Math.max(cacheAt, agentStepAt) : 0
+  // An end before the start means the previous request never finished: nothing to learn from.
+  return { breakMs: endAt >= cacheAt && cacheAt > 0 ? now - Math.max(endAt, agentStepAt) : 0, prevPrompt }
 }
 
 /** A long break that still read the cache shows the 1-hour kind: remember it. */
-async function learnTtl($: EngineInterface, breakMs: number, usage: StepUsage): Promise<void> {
-  const learned = learnedTtlOf(breakMs, usage)
+async function learnTtl($: EngineInterface, breakMs: number, usage: StepUsage, prevPrompt: number): Promise<void> {
+  const learned = learnedTtlOf(breakMs, usage, prevPrompt)
   if (!learned) return
   const { value: was } = await $.state.get(CACHE_TTL)
   if (was !== learned) await $.state.set(CACHE_TTL, learned)
@@ -475,13 +488,17 @@ export const register: Register = (on, options) => {
   on('turn.step', async function* ($, e, next) {
     if (!e.agentId && typeof e.effort === 'string') await noteEffort($, e.effort, isStatusOn, { account, windows, limitsAt, hotAt })
     const startedAt = Date.now()
-    let breakMs = 0
+    let cache = { breakMs: 0, prevPrompt: 0 }
     if (isColdOn) {
       if (e.agentId) await $.state.set(AGENT_STEP_AT, startedAt)
-      else breakMs = await warmCache($, startedAt)
+      else cache = await warmCache($, startedAt)
     }
     const stepped = yield* next(e)
-    if (isColdOn && !e.agentId && stepped.usage) await learnTtl($, breakMs, stepped.usage)
+    if (isColdOn && !e.agentId && stepped.usage) {
+      await learnTtl($, cache.breakMs, stepped.usage, cache.prevPrompt)
+      await $.state.set(CACHE_END_AT, Date.now())
+      await $.state.set(CACHE_PROMPT, stepped.usage.cache_read_input_tokens + stepped.usage.cache_creation_input_tokens + stepped.usage.input_tokens)
+    }
     // A subagent's model request: its line counts the tokens and shows the model and effort it ran with.
     if (isAgentLinesOn && e.agentId && stepped.usage) {
       const { usage } = stepped

@@ -140,10 +140,12 @@ Claude keeps your chat in a short-term cache. After 5 minutes with no request
 (1 hour in some sessions), the cache expires. The robot freezes:
 
 ```text
-   🧊.-----.🧊
-    [o   o]    ❄ cache cold · 117k
-    /|━━━|\
+ 🧊*.-----.🧊
+    [o   o]
+    /|---|\
      o   o
+>
+ ctx 58% | opus | ❄ cache cold · 117k
 ```
 
 - 🧊 **Ice cubes gather.** The robot stands still, its head turns blue, snow
@@ -161,7 +163,7 @@ What to do:
 - Big context you still need? `/compact` first, so the re-read is small.
 
 The robot does not ping Claude and spends no tokens. It does not read the cache
-time from Claude Code. It counts the minutes since your last message. With
+time from Claude Code. It counts the minutes since Claude's last request. With
 **Cache TTL** on `auto`, it assumes 5 minutes, and switches to 1 hour once the
 session shows a cache that lived longer. Set **Cache TTL** to `5m` or `1h` to
 choose yourself. When the head is also on fire, the ice wins.

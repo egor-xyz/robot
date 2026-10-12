@@ -22,17 +22,22 @@ test('a set TTL beats the learned one; auto and garbage fall back to learned, th
   expect(ttlOf(undefined, 'junk')).toBe('5m')
 })
 
-test('a cache read after a long break proves the 1-hour cache', () => {
-  expect(learnedTtlOf(6 * MIN, usage(90_000, 5_000, 5_000))).toBe('1h')
-  expect(learnedTtlOf(6 * MIN, usage(50, 50))).toBe('1h')
-  expect(learnedTtlOf(6 * MIN, usage(0, 100_000))).toBeUndefined()
-  expect(learnedTtlOf(6 * MIN, usage(10_000, 90_000))).toBeUndefined()
+test('reading at least 90% of the previous prompt after a long break proves the 1-hour cache', () => {
+  expect(learnedTtlOf(6 * MIN, usage(108_000, 12_000), 120_000)).toBe('1h')
+  expect(learnedTtlOf(6 * MIN, usage(120_000, 500), 120_000)).toBe('1h')
+  expect(learnedTtlOf(6 * MIN, usage(0, 100_000), 120_000)).toBeUndefined()
+  expect(learnedTtlOf(6 * MIN, usage(107_000, 13_000), 120_000)).toBeUndefined()
+})
+
+test('a read that only covers a small shared prefix, or no previous prompt, learns nothing', () => {
+  expect(learnedTtlOf(6 * MIN, usage(20_000, 100_000), 120_000)).toBeUndefined()
+  expect(learnedTtlOf(6 * MIN, usage(90_000), 0)).toBeUndefined()
 })
 
 test('learning needs a break past 5m plus the margin and under 1h', () => {
-  expect(learnedTtlOf(4 * MIN, usage(90_000))).toBeUndefined()
-  expect(learnedTtlOf(5 * MIN + 30_000, usage(90_000))).toBeUndefined()
-  expect(learnedTtlOf(5 * MIN + 30_001, usage(90_000))).toBe('1h')
-  expect(learnedTtlOf(60 * MIN, usage(90_000))).toBeUndefined()
-  expect(learnedTtlOf(90 * MIN, usage(90_000))).toBeUndefined()
+  expect(learnedTtlOf(4 * MIN, usage(90_000), 90_000)).toBeUndefined()
+  expect(learnedTtlOf(5 * MIN + 30_000, usage(90_000), 90_000)).toBeUndefined()
+  expect(learnedTtlOf(5 * MIN + 30_001, usage(90_000), 90_000)).toBe('1h')
+  expect(learnedTtlOf(60 * MIN, usage(90_000), 90_000)).toBeUndefined()
+  expect(learnedTtlOf(90 * MIN, usage(90_000), 90_000)).toBeUndefined()
 })

@@ -166,7 +166,7 @@ export function heated(frame: Frame, isHot: boolean, tick: number): Frame {
 const ICE = hexOf(32)
 const SNOW = ['*', ' ', '·', ' ']
 
-/** Chills the robot: icy-blue head rows, a 🧊 on each side of the head top, snow twinkling between them and chattering eyes, moving with the tick. */
+/** Chills the robot: icy-blue head rows, a 🧊 on each side of the head top, snow twinkling left of the head and chattering eyes, moving with the tick. */
 export function chilled(frame: Frame, isCold: boolean, tick: number): Frame {
   if (!isCold) return frame
   const orange = hexOf(ORANGE_INDEX)
@@ -179,16 +179,12 @@ export function chilled(frame: Frame, isCold: boolean, tick: number): Frame {
       const at = text.indexOf(HEAD_TOP)
       if (at < 0) return recoloured
       const end = at + HEAD_TOP.length
-      // Right side first, so the left splice does not shift it. The row grows by 3 cells: a space and a 2-cell cube.
+      // Right side first, so the left splice does not shift it. The row grows to end + 2 cells, no wider than heated.
       while (cells.length < end + 2) cells.push({ char: ' ', color: DEFAULT_COLOR })
       const isRoomRight = cells[end]?.char === ' ' && cells[end + 1]?.char === ' '
-      const snowAt = [{ index: at - 1, side: 0 }, { index: end, side: 2 }]
-      for (const { index, side } of snowAt) {
-        const cell = cells[index]
-        if (index < 0 || !cell || cell.char !== ' ') continue
-        cells[index] = { char: SNOW[(tick + side) % SNOW.length] ?? ' ', color: ICE }
-      }
-      if (isRoomRight) cells[end + 1] = { char: '🧊', color: ICE }
+      if (isRoomRight) cells.splice(end, 2, { char: '🧊', color: ICE })
+      const snow = cells[at - 1]
+      if (at >= 1 && snow?.char === ' ') cells[at - 1] = { char: SNOW[tick % SNOW.length] ?? ' ', color: ICE }
       // One 2-cell cube replaces two spaces, so the head does not move.
       if (at >= 3 && cells[at - 3]?.char === ' ' && cells[at - 2]?.char === ' ') cells.splice(at - 3, 2, { char: '🧊', color: ICE })
       return spansOfCells(cells)
@@ -275,7 +271,14 @@ export function speech(frame: Frame, lines: Span[][], columns: number): Frame {
   return frame.map((row, i) => {
     const line = boxed[i - top]
     if (!line) return row
-    return [blank(start), ...line, blank(SPEECH_GAP), ...spansOfCells(cellsOfFrameRow(row).slice(lead))]
+    // Drop the first `lead` cells by width: a 2-cell char (the ice cube) must not shift the rest.
+    const rest = cellsOfFrameRow(row).reduce<{ cells: Cell[]; width: number }>((acc, cell) => {
+      const width = cellsOf(cell.char)
+      // A cell cut by `lead` leaves a space for its remaining part.
+      const next = acc.width >= lead ? cell : acc.width + width > lead ? { char: ' ', color: DEFAULT_COLOR } : undefined
+      return { cells: next ? [...acc.cells, next] : acc.cells, width: acc.width + width }
+    }, { cells: [], width: 0 })
+    return [blank(start), ...line, blank(SPEECH_GAP), ...spansOfCells(rest.cells)]
   })
 }
 

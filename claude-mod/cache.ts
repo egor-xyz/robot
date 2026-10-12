@@ -12,12 +12,10 @@ export function ttlOf(setting: unknown, learned: unknown): CacheTtl {
   return '5m'
 }
 
-/** '1h' when a main request after a break of (5m + margin, 1h) still read at least half its prompt from the cache; else undefined. */
-export function learnedTtlOf(breakMs: number, usage: StepUsage): CacheTtl | undefined {
-  const read = usage.cache_read_input_tokens
-  const prompt = read + usage.cache_creation_input_tokens + usage.input_tokens
+/** '1h' when a main request after a break of (5m + margin, 1h) read at least 90% of the previous prompt (the conversation itself) from the cache; else undefined. */
+export function learnedTtlOf(breakMs: number, usage: StepUsage, prevPrompt: number): CacheTtl | undefined {
   const isLong = breakMs > TTL_MS['5m'] + LEARN_MARGIN_MS && breakMs < TTL_MS['1h']
-  return isLong && read > 0 && read * 2 >= prompt ? '1h' : undefined
+  return isLong && prevPrompt > 0 && usage.cache_read_input_tokens >= 0.9 * prevPrompt ? '1h' : undefined
 }
 
 /** Cold: there was a main request (lastAt > 0) and it is at least the TTL old. */
