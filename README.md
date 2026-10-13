@@ -230,7 +230,7 @@ Under the prompt, the robot draws a custom status line. Claude Code's own hint l
 <img width="800" alt="The robot status line: calm in grey, and with limits, cost and context that need attention in yellow and red" src="docs/media/statusline.svg" />
 
 ```text
-Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | #12078 ready | $21.97 | ctx 12%
+Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
 ```
 
 | Part | Shows | Color |
