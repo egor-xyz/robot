@@ -75,8 +75,8 @@ export function leftOf(resetsAt: string | undefined, now: number): string | unde
 /** One part of the status line; on a narrow screen the lowest rank goes first. */
 export type StatusGroup = { rank: number; spans: Span[] }
 
-// Who stays longest on a narrow screen: cache cold, then ctx, the model, the limits, the branch, the PR, cost, project, account.
-const RANK = { account: 1, project: 2, cost: 3, pr: 4, branch: 5, sevenDay: 6, fiveHour: 7, model: 8, ctx: 9, cold: 10 }
+// Who stays longest on a narrow screen: cache cold, then ctx, the model, the limits, the branch, cost, project, account.
+const RANK = { account: 1, project: 2, cost: 3, branch: 5, sevenDay: 6, fiveHour: 7, model: 8, ctx: 9, cold: 10 }
 const SEPARATOR: Span = { text: ' | ', color: LINE }
 
 /** Tokens, short: `850`, `16k`, `1.2M`. */
@@ -145,48 +145,6 @@ export function fitStatus(groups: readonly StatusGroup[], columns: number): Span
 
 /** The status line as coloured parts, cut to `columns` cells when given. */
 export const statusOf = (parts: StatusParts, columns = Number.POSITIVE_INFINITY): Span[] => fitStatus(groupsOf(parts), columns)
-
-/** What `gh pr view --json` says of an open PR's state. */
-export type PrView = { isDraft?: unknown; mergeable?: unknown; mergeStateStatus?: unknown; reviewDecision?: unknown; statusCheckRollup?: unknown }
-
-const FAILED = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']
-
-/** The PR's checks: one failed, some still running, or all done well (or none). */
-function checksOf(rollup: unknown): 'failed' | 'running' | 'passed' {
-  const checks = Array.isArray(rollup) ? (rollup as { status?: unknown; conclusion?: unknown; state?: unknown }[]) : []
-  // A check run has a status and a conclusion; an old-style status has a state.
-  if (checks.some(check => FAILED.includes(String(check.conclusion)) || FAILED.includes(String(check.state)))) return 'failed'
-  if (checks.some(check => (check.status !== undefined && check.status !== 'COMPLETED') || check.state === 'PENDING' || check.state === 'EXPECTED')) return 'running'
-  return 'passed'
-}
-
-/** An open PR's state in one word, the worst first; '' while GitHub has not worked it out. */
-export function prStatusOf(view: PrView): string {
-  const state = view.mergeStateStatus
-  const checks = checksOf(view.statusCheckRollup)
-  if (view.isDraft === true) return 'draft'
-  if (view.mergeable === 'CONFLICTING' || state === 'DIRTY') return 'conflicts'
-  if (checks === 'failed') return 'failing'
-  if (view.reviewDecision === 'CHANGES_REQUESTED') return 'changes'
-  if (state === 'BEHIND') return 'behind'
-  // GitHub counts running checks as not passing (UNSTABLE), and running required checks block (BLOCKED).
-  if (checks === 'running') return 'checks'
-  if (state === 'BLOCKED') return view.reviewDecision === 'REVIEW_REQUIRED' ? 'review' : 'blocked'
-  if (state === 'CLEAN' || state === 'HAS_HOOKS' || state === 'UNSTABLE') return 'ready'
-  // GitHub works out the merge state only when asked: until then, the review still tells something.
-  return view.reviewDecision === 'REVIEW_REQUIRED' ? 'review' : ''
-}
-
-const PR_COLORS: Record<string, string> = { draft: DIM, conflicts: ALARM, failing: ALARM, changes: WARN, behind: WARN, checks: WARN, review: WARN, blocked: WARN, ready: 'success' }
-
-/** The groups with the open PR, `#12078 ready`, the number a link to it, put before the cost and ctx; unchanged with no link. */
-export function withPrOf(groups: readonly StatusGroup[], pr: { number: number; url: string; status?: string }): StatusGroup[] {
-  if (pr.number <= 0 || !pr.url) return [...groups]
-  const status = pr.status ? [{ text: ` ${pr.status}`, color: PR_COLORS[pr.status] ?? DIM }] : []
-  const group: StatusGroup = { rank: RANK.pr, spans: [{ text: `#${pr.number}`, color: 'suggestion', href: pr.url }, ...status] }
-  const at = groups.findIndex(each => each.rank === RANK.cost || each.rank === RANK.ctx)
-  return at < 0 ? [...groups, group] : [...groups.slice(0, at), group, ...groups.slice(at)]
-}
 
 /** The colour that marks the shimmering branch: the drawing hands that span to the shimmer module. */
 export const SHIMMER = 'shimmer'

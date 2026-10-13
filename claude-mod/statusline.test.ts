@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { cellsOf } from './frames'
 import type { Span } from './frames'
-import { accountNameOf, coldGroupOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, prStatusOf, textOfStatus, wavedOf, withPrOf } from './statusline'
+import { accountNameOf, coldGroupOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, textOfStatus, wavedOf } from './statusline'
 import { shadeOf } from './shimmer'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
@@ -165,47 +165,4 @@ test('on a narrow screen the cache-cold part outlives ctx, and both keep their o
 
   expect(plain(fitStatus(groups, 19))).toBe('❄ cache cold · 117k')
   expect(plain(fitStatus(groups, 30))).toBe('ctx 23% | ❄ cache cold · 117k')
-})
-
-test('the open PR sits before the cost and ctx, as a link; no link, no part', () => {
-  const groups = groupsOf({ branch: 'main', rateLimits: [], windows: [], limitsAt: 0, costUsd: 1.5, contextPercent: 12, hotAt: 25, now: NOW })
-  const url = 'https://github.com/egor-xyz/robot/pull/12078'
-  const spans = fitStatus(withPrOf(groups, { number: 12078, url }), Number.POSITIVE_INFINITY)
-  expect(plain(spans)).toBe('main | #12078 | $1.50 | ctx 12%')
-  expect(spans.find(span => span.text === '#12078')?.href).toBe(url)
-  expect(plain(fitStatus(withPrOf(groups, { number: 12078, url: '' }), Number.POSITIVE_INFINITY))).toBe('main | $1.50 | ctx 12%')
-  // On a narrow screen the cost goes before the PR.
-  expect(plain(fitStatus(withPrOf(groups, { number: 12078, url }), 26))).toBe('main | #12078 | ctx 12%')
-  expect(plain(fitStatus(withPrOf(groups, { number: 0, url: '' }), Number.POSITIVE_INFINITY))).toBe('main | $1.50 | ctx 12%')
-  const bare = groupsOf({ branch: 'main', rateLimits: [], windows: [], limitsAt: 0, hotAt: 25, now: NOW })
-  expect(plain(fitStatus(withPrOf(bare, { number: 7, url }), Number.POSITIVE_INFINITY))).toBe('main | #7')
-})
-
-test('the PR shows its state after the number, in its colour', () => {
-  const groups = groupsOf({ branch: 'main', rateLimits: [], windows: [], limitsAt: 0, costUsd: 1.5, hotAt: 25, now: NOW })
-  const spans = fitStatus(withPrOf(groups, { number: 12078, url: 'https://github.com/o/r/pull/12078', status: 'conflicts' }), Number.POSITIVE_INFINITY)
-  expect(plain(spans)).toBe('main | #12078 conflicts | $1.50')
-  expect(spans.find(span => span.text === ' conflicts')?.color).toBe('error')
-  expect(spans.find(span => span.text === ' conflicts')?.href).toBeUndefined()
-})
-
-test('the PR state reads the worst first', () => {
-  expect(prStatusOf({ isDraft: true, mergeable: 'CONFLICTING' })).toBe('draft')
-  expect(prStatusOf({ mergeable: 'CONFLICTING', mergeStateStatus: 'DIRTY' })).toBe('conflicts')
-  const failed = [{ status: 'COMPLETED', conclusion: 'FAILURE' }]
-  const running = [{ status: 'IN_PROGRESS', conclusion: '' }, { state: 'SUCCESS' }]
-  const passed = [{ status: 'COMPLETED', conclusion: 'SUCCESS' }, { state: 'SUCCESS' }]
-  expect(prStatusOf({ mergeable: 'MERGEABLE', mergeStateStatus: 'UNSTABLE', statusCheckRollup: failed })).toBe('failing')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED', statusCheckRollup: failed })).toBe('failing')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', statusCheckRollup: [{ state: 'ERROR' }] })).toBe('failing')
-  expect(prStatusOf({ mergeable: 'MERGEABLE', mergeStateStatus: 'UNSTABLE', statusCheckRollup: running })).toBe('checks')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED', statusCheckRollup: running })).toBe('checks')
-  expect(prStatusOf({ mergeStateStatus: 'UNSTABLE', statusCheckRollup: passed })).toBe('ready')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'CHANGES_REQUESTED' })).toBe('changes')
-  expect(prStatusOf({ mergeStateStatus: 'BEHIND' })).toBe('behind')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED' })).toBe('review')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: '' })).toBe('blocked')
-  expect(prStatusOf({ mergeStateStatus: 'CLEAN', reviewDecision: 'APPROVED' })).toBe('ready')
-  expect(prStatusOf({ mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN' })).toBe('')
-  expect(prStatusOf({ mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN', reviewDecision: 'REVIEW_REQUIRED' })).toBe('review')
 })
