@@ -397,17 +397,21 @@ function friendParts(friend: Friend, tick: number, mood: FriendMood, isWalking: 
  * body the drawing reaches out the least (the fishing rod, the balloon, the cow are all in front); a tie, such as a
  * plain walk, falls back to `dir` (1 walks right, so the back is on the left). A friend sits at its slot plus its `lag`
  * cells further toward the back edge, and is drawn only when it fits whole inside `columns`. Friends only ever stand on
- * empty cells, so speech and arms are never overwritten. No friends, no change.
+ * empty cells, so speech and arms are never overwritten. No friends, no change. `layout` is the frame the side and
+ * the slots are measured on (default `frame`): the frame without the fire sparks or snow, which change every tick and
+ * would make the friends jump from side to side.
  */
-export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, isWalking: boolean): Frame {
+export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, isWalking: boolean, layout: Frame = frame): Frame {
   if (friends.length === 0 || frame.length < 4) return frame
   // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
-  const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
+  const cellRowsOf = (f: Frame) => f.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
+  const rows = cellRowsOf(frame)
+  const measured = layout === frame ? rows : cellRowsOf(layout)
   // Mirrored acts pad the body to the right of `x`, so find it by its eyes: the head's `[` sits two cells in.
-  const eyesAt = rows.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
+  const eyesAt = measured.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
   const bodyStart = eyesAt === undefined ? x : eyesAt - 2
   const bodyEnd = bodyStart + BODY_END
-  const inks = rows.flatMap(cells => cells.flatMap((cell, at) => (cell.char === ' ' || cell.char === '' ? [] : [at])))
+  const inks = measured.flatMap(cells => cells.flatMap((cell, at) => (cell.char === ' ' || cell.char === '' ? [] : [at])))
   const first = Math.min(bodyStart, ...inks)
   const last = Math.max(bodyEnd, ...inks)
   const reachLeft = bodyStart - first

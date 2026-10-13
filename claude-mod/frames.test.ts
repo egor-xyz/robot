@@ -580,3 +580,15 @@ test('a 2-cell emoji before the robot does not push the ice past the row', () =>
 
   expect(cellsOf(feet)).toBeLessThanOrEqual(cellsOf(textOf(WALKED[0] ?? [])) + 2)
 })
+
+test('fire sparks and snow do not move a friend: its side is measured on the plain frame', () => {
+  const plain = standing(20)
+  for (const dir of [1, -1] as const) {
+    for (const decorate of [(t: number) => heated(plain, true, t), (t: number) => chilled(plain, true, t)]) {
+      const at = new Set<number>()
+      for (let t = 0; t < 8; t++) at.add(rowsOf(withFriends(decorate(t), 20, dir, 60, [still(1)], 1, t, 'hot', false, plain))[2]?.indexOf('=[##]=') ?? -1)
+      expect([...at]).toHaveLength(1)
+      expect([...at][0]).toBeGreaterThanOrEqual(0)
+    }
+  }
+})

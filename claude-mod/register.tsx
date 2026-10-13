@@ -903,21 +903,21 @@ export const register: Register = (on, options) => {
       frame = factory(columns, at - packedFrom, packedSeed)
     } else if (isNeeded) {
       if (!shown.frame) return next(e)
-      frame = withFriends(speech(decorated(shown.frame), typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED), columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false)
+      const said = typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED)
+      frame = withFriends(speech(decorated(shown.frame), said, columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false, speech(shown.frame, said, columns))
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {
       return next(e)
     } else {
-      const robot = isHot && talkAt(at) >= 0
-        ? speech(heated(shown.frame, true, at), typedSoFar(sayOf(percent), (talkAt(at) + 1) * TYPE_SPEED), columns)
-        : isCold && talkAt(at) >= 0
-          ? speech(chilled(shown.frame, true, at), typedSoFar(COLD_SAY, (talkAt(at) + 1) * TYPE_SPEED), columns)
-          : decorated(shown.frame)
+      const said = (isHot || isCold) && talkAt(at) >= 0 ? typedSoFar(isHot ? sayOf(percent) : COLD_SAY, (talkAt(at) + 1) * TYPE_SPEED) : undefined
+      const robot = said ? speech(decorated(shown.frame), said, columns) : decorated(shown.frame)
+      // The friends' side is measured without the sparks or snow, which change every tick.
+      const layout = said ? speech(shown.frame, said, columns) : shown.frame
       // The cat act fills both sides of the robot: the friends stay out of it.
       frame = shown.state.state === 'catpeek'
         ? robot
-        : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk')
+        : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk', layout)
     }
 
     const els = $.ui.resolve(e)
