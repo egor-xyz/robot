@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { cellsOf } from './frames'
 import {
-  attentionToastOf, failedChecksOf, hostOf, isPrActOf, NO_PR_INFO, prDelayOf, prInfoOf, prLineOf, prStatusOf, PR_ACT_MS, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_UNKNOWN_MS, unresolvedOf,
+  attentionToastOf, failedChecksOf, hostOf, isNoPrOf, isPrActOf, NO_PR_INFO, prDelayOf, prInfoOf, prLineOf, prStatusOf, PR_ACT_MS, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_UNKNOWN_MS, unresolvedOf,
 } from './pr'
 import type { PrInfo } from './pr'
 import { fitStatus, textOfStatus } from './statusline'
@@ -150,4 +150,11 @@ test('the toast names what is new on the same PR', () => {
   expect(attentionToastOf(pr({ number: 6 }), pr({ failed: ['lint'] }))).toBeUndefined()
   expect(attentionToastOf(NO_PR_INFO, pr({ failed: ['lint'] }))).toBeUndefined()
   expect(attentionToastOf(pr(), NO_PR_INFO)).toBeUndefined()
+})
+
+test('only the gh message about a missing PR means no PR; any other error is a failure', () => {
+  expect(isNoPrOf('no pull requests found for branch "feat/x"')).toBe(true)
+  expect(isNoPrOf('No open pull requests found')).toBe(true)
+  expect(isNoPrOf('error connecting to api.github.com')).toBe(false)
+  expect(isNoPrOf('')).toBe(false)
 })

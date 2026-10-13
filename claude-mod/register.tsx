@@ -16,7 +16,7 @@ import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
-import { NO_PR_INFO, PR_CALM_MS, PR_NONE_MS, PR_TICK_MS, THREADS_QUERY, attentionToastOf, hostOf, isPrActOf, prDelayOf, prInfoOf, prLineOf, unresolvedOf } from './pr'
+import { NO_PR_INFO, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_TICK_MS, THREADS_QUERY, attentionToastOf, hostOf, isNoPrOf, isPrActOf, prDelayOf, prInfoOf, prLineOf, unresolvedOf } from './pr'
 import type { PrInfo, PrView } from './pr'
 
 const TICK_MS = 250
@@ -203,8 +203,8 @@ async function updateAgentRows($: EngineInterface, change: (rows: AgentRow[]) =>
 
 type Git = (args: string[]) => ReturnType<EngineInterface['process']['run']>
 
-/** The last PR lookup: the branch it was for, when, and the PR (number 0: none open). Starts over on a reload. */
-let prLookup = { key: '', at: 0, pr: NO_PR_INFO, threadsAt: 0, unknownTries: 0 }
+/** The last PR lookup: the branch it was for, and the PR (number 0: none open). Starts over on a reload. */
+let prLookup = { key: '', pr: NO_PR_INFO, threadsAt: 0, unknownTries: 0 }
 /** ms: the tick looks the PR up when the time is past this. */
 let prDueAt = 0
 /** ms of the last push, `gh pr` act or branch change. */
@@ -223,29 +223,42 @@ async function refreshPr($: EngineInterface, mode: PrMode): Promise<PrRefreshed>
     const cwd = await $.session.cwd()
     const git: Git = args => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
     const top = await git(['rev-parse', '--show-toplevel'])
-    if (top.exitCode !== 0) return { pr: NO_PR_INFO, was: NO_PR_INFO, isLooked: false }
+    if (top.exitCode !== 0) {
+      prDueAt = Date.now() + PR_NONE_MS
+      return { pr: NO_PR_INFO, was: NO_PR_INFO, isLooked: false }
+    }
     const root = top.stdout.trim()
     const branch = (await git(['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
     const key = `${root}\n${branch}`
     const isSame = prLookup.key === key
     if (isSame && (mode === 'cached' || (mode === 'due' && Date.now() < prDueAt))) return cached()
-    if (prFlight?.key === key) return prFlight.promise.then(found => ({ ...found, isLooked: false }))
+    if (prFlight?.key === key) return await prFlight.promise.then(found => ({ ...found, isLooked: false }))
     const was = isSame ? prLookup.pr : NO_PR_INFO
-    // A detached HEAD and the default branch have no PR of their own: no call.
-    const defaultBranch = (await git(['-C', root, 'symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'])).stdout.trim().replace(/^origin\//, '')
-    if (branch === 'HEAD' || (defaultBranch && branch === defaultBranch)) {
-      prLookup = { key, at: Date.now(), pr: NO_PR_INFO, threadsAt: 0, unknownTries: 0 }
-      prDueAt = Date.now() + PR_NONE_MS
-      await writePr($, NO_PR_INFO)
-      return { pr: NO_PR_INFO, was, isLooked: true }
-    }
     const look = async (): Promise<PrRefreshed> => {
+      // A detached HEAD and the default branch have no PR of their own: no call.
+      const defaultBranch = (await git(['-C', root, 'symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'])).stdout.trim().replace(/^origin\//, '')
+      if (branch === 'HEAD' || (defaultBranch && branch === defaultBranch)) {
+        prLookup = { key, pr: NO_PR_INFO, threadsAt: 0, unknownTries: 0 }
+        prDueAt = Date.now() + PR_NONE_MS
+        await writePr($, NO_PR_INFO)
+        return { pr: NO_PR_INFO, was, isLooked: true }
+      }
       const found = await $.process.run(['gh', 'pr', 'view', '--json', 'id,number,baseRefName,state,url,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
       let view: Parameters<typeof prInfoOf>[0] = {}
-      try {
-        if (found?.exitCode === 0) view = JSON.parse(found.stdout) as PrView
-      } catch {
-        // Not JSON: no PR known.
+      let isRead = false
+      if (found?.exitCode === 0) {
+        try {
+          view = JSON.parse(found.stdout) as PrView
+          isRead = true
+        } catch {
+          // Not JSON: a failure, not a PR.
+        }
+      }
+      // Only gh saying there is no PR means none; a timeout, the network or auth keep what we had and retry soon.
+      if (!isRead && !isNoPrOf(`${found?.stderr ?? ''}\n${found?.stdout ?? ''}`)) {
+        $.ui.log(`robot: gh pr view failed: ${found?.stderr?.trim() || 'no answer'}`, { to: 'debug' })
+        prDueAt = Date.now() + PR_BUSY_MS
+        return { pr: isSame ? prLookup.pr : NO_PR_INFO, was, isLooked: false }
       }
       const now = Date.now()
       const open = prInfoOf(view, 0)
@@ -265,7 +278,7 @@ async function refreshPr($: EngineInterface, mode: PrMode): Promise<PrRefreshed>
       }
       const pr = { ...open, threads }
       const unknownTries = pr.isUnknown ? (isSamePr ? prLookup.unknownTries + 1 : 1) : 0
-      prLookup = { key, at: now, pr, threadsAt, unknownTries }
+      prLookup = { key, pr, threadsAt, unknownTries }
       prDueAt = now + prDelayOf({ pr, unknownTries, sinceActMs: now - prActAt })
       await writePr($, pr)
       return { pr, was, isLooked: true }

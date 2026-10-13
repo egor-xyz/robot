@@ -46,6 +46,9 @@ export const PR_ACT_MS = 60_000
 export const PR_CALM_MS = 120_000
 export const PR_NONE_MS = 300_000
 
+/** True when `gh pr view` says the branch has no PR, as opposed to failing for another reason. */
+export const isNoPrOf = (output: string): boolean => /no (open )?pull requests? found/i.test(output)
+
 const textOf = (value: unknown): string => (typeof value === 'string' ? value : '')
 
 /** The check's name: a check run has a `name`, an old-style status a `context`. */
