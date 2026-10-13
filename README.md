@@ -230,7 +230,7 @@ Under the prompt, the robot draws a custom status line. Claude Code's own hint l
 <img width="800" alt="The robot status line: calm in grey, and with limits, cost and context that need attention in yellow and red" src="docs/media/statusline.svg" />
 
 ```text
-Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | #12078 | $21.97 | ctx 12%
+Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | #12078 ready | $21.97 | ctx 12%
 ```
 
 | Part | Shows | Color |
@@ -241,7 +241,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | `my-app` | the project folder | teal |
 | `feat/login` | the git branch | blue. A worktree folder named like its branch shows once. |
 | `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
-| `#12078` | the open PR of the branch, a link to it on GitHub. Shows only when `gh` finds an open PR and the **Changed files** setting is on. | blue |
+| `#12078 ready` | the open PR of the branch: the number links to it on GitHub, then its state. Shows only when `gh` finds an open PR and the **Changed files** setting is on. | number blue; state 🟢 `ready` · grey `draft` · 🟡 `checks` (running) `review` `changes` `behind` `blocked` · 🔴 `conflicts` `failing` |
 | `$21.97` | session cost | grey → 🟡 above $100 |
 | `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
 | `❄ cache cold · 117k` | the prompt cache expired; the context your next message re-reads. Shows only while cold, at the end of the line. | 🔵 blue |
@@ -334,8 +334,8 @@ Every act has a switch. To change one:
 ### Update or remove
 
 ```text
-/plugin marketplace update robot     # fetch the newest robot
-/plugin update robot@robot           # switch to it
+/plugin marketplace update robot     # get the newest robot
+/reload-plugins                      # use it now
 /plugin uninstall robot@robot        # remove it
 ```
 

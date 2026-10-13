@@ -9,13 +9,13 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf, withPrOf } from './statusline'
-import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
+import { accountNameOf, coldGroupOf, fitStatus, groupsOf, prStatusOf, SHIMMER, wavedOf, withPrOf } from './statusline'
+import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
-import type { RateLimit } from './statusline'
+import type { PrView, RateLimit } from './statusline'
 
 const TICK_MS = 250
 const ROWS = 4
@@ -119,7 +119,7 @@ const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
 const CHANGES_CURSOR = { plugin: 'robot', key: 'changesCursor' } as const
 /** The branch's open PR (`number` 0: none) and the commit its diff starts from (HEAD with none). */
 const CHANGES_PR = { plugin: 'robot', key: 'changesPr' } as const
-const NO_PR = { number: 0, base: 'HEAD', url: '', files: 0, added: 0, removed: 0 }
+const NO_PR = { number: 0, base: 'HEAD', url: '', status: '', files: 0, added: 0, removed: 0 }
 /** The panel lists the files: no file previewed. */
 const NO_PREVIEW = { path: '', group: 'local' as const, root: '', diff: '' }
 /** The most of a diff the preview draws. */
@@ -199,18 +199,18 @@ type Git = (args: string[]) => ReturnType<EngineInterface['process']['run']>
 /** How long a PR lookup holds before `gh` is asked again. */
 const PR_MS = 60_000
 /** The last PR lookup: the branch it was for, when, and the PR (0: none open). Starts over on a reload. */
-let prLookup = { key: '', at: 0, number: 0, baseRef: '', url: '' }
+let prLookup = { key: '', at: 0, number: 0, baseRef: '', url: '', status: '' }
 
 /** The open PR of the branch at `root`, by `gh`, kept for a minute; none when `gh` is missing or not signed in. */
-async function prOf($: EngineInterface, git: Git, root: string): Promise<{ number: number; baseRef: string; url: string }> {
+async function prOf($: EngineInterface, git: Git, root: string): Promise<{ number: number; baseRef: string; url: string; status: string }> {
   const branch = (await git(['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
   const key = `${root}\n${branch}`
   if (prLookup.key === key && Date.now() - prLookup.at < PR_MS) return prLookup
-  const found = await $.process.run(['gh', 'pr', 'view', '--json', 'number,baseRefName,state,url'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
-  let pr = { number: 0, baseRef: '', url: '' }
+  const found = await $.process.run(['gh', 'pr', 'view', '--json', 'number,baseRefName,state,url,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
+  let pr = { number: 0, baseRef: '', url: '', status: '' }
   try {
-    const view = found?.exitCode === 0 ? (JSON.parse(found.stdout) as { number?: number; baseRefName?: string; state?: string; url?: string }) : {}
-    if (view.state === 'OPEN' && view.number) pr = { number: view.number, baseRef: view.baseRefName ?? '', url: view.url ?? '' }
+    const view = found?.exitCode === 0 ? (JSON.parse(found.stdout) as PrView & { number?: number; baseRefName?: string; state?: string; url?: string }) : {}
+    if (view.state === 'OPEN' && view.number) pr = { number: view.number, baseRef: view.baseRefName ?? '', url: view.url ?? '', status: prStatusOf(view) }
   } catch {
     // Not JSON: no PR known.
   }
@@ -258,13 +258,13 @@ async function refreshChanges($: EngineInterface): Promise<void> {
     }))
     const local = await diffOf('HEAD')
     let changes = groupOf('local', local.counts, local.letters, fresh)
-    let prNow = { number: 0, base: 'HEAD', url: '', ...totalsOf(changes) }
+    let prNow = { number: 0, base: 'HEAD', url: '', status: '', ...totalsOf(changes) }
     if (base !== 'HEAD') {
       const committed = await diffOf(base, 'HEAD')
       changes = [...changes, ...groupOf('pr', committed.counts, committed.letters)]
       // The line counts the PR as it will be once all is committed: the branch's start to the files on disk.
       const all = await diffOf(base)
-      prNow = { number: pr.number, base, url: pr.url, ...totalsOf(groupOf('pr', all.counts, all.letters, fresh)) }
+      prNow = { number: pr.number, base, url: pr.url, status: pr.status, ...totalsOf(groupOf('pr', all.counts, all.letters, fresh)) }
     }
     const { value: was = [] } = await $.state.get(CHANGES)
     if (JSON.stringify(was) !== JSON.stringify(changes)) await $.state.set(CHANGES, changes)
@@ -581,7 +581,16 @@ export const register: Register = (on, options) => {
     }
   })
 
-  // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS and the branch waves. Subagent commands count too.
+  // A subagent calls a tool: its line shows the last tool it called. The call does not wait for the line.
+  on('tool.call', async ($, e, next) => {
+    if (isAgentLinesOn && e.agentId) {
+      const step = stepOf(e.tool, e as unknown as Record<string, unknown>)
+      void updateAgentRows($, rows => (!rows.some(row => row.id === e.agentId && row.step !== step) ? rows : rows.map(row => (row.id !== e.agentId ? row : { ...row, step }))))
+        .catch(error => $.ui.log(`robot: agent step not saved: ${String(error)}`, { to: 'debug' }))
+    }
+    return next(e)
+  })
+
   // Claude changed a file: the changed-files line counts again.
   on('tool.call', { tool: ['Edit', 'Write', 'NotebookEdit'] }, async ($, e, next) => {
     const ran = await next(e)
@@ -589,6 +598,7 @@ export const register: Register = (on, options) => {
     return ran
   })
 
+  // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS and the branch waves. Subagent commands count too.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
     // Any command may change, add or commit files.
