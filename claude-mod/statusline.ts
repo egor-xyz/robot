@@ -75,8 +75,8 @@ export function leftOf(resetsAt: string | undefined, now: number): string | unde
 /** One part of the status line; on a narrow screen the lowest rank goes first. */
 export type StatusGroup = { rank: number; spans: Span[] }
 
-// Who stays longest on a narrow screen: cache cold, then ctx, the model, the limits, the branch, cost, project, account.
-const RANK = { account: 1, project: 2, cost: 3, branch: 4, sevenDay: 5, fiveHour: 6, model: 7, ctx: 8, cold: 9 }
+// Who stays longest on a narrow screen: cache cold, then ctx, the model, the limits, the branch, the PR, cost, project, account.
+const RANK = { account: 1, project: 2, cost: 3, pr: 4, branch: 5, sevenDay: 6, fiveHour: 7, model: 8, ctx: 9, cold: 10 }
 const SEPARATOR: Span = { text: ' | ', color: LINE }
 
 /** Tokens, short: `850`, `16k`, `1.2M`. */
@@ -145,6 +145,14 @@ export function fitStatus(groups: readonly StatusGroup[], columns: number): Span
 
 /** The status line as coloured parts, cut to `columns` cells when given. */
 export const statusOf = (parts: StatusParts, columns = Number.POSITIVE_INFINITY): Span[] => fitStatus(groupsOf(parts), columns)
+
+/** The groups with the open PR, `#12078`, a link to it, put before the cost and ctx; unchanged with no link. */
+export function withPrOf(groups: readonly StatusGroup[], pr: { number: number; url: string }): StatusGroup[] {
+  if (pr.number <= 0 || !pr.url) return [...groups]
+  const group: StatusGroup = { rank: RANK.pr, spans: [{ text: `#${pr.number}`, color: 'suggestion', href: pr.url }] }
+  const at = groups.findIndex(each => each.rank === RANK.cost || each.rank === RANK.ctx)
+  return at < 0 ? [...groups, group] : [...groups.slice(0, at), group, ...groups.slice(at)]
+}
 
 /** The colour that marks the shimmering branch: the drawing hands that span to the shimmer module. */
 export const SHIMMER = 'shimmer'

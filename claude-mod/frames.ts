@@ -1,8 +1,8 @@
 import { MAX_FRIENDS } from './friends'
 import type { Friend } from './friends'
 
-/** One run of text in one colour. */
-export type Span = { text: string; color: string }
+/** One run of text in one colour; with `href`, a link. */
+export type Span = { text: string; color: string; href?: string }
 
 /** One robot frame: its rows, each a list of coloured spans. */
 export type Frame = Span[][]

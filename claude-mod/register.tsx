@@ -9,7 +9,7 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
+import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf, withPrOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
@@ -646,6 +646,8 @@ export const register: Register = (on, options) => {
       let groups = status.filter(group => Array.isArray(group.spans))
       // The shimmer module runs its own fast clock, so the line itself does not redraw while the branch shimmers.
       if (isWaveOn && waveAt >= 0) groups = wavedOf(groups)
+      // The open PR, read with the changed files: a link to it, only when gh gave its URL.
+      groups = withPrOf(groups, pr)
       if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
       lines.push(fitStatus(groups, columns))
     }
@@ -664,6 +666,7 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button } = elements
     // Mobile and the IDE draw no Client: there the branch stays still, in its blue.
     const Client = 'Client' in elements ? elements.Client : undefined
+    const Link = 'Link' in elements ? elements.Link : undefined
     return (
       <Box flexDirection="column">
         {lines.map(spans => (
@@ -671,6 +674,10 @@ export const register: Register = (on, options) => {
             {spans.map(span =>
               span.color === SHIMMER && Client ? (
                 <Client key={`shimmer-${waveAt}`} module="./shimmer.tsx" props={{ text: span.text, frames: SHIMMER_FRAMES }} />
+              ) : span.href && Link ? (
+                <Text color={span.color || undefined} wrap="truncate">
+                  <Link href={span.href}>{span.text}</Link>
+                </Text>
               ) : (
                 <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
                   {span.text}

@@ -230,7 +230,7 @@ Under the prompt, the robot draws a custom status line. Claude Code's own hint l
 <img width="800" alt="The robot status line: calm in grey, and with limits, cost and context that need attention in yellow and red" src="docs/media/statusline.svg" />
 
 ```text
-Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
+Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | #12078 | $21.97 | ctx 12%
 ```
 
 | Part | Shows | Color |
@@ -241,6 +241,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | `my-app` | the project folder | teal |
 | `feat/login` | the git branch | blue. A worktree folder named like its branch shows once. |
 | `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
+| `#12078` | the open PR of the branch, a link to it on GitHub. Shows only when `gh` finds an open PR and the **Changed files** setting is on. | blue |
 | `$21.97` | session cost | grey → 🟡 above $100 |
 | `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
 | `❄ cache cold · 117k` | the prompt cache expired; the context your next message re-reads. Shows only while cold, at the end of the line. | 🔵 blue |
