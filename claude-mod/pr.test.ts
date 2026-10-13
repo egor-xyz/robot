@@ -11,38 +11,39 @@ const URL = 'https://github.com/egor-xyz/robot/pull/12078'
 const pr = (over: Partial<PrInfo> = {}): PrInfo => ({ ...NO_PR_INFO, number: 7, url: URL, ...over })
 const line = (over: Partial<PrInfo> = {}): string => textOfStatus(prLineOf(pr(over)))
 
-test('the PR line reads the number, then the state and what needs the person, worst first', () => {
-  expect(textOfStatus(prLineOf(pr({ number: 12078, status: 'conflicts', isConflict: true, failed: ['lint', 'test'], threads: 4 })))).toBe('#12078: conflicts · failing: lint, test · 💬 4')
-  expect(line({ status: 'draft', isConflict: true })).toBe('#7: draft · conflicts')
-  expect(line({ status: 'ready' })).toBe('#7: ready')
-  expect(line({ status: 'checks', threads: 2 })).toBe('#7: checks · 💬 2')
-  expect(line({ status: 'failing', failed: ['a', 'b', 'c', 'd'] })).toBe('#7: failing: 4 checks')
-  expect(line({ status: 'failing', failed: ['a', 'b', 'c'] })).toBe('#7: failing: a, b, c')
-  expect(line()).toBe('#7')
+test('the PR line reads the checks, then what needs the person; no number, no state word', () => {
+  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4')
+  expect(line({ status: 'ready', passed: 6 })).toBe('checks: ✓ 6')
+  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('checks: ◌ 1 · ✓ 3 · 💬 2')
+  expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('checks: ✗ 4 checks')
+  expect(line({ failed: ['a', 'b', 'c'] })).toBe('checks: ✗ a, b, c')
+  expect(line({ status: 'draft', threads: 1 })).toBe('💬 1')
+  expect(line({ status: 'draft', isConflict: true })).toBe('conflicts')
 })
 
-test('the PR line colours the number as a link, and each part by how bad it is', () => {
-  const spans = prLineOf(pr({ number: 12078, status: 'conflicts', isConflict: true, failed: ['lint'], threads: 4 }))
+test('the PR line links its first part to the PR, and colours each part by how bad it is', () => {
+  const spans = prLineOf(pr({ isConflict: true, failed: ['lint'], running: 1, passed: 2, threads: 4 }))
   const colorOf = (text: string) => spans.find(span => span.text === text)?.color
-  expect(spans[0]).toEqual({ text: '#12078', color: 'suggestion', href: URL })
+  expect(spans[0]).toEqual({ text: 'checks', color: 'suggestion', href: URL })
   expect(colorOf(': ')).toBe('inactive')
   expect(colorOf(' · ')).toBe('subtle')
+  expect(colorOf('✗ lint')).toBe('error')
+  expect(colorOf('◌ 1')).toBe('warning')
+  expect(colorOf('✓ 2')).toBe('success')
   expect(colorOf('conflicts')).toBe('error')
-  expect(colorOf('failing: lint')).toBe('error')
   expect(colorOf('💬 4')).toBe('warning')
-  expect(prLineOf(pr({ status: 'draft' }))[2]?.color).toBe('inactive')
-  expect(prLineOf(pr({ status: 'ready' }))[2]?.color).toBe('success')
-  expect(prLineOf(pr({ status: 'review' }))[2]?.color).toBe('warning')
+  expect(prLineOf(pr({ threads: 3 }))[0]).toEqual({ text: '💬 3', color: 'warning', href: URL })
 })
 
-test('no PR number or no link, no PR line', () => {
+test('no PR, no link, or nothing to say: no PR line', () => {
   expect(prLineOf(NO_PR_INFO)).toEqual([])
-  expect(prLineOf(pr({ url: '' }))).toEqual([])
-  expect(prLineOf(pr({ number: 0 }))).toEqual([])
+  expect(prLineOf(pr({ url: '', passed: 2 }))).toEqual([])
+  expect(prLineOf(pr({ number: 0, passed: 2 }))).toEqual([])
+  expect(prLineOf(pr({ status: 'draft' }))).toEqual([])
 })
 
-test('a narrow screen cuts the PR line from the right, and the number stays a link', () => {
-  const big = pr({ number: 12078, status: 'conflicts', isConflict: true, failed: ['lint', 'test'], threads: 4 })
+test('a narrow screen cuts the PR line from the right, and the first part stays a link', () => {
+  const big = pr({ isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })
   const spans = fitStatus([{ rank: 1, spans: prLineOf(big) }], 20)
   const text = textOfStatus(spans)
   expect(cellsOf(text)).toBeLessThanOrEqual(20)
@@ -50,6 +51,7 @@ test('a narrow screen cuts the PR line from the right, and the number stays a li
   expect(spans[0]?.href).toBe(URL)
   // The 💬 is two cells wide.
   expect(cellsOf('💬 4')).toBe(4)
+  expect(cellsOf('✗◌✓')).toBe(3)
 })
 
 test('a failed check is gone when its latest run passed, and counts once', () => {
@@ -93,10 +95,10 @@ test('the PR state reads the worst first', () => {
 test('the PR info keeps the word and the parts from the same checks', () => {
   const view = {
     id: 'PR_1', number: 12078, url: URL, baseRefName: 'main', state: 'OPEN', mergeable: 'CONFLICTING', mergeStateStatus: 'DIRTY',
-    statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }, { name: 'test', status: 'IN_PROGRESS', conclusion: '' }],
+    statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }, { name: 'test', status: 'IN_PROGRESS', conclusion: '' }, { name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }, { context: 'ci/x', state: 'SUCCESS' }, { name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED' }],
   }
   expect(prInfoOf(view, 3)).toEqual({
-    number: 12078, url: URL, baseRef: 'main', id: 'PR_1', status: 'conflicts', isConflict: true, failed: ['lint'], isRunning: true, isUnknown: false, threads: 3,
+    number: 12078, url: URL, baseRef: 'main', id: 'PR_1', status: 'conflicts', isConflict: true, failed: ['lint'], isRunning: true, passed: 3, running: 1, isUnknown: false, threads: 3,
   })
   expect(prInfoOf({ ...view, mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN' }, 0).isUnknown).toBe(true)
   expect(prInfoOf({ ...view, state: 'MERGED' }, 0)).toEqual(NO_PR_INFO)

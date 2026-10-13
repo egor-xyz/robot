@@ -20,20 +20,22 @@ export type PrInfo = {
   failed: string[]
   /** Some (latest) check has not completed. */
   isRunning: boolean
+  /** Checks (latest run per name) done and not failed, and still running. */
+  passed: number
+  running: number
   /** GitHub has not worked out `mergeable` yet. */
   isUnknown: boolean
   /** Unresolved review threads; 0 when unknown. */
   threads: number
 }
 
-export const NO_PR_INFO: PrInfo = { number: 0, url: '', baseRef: '', id: '', status: '', isConflict: false, failed: [], isRunning: false, isUnknown: false, threads: 0 }
+export const NO_PR_INFO: PrInfo = { number: 0, url: '', baseRef: '', id: '', status: '', isConflict: false, failed: [], isRunning: false, passed: 0, running: 0, isUnknown: false, threads: 0 }
 
 // Theme keys, not fixed colors (see statusline.ts).
 const DIM = 'inactive'
 const LINE = 'subtle'
 const WARN = 'warning'
 const ALARM = 'error'
-const PR_COLORS: Record<string, string> = { draft: DIM, conflicts: ALARM, failing: ALARM, changes: WARN, behind: WARN, checks: WARN, review: WARN, blocked: WARN, ready: 'success' }
 
 const FAILED = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']
 
@@ -130,6 +132,8 @@ export function prInfoOf(view: PrView & { number?: unknown; url?: unknown; baseR
     isConflict: view.mergeable === 'CONFLICTING' || view.mergeStateStatus === 'DIRTY',
     failed: failedChecksOf(view.statusCheckRollup),
     isRunning: checks.some(isRunningCheck),
+    passed: checks.filter(check => !isFailed(check) && !isRunningCheck(check)).length,
+    running: checks.filter(isRunningCheck).length,
     isUnknown: view.mergeable === 'UNKNOWN',
     threads,
   }
@@ -157,18 +161,24 @@ export function hostOf(url: string): string {
 /** Up to 3 names as they are, more as a count. */
 const namesOf = (failed: readonly string[]): string => (failed.length <= 3 ? failed.join(', ') : `${failed.length} checks`)
 
-/** The PR line, `#12078: conflicts · failing: lint, test · 💬 4`: the number a link, then the state and what needs the person, worst first. */
+/** The PR line, `checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4`: the checks, then what needs the person; the first part links to the PR. Nothing to say, no line. */
 export function prLineOf(pr: PrInfo): Span[] {
   if (pr.number <= 0 || !pr.url) return []
-  const parts: Span[] = []
-  // Conflicts and failing checks are said by the parts below.
-  if (pr.status && pr.status !== 'conflicts' && pr.status !== 'failing') parts.push({ text: pr.status, color: PR_COLORS[pr.status] ?? DIM })
-  if (pr.isConflict) parts.push({ text: 'conflicts', color: ALARM })
-  if (pr.failed.length > 0) parts.push({ text: `failing: ${namesOf(pr.failed)}`, color: ALARM })
-  if (pr.threads > 0) parts.push({ text: `💬 ${pr.threads}`, color: WARN })
-  const number: Span = { text: `#${pr.number}`, color: 'suggestion', href: pr.url }
-  if (parts.length === 0) return [number]
-  return [number, { text: ': ', color: DIM }, ...parts.flatMap((part, i): Span[] => (i === 0 ? [part] : [{ text: ' · ', color: LINE }, part]))]
+  const checks: Span[] = [
+    ...(pr.failed.length > 0 ? [{ text: `✗ ${namesOf(pr.failed)}`, color: ALARM }] : []),
+    ...(pr.running > 0 ? [{ text: `◌ ${pr.running}`, color: WARN }] : []),
+    ...(pr.passed > 0 ? [{ text: `✓ ${pr.passed}`, color: 'success' }] : []),
+  ]
+  const parts: Span[] = [
+    ...checks,
+    ...(pr.isConflict ? [{ text: 'conflicts', color: ALARM }] : []),
+    ...(pr.threads > 0 ? [{ text: `💬 ${pr.threads}`, color: WARN }] : []),
+  ]
+  if (parts.length === 0) return []
+  const joined = parts.flatMap((part, i): Span[] => (i === 0 ? [part] : [{ text: ' · ', color: LINE }, part]))
+  if (checks.length > 0) return [{ text: 'checks', color: 'suggestion', href: pr.url }, { text: ': ', color: DIM }, ...joined]
+  const [first, ...rest] = joined
+  return first ? [{ ...first, href: pr.url }, ...rest] : []
 }
 
 // A command that moves the PR: a push, a branch change, a `gh pr` act or a re-run. Matches `git` options before the verb.

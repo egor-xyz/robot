@@ -124,7 +124,7 @@
     "prLine": {
       "type": "boolean",
       "title": "PR line",
-      "description": "One line under the status line for the branch's open PR: its number (a link), its state, and what needs you: conflicts with the base branch, failed checks, unresolved review threads. A toast says when something new needs you. Uses gh. false hides both.",
+      "description": "One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts with the base branch and unresolved review threads. A toast says when something new needs you. Uses gh. false hides both.",
       "default": true
     },
     "resetSettings": {
