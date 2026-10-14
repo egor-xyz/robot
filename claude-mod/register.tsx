@@ -800,8 +800,11 @@ export const register: Register = (on, options) => {
         ))}
         {(row.pr.length > 0 || changed.length > 0) && (
           <Box>
-            {row.pr.map(spanOf)}
-            {row.pr.length > 0 && changed.length > 0 && <Text color={PR_ROW_SEPARATOR.color}>{PR_ROW_SEPARATOR.text}</Text>}
+            {/* prRowOf already fits the PR info: it must not shrink, or the files part squeezes it. */}
+            <Box flexShrink={0}>
+              {row.pr.map(spanOf)}
+              {row.pr.length > 0 && changed.length > 0 && <Text color={PR_ROW_SEPARATOR.color}>{PR_ROW_SEPARATOR.text}</Text>}
+            </Box>
             {changed.length > 0 && (
               Client ? (
                 // Under the pointer it shimmers as the panel's rows do; a click opens the panel.
