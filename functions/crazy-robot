@@ -24,7 +24,7 @@ $'  .-----.\n  [- - -]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o'
 $'  .-----.\\o\n  [o   o]\n   |━━━|\n   o   o'
 $'  .-----.\n  [^   ^]\n  /|━━━|\\\n   o   o'
-$'  .-----.\n  [o   o]\n  /|━u━|\\\n   o   o'
+$'  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o'
 $' \\.-----./\n  [O   O]\n   |━━━|\n   o   o'
 $'  .-----.\n  [- _ -]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [O   O]\n  /|━O━|\\\n   o   o'
@@ -110,6 +110,12 @@ $'         .-----.\n         [^   ^]\n   📷    o|━━━|o\n   /|     o   o'
 $'         .-----.\n   ✨    [O   O]\n   📸    o|━━━|o\n   /|     o   o'
 $'       o/.-----.\n         [o   o]\n   📷     |━━━|\n   /|     o   o'
 $'       o/.-----.\n   ✨    [O   O]\n   📸     |━━━|\n   /|     o   o'
+$' \\.-----./\n  [-   -]\n   |━━━|\n   o   o'
+$' \\.-----./\n  [-   -]\n   |━━━|\n   o   o'
+$' \\.-----./\n  [-   -]\n   |━━━|\n   \'   \''
+$'  .-----.\n  [- - -]\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [^   ^]\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [^   ^]\n  /|━━━|\\\n   o   o'
 )
 
 # Pick new state when current expires
@@ -119,7 +125,7 @@ if (( _robot_t >= _robot_dur )); then
   if [[ $_robot_state != walk ]]; then
     _robot_state=walk
   else
-    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo)
+    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch)
     _robot_state=${states[$((RANDOM % ${#states} + 1))]}
   fi
   _robot_t=0
@@ -162,6 +168,7 @@ if (( _robot_t >= _robot_dur )); then
     concert)           _robot_dur=$(( (3 + RANDOM % 3) * 4 )) ;; # 3-5 riffs
     photo)             _robot_dur=$(( (2 + RANDOM % 2) * 8 )) ;; # 2-3 shoots
     ufo)               _robot_dur=999 ;; # ends dynamically when 🛸 leaves screen
+    stretch)           _robot_dur=$(( (2 + RANDOM % 2) * 6 )) ;; # 2-3 stretches
     *)                 _robot_dur=$(( 8 + RANDOM % 18 )) ;;
   esac
 fi
@@ -191,6 +198,7 @@ case $_robot_state in
   concert)  color=135 ;;  # rock purple
   photo)    color=231 ;;  # flashbulb white
   ufo)      color=51  ;;  # alien cyan
+  stretch)  color=180 ;;  # sleepy tan
   slot)     color=226 ;;  # yellow (jackpot overrides below)
 esac
 case $_robot_state in
@@ -399,6 +407,10 @@ case $_robot_state in
     # Mirrored variant stands the camera on the robot's left.
     (( _robot_t == 0 )) && _robot_mirror=$(( RANDOM % 2 ))
     raw=${idle_frames[$(( (_robot_mirror ? 83 : 75) + _robot_t % 8 ))]}
+    ;;
+  stretch)
+    # 6-tick stretch: arms up → big yawn → tiptoe → arms down → content.
+    raw=${idle_frames[$(( 91 + _robot_t % 6 ))]}
     ;;
   slot)
     # Reel symbols. 7️⃣ keycap is the jackpot — width matches the other 2-col
