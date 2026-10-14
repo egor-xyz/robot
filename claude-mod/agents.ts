@@ -1,5 +1,5 @@
 import type { Span } from './frames'
-import { effortColorOf, modelColorOf, modelNameOf, tokensOf } from './statusline'
+import { effortColorOf, fitStatus, modelColorOf, modelNameOf, tokensOf } from './statusline'
 import type { StatusGroup } from './statusline'
 
 export { tokensOf } from './statusline'
@@ -47,3 +47,9 @@ export function agentGroupsOf(row: AgentRow, now: number): StatusGroup[] {
 
 /** The line under the agent lines when more agents run than they show. */
 export const moreOf = (count: number): Span[] => (count > MAX_AGENT_LINES ? [{ text: `+${count - MAX_AGENT_LINES} more`, color: DIM }] : [])
+
+/** The panel's lines: every agent as `mark` and its parts fitted to `columns`; none running, one dim line saying so. */
+export function agentPaneLinesOf(rows: readonly AgentRow[], now: number, columns: number, mark: Span): Span[][] {
+  if (rows.length === 0) return [[{ text: 'No subagents running.', color: DIM }]]
+  return rows.map(row => [mark, ...fitStatus(agentGroupsOf(row, now), columns - mark.text.length)])
+}

@@ -11,7 +11,7 @@ import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
 import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
-import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
+import { MAX_AGENT_LINES, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
@@ -134,6 +134,8 @@ const NO_PREVIEW = { path: '', group: 'local' as const, root: '', diff: '' }
 const MAX_DIFF_CHARS = 60_000
 /** The panel that lists the changed files. */
 const CHANGES_PANE = 'robot-files'
+/** The panel that lists every running subagent. */
+const AGENTS_PANE = 'robot-agents'
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
@@ -396,6 +398,12 @@ async function openChanges($: EngineInterface): Promise<void> {
   await $.state.set(CHANGES_CURSOR, '')
   const opened = await $.ui.open({ id: CHANGES_PANE, title: 'Changed files', focus: true, closeOnEscape: true })
   if (!opened.isPlaced) $.ui.toast('robot: no room for the changed files panel')
+}
+
+/** Opens the panel with every running subagent; asked for, it has room at any width. */
+async function openAgents($: EngineInterface): Promise<void> {
+  const opened = await $.ui.open({ id: AGENTS_PANE, title: 'Subagents', focus: true, closeOnEscape: true })
+  if (!opened.isPlaced) $.ui.toast('robot: no room for the subagents panel')
 }
 
 /** Shows a changed file's diff in the panel: not committed, against HEAD; in the PR, its commits' diff; a new file whole, as added. */
@@ -814,6 +822,8 @@ export const register: Register = (on, options) => {
     }
     // The agent lines go under the PR and files line.
     const agentLines: Span[][] = []
+    // The index of the `+N more` line, a button that opens the panel with all of them.
+    let moreAt = -1
     if (agentRows.length > 0) {
       // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
       await $.state.get(TICK)
@@ -821,6 +831,7 @@ export const register: Register = (on, options) => {
       for (const row of agentRows.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
       const more = moreOf(agentRows.length)
       if (more.length > 0) agentLines.push([AGENT_MARK, ...more])
+      moreAt = more.length > 0 ? agentLines.length - 1 : -1
     }
     // The open PR (a link to it, and what needs the person), then the changed files: one line.
     // The files are a button that opens the panel with the list.
@@ -872,9 +883,15 @@ export const register: Register = (on, options) => {
             )}
           </Box>
         )}
-        {agentLines.map(spans => (
-          <Box>{spans.map(spanOf)}</Box>
-        ))}
+        {agentLines.map((spans, i) =>
+          i === moreAt ? (
+            <Button key="agents-more" plain onPress={() => void openAgents($)}>
+              {spans.map(spanOf)}
+            </Button>
+          ) : (
+            <Box>{spans.map(spanOf)}</Box>
+          ),
+        )}
         {theirs}
       </Box>
     )
@@ -1000,6 +1017,25 @@ export const register: Register = (on, options) => {
             <Button key="close" label="Close" hotkey="c" onPress={() => void $.ui.close({ id: CHANGES_PANE })} />
           </Box>
         )}
+      </Box>
+    )
+  })
+
+  // The subagents panel: every running agent, one line each; it redraws as the rows and the tick change.
+  on('ui.render', { component: 'Pane', requestId: AGENTS_PANE }, async ($, e) => {
+    const { value: agentRows = [] } = await $.state.get(AGENT_ROWS)
+    if (agentRows.length > 0) await $.state.get(TICK)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const spanOf = (span: Span) => <Text color={span.color || undefined} wrap="truncate">{span.text}</Text>
+    const lines = agentPaneLinesOf(agentRows, Date.now(), Math.max(20, e.props.bodyColumns - 2), AGENT_MARK)
+    return (
+      <Box flexDirection="column" paddingX={1}>
+        {lines.map(spans => (
+          <Box>{spans.map(spanOf)}</Box>
+        ))}
+        <Box marginTop={1}>
+          <Button key="close" label="Close" hotkey="c" onPress={() => void $.ui.close({ id: AGENTS_PANE })} />
+        </Box>
       </Box>
     )
   })

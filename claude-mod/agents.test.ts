@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentGroupsOf, elapsedOf, moreOf, stepTokensOf, tokensOf } from './agents'
+import { agentGroupsOf, agentPaneLinesOf, elapsedOf, moreOf, stepTokensOf, tokensOf } from './agents'
 import { fitStatus, textOfStatus } from './statusline'
 
 const ROW = { id: 'a1', type: 'egor-xyz-scout', description: 'List mod settings', model: 'claude-haiku-5-5', effort: 'low', startedAt: 0, tokens: 16_400 }
@@ -42,3 +42,13 @@ test('more than 3 agents add a count line', () => {
   expect(textOfStatus(moreOf(5))).toBe('+2 more')
 })
 
+
+test('the panel lists every agent, one line each, and says so when none run', () => {
+  const mark = { text: '↳ ', color: 'inactive' }
+  const rows = [ROW, { ...ROW, id: 'a2', description: 'Second' }, { ...ROW, id: 'a3' }, { ...ROW, id: 'a4' }, { ...ROW, id: 'a5' }]
+  const lines = agentPaneLinesOf(rows, 6_000, Number.POSITIVE_INFINITY, mark)
+  expect(lines.length).toBe(5)
+  expect(textOfStatus(lines[1].slice(1))).toBe('Second | egor-xyz-scout | Haiku 5.5 [low] | 16k tok | 0:06')
+  expect(lines[0][0]).toBe(mark)
+  expect(agentPaneLinesOf([], 0, 40, mark)).toEqual([[{ text: 'No subagents running.', color: 'inactive' }]])
+})
