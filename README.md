@@ -360,8 +360,7 @@ Every act has a switch. To change one:
 ### Update or remove
 
 ```text
-/plugin marketplace update robot     # get the newest robot
-/reload-plugins                      # use it now
+/plugin marketplace update robot     # get the newest robot; it reloads by itself
 /plugin uninstall robot@robot        # remove it
 ```
 

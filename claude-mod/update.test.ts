@@ -40,7 +40,7 @@ test('a check is due after the full interval, at once when never done, and when 
 })
 
 test('the toast shows only for a strictly newer version nobody was told about', () => {
-  const text = 'robot 0.11.0 is out (you have 0.10.4). Update: /plugin marketplace update robot, then /reload-plugins'
+  const text = 'robot 0.11.0 is out (you have 0.10.4). Update: /plugin marketplace update robot'
   expect(updateToastOf('0.10.4', '0.11.0', undefined)).toBe(text)
   expect(updateToastOf('0.10.4', '0.11.0', '0.10.9')).toBe(text)
   expect(updateToastOf('0.10.4', '0.11.0', '0.11.0')).toBeUndefined()

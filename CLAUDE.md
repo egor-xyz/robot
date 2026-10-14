@@ -112,9 +112,9 @@ session before you push:
    ```
 
 8. After the push and the release, the user updates the installed copy:
-   `/plugin marketplace update robot`, then `/reload-plugins`. The marketplace
-   update already installs the new version ("1 plugin bumped"), so
-   `/plugin update robot@robot` has nothing left to do.
+   `/plugin marketplace update robot`. It installs the new version ("1 plugin
+   bumped") and reloads the plugins by itself, so neither `/reload-plugins` nor
+   `/plugin update robot@robot` is needed. Do not tell the user to run them.
 
 ## Distribution
 

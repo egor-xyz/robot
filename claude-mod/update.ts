@@ -50,5 +50,5 @@ export function isCheckDueOf(checkedAt: number, now: number): boolean {
 export function updateToastOf(installed: string, latest: string | undefined, told: string | undefined): string | undefined {
   if (!latest || !isNewerOf(latest, installed)) return undefined
   if (told && !isNewerOf(latest, told)) return undefined
-  return `robot ${latest} is out (you have ${installed}). Update: /plugin marketplace update robot, then /reload-plugins`
+  return `robot ${latest} is out (you have ${installed}). Update: /plugin marketplace update robot`
 }
