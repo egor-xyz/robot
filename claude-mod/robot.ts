@@ -21,7 +21,8 @@ export function isActing(s: RobotState): boolean {
 /** Starts an act now: t 0, its own dur, `value` set, pos clamped so the act fits. */
 export function actOf(state: RobotState, name: ActName, value: number, track: number): RobotState {
   const width = ACT_WIDTH[name]
-  const pos = width > 0 ? Math.min(Math.max(0, state.pos), Math.max(0, track - width)) : state.pos
+  // The die always starts at the left edge and rolls to the middle.
+  const pos = name === 'dice' ? 0 : width > 0 ? Math.min(Math.max(0, state.pos), Math.max(0, track - width)) : state.pos
   return { ...state, state: name, t: 0, dur: ACT_DUR[name], pos, value }
 }
 

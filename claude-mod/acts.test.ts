@@ -28,7 +28,7 @@ function play(name: ActName, value: number, random: () => number = () => 0, pos 
   return { ticks, state }
 }
 
-const faceRows = (face: 1 | 2 | 3 | 4 | 5 | 6) => ['  .-----.', ...DICE_FACES[face].map(row => `  [${row}]`)]
+const faceRows = (face: 1 | 2 | 3 | 4 | 5 | 6) => ['   ▁▁▁▁▁', ...DICE_FACES[face].map(row => `  ▕${row}▏`)]
 
 test('dice holds the face of value from tick 16 to 27, for every value', () => {
   for (const value of [1, 2, 3, 4, 5, 6] as const) {
@@ -113,21 +113,22 @@ test('an act runs for its dur and then the robot walks on', () => {
   }
 })
 
-test('actOf clamps pos so the act fits, and slot keeps pos', () => {
+test('actOf clamps pos so the act fits, the die starts at the left, and slot keeps pos', () => {
   const start: RobotState = { ...INITIAL, pos: 70 }
-  expect(actOf(start, 'dice', 1, 40).pos).toBe(40 - ACT_WIDTH.dice)
+  expect(actOf(start, 'dice', 1, 40).pos).toBe(0)
   expect(actOf(start, 'coin', 1, 10).pos).toBe(0)
-  expect(actOf(start, 'dice', 1, 200).pos).toBe(70)
+  expect(actOf(start, 'dice', 1, 200).pos).toBe(0)
   expect(actOf(start, 'slot', 0, 40).pos).toBe(70)
   expect(actOf(start, 'coin', 1, 80)).toMatchObject({ state: 'coin', t: 0, dur: 20, value: 1 })
 })
 
-test('the dice roll stays inside the track', () => {
-  const { ticks } = play('dice', 4, () => 0, 0)
-  for (const { state } of ticks) {
-    expect(state.pos).toBeGreaterThanOrEqual(0)
-    expect(state.pos).toBeLessThanOrEqual(TRACK - ACT_WIDTH.dice)
-  }
+test('the die rolls from the left edge to the middle, always to the right', () => {
+  const { ticks } = play('dice', 4, () => 0, 50)
+  const middle = Math.floor((TRACK - ACT_WIDTH.dice) / 2)
+  for (let t = 1; t < ticks.length; t++) expect(ticks[t]!.state.pos).toBeGreaterThanOrEqual(ticks[t - 1]!.state.pos)
+  expect(ticks[3]!.state.pos).toBe(0)
+  expect(ticks[15]!.state.pos).toBe(middle)
+  expect(ticks[27]!.state.pos).toBe(middle)
 })
 
 test('acts are not random or calm states', () => {

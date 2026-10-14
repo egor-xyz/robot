@@ -17,12 +17,12 @@ export const SLOT_SYMBOLS: readonly string[] = ['🍒', '🍋', '🍇', '🔔', 
 const JACKPOT = 6
 
 export const DICE_FACES: Record<1 | 2 | 3 | 4 | 5 | 6, readonly [string, string, string]> = {
-  1: ['     ', '  o  ', '_____'],
-  2: ['o    ', '     ', '____o'],
-  3: ['o    ', '  o  ', '____o'],
-  4: ['o   o', '     ', 'o___o'],
-  5: ['o   o', '  o  ', 'o___o'],
-  6: ['o   o', 'o   o', 'o___o'],
+  1: ['     ', '  ●  ', '▁▁▁▁▁'],
+  2: ['●    ', '     ', '▁▁▁▁●'],
+  3: ['●    ', '  ●  ', '▁▁▁▁●'],
+  4: ['●   ●', '     ', '●▁▁▁●'],
+  5: ['●   ●', '  ●  ', '●▁▁▁●'],
+  6: ['●   ●', '●   ●', '●▁▁▁●'],
 }
 
 const sp = (n: number) => ' '.repeat(Math.max(0, n))
@@ -46,16 +46,25 @@ const DICE_WIDTH = ACT_WIDTH.dice
 
 const ARMS_IN = ['  .-----.', '  [o   o]', '   |━━━|', '   o   o']
 const SQUASH = ['  .-----.', '  [-   -]', '  |━━━━━|', '   o   o']
-const TUCK = ['  .-----.', '  [-   -]', '  |━━━━━|', "  '-----'"]
-const BLANK_DIE = ['  .-----.', '  [     ]', '  [     ]', '  [_____]']
+const TUCK = ['  .-----.', '  ▕-   -▏', '  ▕━━━━━▏', '  ▕▁▁▁▁▁▏']
+const BLANK_DIE = ['   ▁▁▁▁▁', '  ▕     ▏', '  ▕     ▏', '  ▕▁▁▁▁▁▏']
 const SMILE = ['  .-----.', '  [^   ^]', '  /|━━━|\\', '   o   o']
+/** The die on one corner, mid-tumble: two turns, so the roll looks like it spins. */
+const TILTS = [
+  ['    ▁▁▁', '   ╱●  ╲', '   ╲  ●╱', '    ▔▔▔'],
+  ['    ▁▁▁', '   ╱  ●╲', '   ╲●  ╱', '    ▔▔▔'],
+]
 
 const faceOf = (n: number): 1 | 2 | 3 | 4 | 5 | 6 => Math.min(6, Math.max(1, Math.round(n))) as 1 | 2 | 3 | 4 | 5 | 6
 
+/** A square die: a thin top edge, thin sides, the bottom edge under the last row of pips. */
 function dieOf(face: 1 | 2 | 3 | 4 | 5 | 6): string[] {
   const [a, b, c] = DICE_FACES[face]
-  return ['  .-----.', `  [${a}]`, `  [${b}]`, `  [${c}]`]
+  return ['   ▁▁▁▁▁', `  ▕${a}▏`, `  ▕${b}▏`, `  ▕${c}▏`]
 }
+
+/** Pips in the accent colour on the orange body. */
+const pipsLit = (rows: string[]) => rows.map(row => row.replace(/●/g, `${fg(DICE_ACCENT)}●${fg(ORANGE_INDEX)}`))
 
 function diceFrameOf(s: RobotState, track: number): Frame {
   const { t } = s
@@ -67,19 +76,17 @@ function diceFrameOf(s: RobotState, track: number): Frame {
   else if (t === 3) rows = BLANK_DIE
   else if (t >= 31) rows = SMILE
   else if (t <= 15) {
-    if (t <= 11 || t % 2 === 0) {
-      const max = Math.max(0, track - DICE_WIDTH)
-      s.pos += s.dir
-      if (s.pos >= max) { s.pos = max; s.dir = -1 }
-      if (s.pos <= 0) { s.pos = 0; s.dir = 1 }
-    }
-    rows = dieOf(faceOf(1 + ((value + 5 * t) % 6)))
+    // From the left edge to the middle of the track, one even step a tick.
+    const middle = Math.max(0, Math.floor((track - DICE_WIDTH) / 2))
+    s.pos = Math.round((middle * (t - 3)) / 12)
+    // Odd ticks: the die on its corner, so each step of the roll turns it.
+    rows = t % 2 === 1 ? TILTS[Math.floor(t / 2) % 2]! : dieOf(faceOf(1 + ((value + 5 * t) % 6)))
   } else {
     rows = dieOf(value)
     // Sparkle on landing, after the top row.
     if (t <= 17) rows = rows.map((row, i) => (i === 0 ? `${row}  ✨` : row))
   }
-  return paint(rows, s.pos, DICE_ACCENT)
+  return paint(pipsLit(rows), s.pos, DICE_ACCENT)
 }
 
 // ---- coin ----
