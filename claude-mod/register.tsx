@@ -783,7 +783,9 @@ export const register: Register = (on, options) => {
       await openChanges($)
       return { text: 'Changed files.' }
     }
-    const calm = calmCommandOf(e.args, isCalm)
+    // The saved value, not the one this load started with: a write may not have reloaded the mod yet.
+    const isCalmNow = (await $.config.list().catch(() => [])).find(row => row.key === 'robot.calm')?.value === true
+    const calm = calmCommandOf(e.args, isCalmNow)
     if (calm) {
       if (calm.calm !== undefined) {
         const set = await $.config.set({ key: 'robot.calm', value: calm.calm })

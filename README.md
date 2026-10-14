@@ -74,7 +74,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - 🤖 **20+ hand-drawn animations.** Walk, dance, jump, sleep, campfire, garden, concert, photoshoot…
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
-- 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something.
+- 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something. `/robot calm` slows it down and keeps only its quiet acts.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 🧊 **Freezes when the cache goes cold.** After a break, ice cubes gather around it and the status line says `❄ cache cold` — [see below](#-cache-cold).
 - 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
@@ -320,6 +320,7 @@ Turn them off with the **Branch wave**, **Subagent lines** and **Changed files**
 | -------- | ---------------------- |
 | `/robot` | Hide or show the robot |
 | `/robot files` | Open the changed-files panel |
+| `/robot calm` | Calm mode on or off (`/robot calm on`, `/robot calm off`) |
 
 ### Settings
 
@@ -333,6 +334,7 @@ Every act has a switch. To change one:
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Robot | `true` | `false` hides the robot above the prompt. |
+| Calm | `false` | A calmer robot: half speed, only its quiet acts, no git cheer, compacting factory line or branch wave. Fire, ice, "need a human" and friends still show. `/robot calm` turns it on or off. |
 | Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. |
 | Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
@@ -352,7 +354,7 @@ Every act has a switch. To change one:
 | Update toast | `true` | A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. `false` turns it off. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
-`/robot` hides or shows the robot for this session only.
+`/robot` hides or shows the robot for this session only. `/robot calm` saves the Calm setting, so it lasts across sessions.
 
 ### Update or remove
 

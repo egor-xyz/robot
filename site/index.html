@@ -328,6 +328,7 @@ footer nav { display: flex; gap: 20px; }
     <div class="tips">
       <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot</code><p>Hide or show the robot.</p></div>
       <div class="tip panel reveal" style="--c:var(--walk)"><code>/robot files</code><p>See the changed files and their diffs.</p></div>
+      <div class="tip panel reveal" style="--c:var(--moon)"><code>/robot calm</code><p>A slower robot with only its quiet acts.</p></div>
       <div class="tip panel reveal" style="--c:var(--fire)"><code>/plugin → robot → Configure</code><p>Turn the fire off, or set when it starts.</p></div>
       <div class="tip panel reveal" style="--c:var(--concert)"><code>/plugin marketplace update robot</code><p>Get the newest robot. Then run <code>/reload-plugins</code>.</p></div>
     </div>
@@ -717,13 +718,14 @@ footer nav { display: flex; gap: 20px; }
     <div class="head">
       <div class="eyebrow reveal" style="--c:var(--moon)">settings</div>
       <h2 class="reveal">Your robot,<br><span class="rb">your rules.</span></h2>
-      <p class="lead reveal">In Claude Code, type <code>/plugin</code>, open <b>Installed</b>, pick <b>robot</b>, choose <b>Configure</b>. Change a value and save. Then run <code>/reload-plugins</code> (or start a new session). <code>/robot</code> hides or shows the robot for this session.</p>
+      <p class="lead reveal">In Claude Code, type <code>/plugin</code>, open <b>Installed</b>, pick <b>robot</b>, choose <b>Configure</b>. Change a value and save. Then run <code>/reload-plugins</code> (or start a new session). <code>/robot</code> hides or shows the robot for this session. <code>/robot calm</code> turns calm mode on or off, and it stays that way.</p>
     </div>
     <div class="tbl-wrap panel reveal" style="--c:var(--moon)">
       <table class="tbl">
         <thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead>
         <tbody>
           <tr><td>Robot</td><td>true</td><td>false hides the robot above the prompt.</td></tr>
+          <tr><td>Calm</td><td>false</td><td>A calmer robot: half speed, only its quiet acts, no git cheer, factory line or branch wave. /robot calm turns it on or off.</td></tr>
           <tr><td>Status line</td><td>true</td><td>false hides the status line under the prompt.</td></tr>
           <tr><td>Context on fire</td><td>true</td><td>false turns the burning-head act off.</td></tr>
           <tr><td>Fire at (% context)</td><td>25</td><td>Context % where the head catches fire and ctx turns red.</td></tr>
