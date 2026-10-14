@@ -583,7 +583,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     if (options.resetSettings === true) await resetSettings($)
-    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files; `/robot calm` slows it down', argumentHint: '[files | calm [on|off]]' })
+    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files; `/robot agents` lists the running subagents; `/robot calm` slows it down', argumentHint: '[files | agents | calm [on|off]]' })
 
     $.clock.every(isCalm ? CALM_TICK_MS : TICK_MS, async () => {
       const { value: hidden = false } = await $.state.get(IS_HIDDEN)
@@ -783,6 +783,10 @@ export const register: Register = (on, options) => {
       await openChanges($)
       return { text: 'Changed files.' }
     }
+    if (e.args.trim() === 'agents') {
+      await openAgents($)
+      return { text: 'Subagents.' }
+    }
     // The saved value, not the one this load started with: a write may not have reloaded the mod yet.
     const isCalmNow = (await $.config.list().catch(() => [])).find(row => row.key === 'robot.calm')?.value === true
     const calm = calmCommandOf(e.args, isCalmNow)
@@ -887,9 +891,14 @@ export const register: Register = (on, options) => {
         )}
         {agentLines.map((spans, i) =>
           i === moreAt ? (
-            <Button key="agents-more" plain onPress={() => void openAgents($)}>
-              {spans.map(spanOf)}
-            </Button>
+            Client ? (
+              // Like the changed-files line: it shimmers under the pointer; a click opens the panel.
+              <Client key="agents-more" module="./changes-line.tsx" width="100%" props={{ spans: spans.map(span => ({ text: span.text, color: span.color })) }} />
+            ) : (
+              <Button key="agents-more" plain onPress={() => void openAgents($)}>
+                {spans.map(spanOf)}
+              </Button>
+            )
           ) : (
             <Box>{spans.map(spanOf)}</Box>
           ),
@@ -1050,6 +1059,10 @@ export const register: Register = (on, options) => {
 
   // The changed-files line clicked: the panel opens.
   on('ui.message', { component: 'PromptHint' }, async ($, e, next) => {
+    if (e.element === 'agents-more') {
+      await openAgents($)
+      return {}
+    }
     if (e.element !== 'changes') return next(e)
     await openChanges($)
     return {}

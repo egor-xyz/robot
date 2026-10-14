@@ -271,7 +271,7 @@ The line needs `gh`, signed in. It looks for the PR at once after `git push`, `g
 
 **The branch shimmers.** When the branch changes, or after a git commit or push, a bright band sweeps across the branch name for 3 seconds: blue → purple → pink → orange → yellow.
 
-**Subagents get their own lines.** Each running subagent gets one line under the status line and the PR and files line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`. Agents that already run when you reload plugins or update get their lines back within a second.
+**Subagents get their own lines.** Each running subagent gets one line under the status line and the PR and files line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`. Agents that already run when you reload plugins or update get their lines back within a second. Click `+N more`, or run `/robot agents`, and a panel lists every running subagent.
 
 ```text
 Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
@@ -320,6 +320,7 @@ Turn them off with the **Branch wave**, **Subagent lines** and **Changed files**
 | -------- | ---------------------- |
 | `/robot` | Hide or show the robot |
 | `/robot files` | Open the changed-files panel |
+| `/robot agents` | Open the panel with every running subagent |
 | `/robot calm` | Calm mode on or off (`/robot calm on`, `/robot calm off`) |
 
 ### Settings
