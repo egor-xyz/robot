@@ -10,7 +10,7 @@ import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
 import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
-import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepOf, stepTokensOf } from './agents'
+import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
@@ -725,16 +725,6 @@ export const register: Register = (on, options) => {
     } finally {
       await $.state.set(IS_COMPACTING, false)
     }
-  })
-
-  // A subagent calls a tool: its line shows the last tool it called. The call does not wait for the line.
-  on('tool.call', async ($, e, next) => {
-    if (isAgentLinesOn && e.agentId) {
-      const step = stepOf(e.tool, e as unknown as Record<string, unknown>)
-      void updateAgentRows($, rows => (!rows.some(row => row.id === e.agentId && row.step !== step) ? rows : rows.map(row => (row.id !== e.agentId ? row : { ...row, step }))))
-        .catch(error => $.ui.log(`robot: agent step not saved: ${String(error)}`, { to: 'debug' }))
-    }
-    return next(e)
   })
 
   // Claude changed a file: the changed-files line counts again.
