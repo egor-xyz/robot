@@ -1,7 +1,10 @@
+import { cellsOf } from './frames'
 import type { Span } from './frames'
+import { fitStatus, textOfStatus } from './statusline'
+import type { StatusGroup } from './statusline'
 
 /** What `gh pr view --json` says of an open PR. */
-export type PrView = { id?: unknown; isDraft?: unknown; mergeable?: unknown; mergeStateStatus?: unknown; reviewDecision?: unknown; statusCheckRollup?: unknown }
+export type PrView = { id?: unknown; isDraft?: unknown; autoMergeRequest?: unknown; mergeable?: unknown; mergeStateStatus?: unknown; reviewDecision?: unknown; statusCheckRollup?: unknown }
 
 /** One rollup entry: a CheckRun (name/status/conclusion/startedAt) or a StatusContext (context/state). */
 export type Check = { name?: unknown; context?: unknown; status?: unknown; conclusion?: unknown; state?: unknown; startedAt?: unknown; completedAt?: unknown }
@@ -27,9 +30,11 @@ export type PrInfo = {
   isUnknown: boolean
   /** Unresolved review threads; 0 when unknown. */
   threads: number
+  /** Auto-merge is on: GitHub merges the PR when it can. */
+  isAutoMerge: boolean
 }
 
-export const NO_PR_INFO: PrInfo = { number: 0, url: '', baseRef: '', id: '', status: '', isConflict: false, failed: [], isRunning: false, passed: 0, running: 0, isUnknown: false, threads: 0 }
+export const NO_PR_INFO: PrInfo = { number: 0, url: '', baseRef: '', id: '', status: '', isConflict: false, failed: [], isRunning: false, passed: 0, running: 0, isUnknown: false, threads: 0, isAutoMerge: false }
 
 // Theme keys, not fixed colors (see statusline.ts).
 const DIM = 'inactive'
@@ -136,6 +141,7 @@ export function prInfoOf(view: PrView & { number?: unknown; url?: unknown; baseR
     running: checks.filter(isRunningCheck).length,
     isUnknown: view.mergeable === 'UNKNOWN',
     threads,
+    isAutoMerge: typeof view.autoMergeRequest === 'object' && view.autoMergeRequest !== null,
   }
 }
 
@@ -161,7 +167,7 @@ export function hostOf(url: string): string {
 /** Up to 3 names as they are, more as a count. */
 const namesOf = (failed: readonly string[]): string => (failed.length <= 3 ? failed.join(', ') : `${failed.length} checks`)
 
-/** The PR line, `checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4`: the checks, then what needs the person; the first part links to the PR. Nothing to say, no line. */
+/** The PR line, `#7: checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4 · auto merge`: the number links to the PR, then the checks, what needs the person, and auto-merge. Nothing to say, no line. */
 export function prLineOf(pr: PrInfo): Span[] {
   if (pr.number <= 0 || !pr.url) return []
   const checks: Span[] = [
@@ -173,12 +179,25 @@ export function prLineOf(pr: PrInfo): Span[] {
     ...checks,
     ...(pr.isConflict ? [{ text: 'conflicts', color: ALARM }] : []),
     ...(pr.threads > 0 ? [{ text: `💬 ${pr.threads}`, color: WARN }] : []),
+    ...(pr.isAutoMerge ? [{ text: 'auto merge', color: 'success' }] : []),
   ]
   if (parts.length === 0) return []
   const joined = parts.flatMap((part, i): Span[] => (i === 0 ? [part] : [{ text: ' · ', color: LINE }, part]))
-  if (checks.length > 0) return [{ text: 'checks', color: 'suggestion', href: pr.url }, { text: ': ', color: DIM }, ...joined]
-  const [first, ...rest] = joined
-  return first ? [{ ...first, href: pr.url }, ...rest] : []
+  const label: Span[] = checks.length > 0 ? [{ text: 'checks', color: 'suggestion' }, { text: ': ', color: DIM }] : []
+  return [{ text: `#${pr.number}`, color: 'suggestion', href: pr.url }, { text: ': ', color: DIM }, ...label, ...joined]
+}
+
+/** Between the PR info and the changed files on their shared line. */
+export const PR_ROW_SEPARATOR: Span = { text: ' | ', color: LINE }
+/** The changed files show only with at least this much room left after the PR info. */
+const CHANGES_MIN = 4
+
+/** The PR info and the changed files on one line, `#7: checks: ✓ 3 | 10 files changed | +550`: the PR info keeps its room, the files get what is left. */
+export function prRowOf(pr: readonly Span[], changes: readonly StatusGroup[], columns: number): { pr: Span[]; changed: Span[] } {
+  if (pr.length === 0) return { pr: [], changed: fitStatus(changes, columns) }
+  const fitted = fitStatus([{ rank: 1, spans: [...pr] }], columns)
+  const room = columns - cellsOf(textOfStatus(fitted)) - cellsOf(PR_ROW_SEPARATOR.text)
+  return { pr: fitted, changed: room >= CHANGES_MIN ? fitStatus(changes, room) : [] }
 }
 
 // A command that moves the PR: a push, a branch change, a `gh pr` act or a re-run. Matches `git` options before the verb.
@@ -192,7 +211,8 @@ export function prDelayOf(at: { pr: PrInfo; unknownTries: number; sinceActMs: nu
   const { pr, unknownTries, sinceActMs } = at
   if (pr.number === 0) return sinceActMs < PR_ACT_MS ? PR_BUSY_MS : PR_NONE_MS
   if (pr.isUnknown && unknownTries < PR_UNKNOWN_TRIES) return PR_UNKNOWN_MS
-  if (pr.isRunning || sinceActMs < PR_ACT_MS) return PR_BUSY_MS
+  // Auto-merge may merge the PR any moment: look often, so the line goes soon after.
+  if (pr.isRunning || sinceActMs < PR_ACT_MS || (pr.isAutoMerge && !pr.isConflict)) return PR_BUSY_MS
   return PR_CALM_MS
 }
 

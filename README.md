@@ -247,13 +247,13 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 
 **Grey means calm.** A part gets a color only when it needs your attention.
 
-**The PR line.** With a PR open on the branch, one more line shows its checks and what needs you:
+**The PR line.** With a PR open on the branch, one more line shows its checks, what needs you, and whether auto-merge is on. The changed files follow on the same line:
 
 ```text
-checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4
+#7: checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4 · auto merge | 10 files changed | +550 | -126
 ```
 
-`checks` links to the PR on GitHub; with no checks, the first part does. A part shows only when it applies. With nothing to show, there is no line.
+The number links to the PR on GitHub. A part shows only when it applies. With nothing to show, the files have the line to themselves. On a narrow screen the files part is cut first.
 
 | Part | Meaning | Color |
 |------|---------|-------|
@@ -262,6 +262,7 @@ checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4
 | `✓ 5` | checks passed | 🟢 green |
 | `conflicts` | the branch conflicts with its base branch | 🔴 red |
 | `💬 4` | unresolved review threads | 🟡 yellow |
+| `auto merge` | auto-merge is on: GitHub merges the PR when it can | 🟢 green |
 
 A new problem pops up once as a toast, for about 8 seconds: a new conflict, a newly failed check, or more unresolved threads. For example `PR #7: failing: lint`. It does not fire when you reload. The **PR line** setting turns the line and the toast off.
 
@@ -346,7 +347,7 @@ Every act has a switch. To change one:
 | Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
 | Changed files | `true` | One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
-| PR line | `true` | One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts and unresolved review threads. A toast says when something new needs you. Uses `gh`. `false` hides both. |
+| PR line | `true` | One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts, unresolved review threads and auto-merge. A toast says when something new needs you. Uses `gh`. `false` hides both. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.

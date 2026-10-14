@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { cellsOf } from './frames'
 import {
-  attentionToastOf, failedChecksOf, hostOf, isNoPrOf, isPrActOf, NO_PR_INFO, prDelayOf, prInfoOf, prLineOf, prStatusOf, PR_ACT_MS, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_UNKNOWN_MS, unresolvedOf,
+  attentionToastOf, failedChecksOf, hostOf, isNoPrOf, isPrActOf, NO_PR_INFO, prDelayOf, prInfoOf, prLineOf, prRowOf, prStatusOf, PR_ACT_MS, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_UNKNOWN_MS, unresolvedOf,
 } from './pr'
 import type { PrInfo } from './pr'
 import { fitStatus, textOfStatus } from './statusline'
@@ -11,20 +11,24 @@ const URL = 'https://github.com/egor-xyz/robot/pull/12078'
 const pr = (over: Partial<PrInfo> = {}): PrInfo => ({ ...NO_PR_INFO, number: 7, url: URL, ...over })
 const line = (over: Partial<PrInfo> = {}): string => textOfStatus(prLineOf(pr(over)))
 
-test('the PR line reads the checks, then what needs the person; no number, no state word', () => {
-  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4')
-  expect(line({ status: 'ready', passed: 6 })).toBe('checks: ✓ 6')
-  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('checks: ◌ 1 · ✓ 3 · 💬 2')
-  expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('checks: ✗ 4 checks')
-  expect(line({ failed: ['a', 'b', 'c'] })).toBe('checks: ✗ a, b, c')
-  expect(line({ status: 'draft', threads: 1 })).toBe('💬 1')
-  expect(line({ status: 'draft', isConflict: true })).toBe('conflicts')
+test('the PR line reads the checks, then what needs the person; the number first, no state word', () => {
+  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4')
+  expect(line({ status: 'ready', passed: 6 })).toBe('#7: checks: ✓ 6')
+  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('#7: checks: ◌ 1 · ✓ 3 · 💬 2')
+  expect(line({ passed: 3, isAutoMerge: true })).toBe('#7: checks: ✓ 3 · auto merge')
+  expect(line({ isAutoMerge: true })).toBe('#7: auto merge')
+  expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('#7: checks: ✗ 4 checks')
+  expect(line({ failed: ['a', 'b', 'c'] })).toBe('#7: checks: ✗ a, b, c')
+  expect(line({ status: 'draft', threads: 1 })).toBe('#7: 💬 1')
+  expect(line({ status: 'draft', isConflict: true })).toBe('#7: conflicts')
 })
 
-test('the PR line links its first part to the PR, and colours each part by how bad it is', () => {
+test('the PR line links its number to the PR, and colours each part by how bad it is', () => {
   const spans = prLineOf(pr({ isConflict: true, failed: ['lint'], running: 1, passed: 2, threads: 4 }))
   const colorOf = (text: string) => spans.find(span => span.text === text)?.color
-  expect(spans[0]).toEqual({ text: 'checks', color: 'suggestion', href: URL })
+  expect(spans[0]).toEqual({ text: '#7', color: 'suggestion', href: URL })
+  expect(spans.filter(span => span.href)).toHaveLength(1)
+  expect(colorOf('checks')).toBe('suggestion')
   expect(colorOf(': ')).toBe('inactive')
   expect(colorOf(' · ')).toBe('subtle')
   expect(colorOf('✗ lint')).toBe('error')
@@ -32,7 +36,8 @@ test('the PR line links its first part to the PR, and colours each part by how b
   expect(colorOf('✓ 2')).toBe('success')
   expect(colorOf('conflicts')).toBe('error')
   expect(colorOf('💬 4')).toBe('warning')
-  expect(prLineOf(pr({ threads: 3 }))[0]).toEqual({ text: '💬 3', color: 'warning', href: URL })
+  expect(prLineOf(pr({ isAutoMerge: true })).find(span => span.text === 'auto merge')?.color).toBe('success')
+  expect(prLineOf(pr({ threads: 3 }))[0]).toEqual({ text: '#7', color: 'suggestion', href: URL })
 })
 
 test('no PR, no link, or nothing to say: no PR line', () => {
@@ -42,13 +47,14 @@ test('no PR, no link, or nothing to say: no PR line', () => {
   expect(prLineOf(pr({ status: 'draft' }))).toEqual([])
 })
 
-test('a narrow screen cuts the PR line from the right, and the first part stays a link', () => {
+test('a narrow screen cuts the PR line from the right, and the number stays a link', () => {
   const big = pr({ isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })
   const spans = fitStatus([{ rank: 1, spans: prLineOf(big) }], 20)
   const text = textOfStatus(spans)
   expect(cellsOf(text)).toBeLessThanOrEqual(20)
   expect(text.endsWith('…')).toBe(true)
-  expect(spans[0]?.href).toBe(URL)
+  expect(spans[0]).toEqual({ text: '#7', color: 'suggestion', href: URL })
+  expect(text.startsWith('#7: ')).toBe(true)
   // The 💬 is two cells wide.
   expect(cellsOf('💬 4')).toBe(4)
   expect(cellsOf('✗◌✓')).toBe(3)
@@ -98,8 +104,9 @@ test('the PR info keeps the word and the parts from the same checks', () => {
     statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }, { name: 'test', status: 'IN_PROGRESS', conclusion: '' }, { name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }, { context: 'ci/x', state: 'SUCCESS' }, { name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED' }],
   }
   expect(prInfoOf(view, 3)).toEqual({
-    number: 12078, url: URL, baseRef: 'main', id: 'PR_1', status: 'conflicts', isConflict: true, failed: ['lint'], isRunning: true, passed: 3, running: 1, isUnknown: false, threads: 3,
+    number: 12078, url: URL, baseRef: 'main', id: 'PR_1', status: 'conflicts', isConflict: true, failed: ['lint'], isRunning: true, passed: 3, running: 1, isUnknown: false, threads: 3, isAutoMerge: false,
   })
+  expect(prInfoOf({ ...view, autoMergeRequest: { enabledAt: '2026-10-14T09:00:00Z' } }, 0).isAutoMerge).toBe(true)
   expect(prInfoOf({ ...view, mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN' }, 0).isUnknown).toBe(true)
   expect(prInfoOf({ ...view, state: 'MERGED' }, 0)).toEqual(NO_PR_INFO)
   expect(prInfoOf({ ...view, number: 0 }, 0)).toEqual(NO_PR_INFO)
@@ -119,6 +126,8 @@ test('the lookup waits by what the PR is doing', () => {
   expect(prDelayOf({ pr: NO_PR_INFO, unknownTries: 0, sinceActMs: 0 })).toBe(PR_BUSY_MS)
   expect(prDelayOf({ pr: NO_PR_INFO, unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_NONE_MS)
   expect(prDelayOf({ pr: pr({ isUnknown: true }), unknownTries: 2, sinceActMs: PR_ACT_MS })).toBe(PR_UNKNOWN_MS)
+  expect(prDelayOf({ pr: pr({ isAutoMerge: true }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
+  expect(prDelayOf({ pr: pr({ isAutoMerge: true, isConflict: true }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_CALM_MS)
   expect(prDelayOf({ pr: pr({ isUnknown: true, isRunning: true }), unknownTries: 3, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
   expect(prDelayOf({ pr: pr({ isUnknown: true }), unknownTries: 3, sinceActMs: PR_ACT_MS })).toBe(PR_CALM_MS)
   expect(prDelayOf({ pr: pr({ isRunning: true }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
@@ -159,4 +168,19 @@ test('only the gh message about a missing PR means no PR; any other error is a f
   expect(isNoPrOf('No open pull requests found')).toBe(true)
   expect(isNoPrOf('error connecting to api.github.com')).toBe(false)
   expect(isNoPrOf('')).toBe(false)
+})
+
+test('the PR info and the changed files share one line; the files get the room that is left', () => {
+  const files = [{ rank: 3, spans: [{ text: '10 files changed', color: 'inactive' }] }, { rank: 2, spans: [{ text: '+550', color: 'success' }] }, { rank: 1, spans: [{ text: '-126', color: 'error' }] }]
+  const info = prLineOf(pr({ passed: 3 }))
+  const wide = prRowOf(info, files, 80)
+  expect(`${textOfStatus(wide.pr)} | ${textOfStatus(wide.changed)}`).toBe('#7: checks: ✓ 3 | 10 files changed | +550 | -126')
+  // Narrow: the lowest-ranked file part goes first, the PR info stays whole.
+  expect(textOfStatus(prRowOf(info, files, 42).changed)).toBe('10 files changed | +550')
+  expect(textOfStatus(prRowOf(info, files, 42).pr)).toBe('#7: checks: ✓ 3')
+  // No room left: no files part.
+  expect(prRowOf(info, files, 18).changed).toEqual([])
+  // No PR info: the files take the whole line.
+  expect(textOfStatus(prRowOf([], files, 80).changed)).toBe('10 files changed | +550 | -126')
+  expect(prRowOf([], files, 80).pr).toEqual([])
 })

@@ -16,7 +16,7 @@ import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
-import { NO_PR_INFO, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_TICK_MS, THREADS_QUERY, attentionToastOf, hostOf, isNoPrOf, isPrActOf, prDelayOf, prInfoOf, prLineOf, unresolvedOf } from './pr'
+import { NO_PR_INFO, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_TICK_MS, THREADS_QUERY, PR_ROW_SEPARATOR, attentionToastOf, hostOf, isNoPrOf, isPrActOf, prDelayOf, prInfoOf, prLineOf, prRowOf, unresolvedOf } from './pr'
 import type { PrInfo, PrView } from './pr'
 
 const TICK_MS = 250
@@ -122,7 +122,7 @@ const CHANGES_CURSOR = { plugin: 'robot', key: 'changesCursor' } as const
 /** The branch's open PR (`number` 0: none) and the commit its diff starts from (HEAD with none). */
 const CHANGES_PR = { plugin: 'robot', key: 'changesPr' } as const
 const NO_PR = { number: 0, base: 'HEAD', url: '', files: 0, added: 0, removed: 0 }
-/** The branch's open PR for the PR line: its state, conflicts, failed checks and open review threads (`number` 0: none). */
+/** The branch's open PR for the PR line: its checks, conflicts, open review threads and auto-merge (`number` 0: none). */
 const PR = { plugin: 'robot', key: 'pr' } as const
 /** The panel lists the files: no file previewed. */
 const NO_PREVIEW = { path: '', group: 'local' as const, root: '', diff: '' }
@@ -243,7 +243,7 @@ async function refreshPr($: EngineInterface, mode: PrMode): Promise<PrRefreshed>
         await writePr($, NO_PR_INFO)
         return { pr: NO_PR_INFO, was, isLooked: true }
       }
-      const found = await $.process.run(['gh', 'pr', 'view', '--json', 'id,number,baseRefName,state,url,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
+      const found = await $.process.run(['gh', 'pr', 'view', '--json', 'id,number,baseRefName,state,url,isDraft,autoMergeRequest,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
       let view: Parameters<typeof prInfoOf>[0] = {}
       let isRead = false
       if (found?.exitCode === 0) {
@@ -763,9 +763,6 @@ export const register: Register = (on, options) => {
       if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
       lines.push(fitStatus(groups, columns))
     }
-    // The open PR, on its own line: a link to it, and what needs the person.
-    const prSpans = isPrLineOn ? prLineOf(prInfo) : []
-    if (prSpans.length > 0) lines.push(fitStatus([{ rank: 1, spans: prSpans }], columns))
     if (agentRows.length > 0) {
       // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
       await $.state.get(TICK)
@@ -774,44 +771,52 @@ export const register: Register = (on, options) => {
       const more = moreOf(agentRows.length)
       if (more.length > 0) lines.push([AGENT_MARK, ...more])
     }
-    // The changed files: one line, a button that opens the panel with the list.
-    const changed = fitStatus(changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
-    if (lines.length === 0 && changed.length === 0) return theirs
+    // The open PR (a link to it, and what needs the person), then the changed files: one line.
+    // The files are a button that opens the panel with the list.
+    const row = prRowOf(isPrLineOn ? prLineOf(prInfo) : [], changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
+    const changed = row.changed
+    if (lines.length === 0 && row.pr.length === 0 && changed.length === 0) return theirs
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
     // Mobile and the IDE draw no Client: there the branch stays still, in its blue.
     const Client = 'Client' in elements ? elements.Client : undefined
     const Link = 'Link' in elements ? elements.Link : undefined
+    const spanOf = (span: Span) =>
+      span.color === SHIMMER && Client ? (
+        <Client key={`shimmer-${waveAt}`} module="./shimmer.tsx" props={{ text: span.text, frames: SHIMMER_FRAMES }} />
+      ) : span.href && Link ? (
+        <Text color={span.color || undefined} wrap="truncate">
+          <Link href={span.href}>{span.text}</Link>
+        </Text>
+      ) : (
+        <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
+          {span.text}
+        </Text>
+      )
     return (
       <Box flexDirection="column">
         {lines.map(spans => (
+          <Box>{spans.map(spanOf)}</Box>
+        ))}
+        {(row.pr.length > 0 || changed.length > 0) && (
           <Box>
-            {spans.map(span =>
-              span.color === SHIMMER && Client ? (
-                <Client key={`shimmer-${waveAt}`} module="./shimmer.tsx" props={{ text: span.text, frames: SHIMMER_FRAMES }} />
-              ) : span.href && Link ? (
-                <Text color={span.color || undefined} wrap="truncate">
-                  <Link href={span.href}>{span.text}</Link>
-                </Text>
+            {row.pr.map(spanOf)}
+            {row.pr.length > 0 && changed.length > 0 && <Text color={PR_ROW_SEPARATOR.color}>{PR_ROW_SEPARATOR.text}</Text>}
+            {changed.length > 0 && (
+              Client ? (
+                // Under the pointer it shimmers as the panel's rows do; a click opens the panel.
+                <Box flexGrow={1}>
+                  <Client key="changes" module="./changes-line.tsx" width="100%" props={{ spans: changed.map(span => ({ text: span.text, color: span.color })) }} />
+                </Box>
               ) : (
-                <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
-                  {span.text}
-                </Text>
-              ),
+                <Button key="changes" plain onPress={() => void openChanges($)}>
+                  {changed.map(span => (
+                    <Text color={span.color || undefined}>{span.text}</Text>
+                  ))}
+                </Button>
+              )
             )}
           </Box>
-        ))}
-        {changed.length > 0 && (
-          Client ? (
-            // Under the pointer it shimmers as the panel's rows do; a click opens the panel.
-            <Client key="changes" module="./changes-line.tsx" width="100%" props={{ spans: changed.map(span => ({ text: span.text, color: span.color })) }} />
-          ) : (
-            <Button key="changes" plain onPress={() => void openChanges($)}>
-              {changed.map(span => (
-                <Text color={span.color || undefined}>{span.text}</Text>
-              ))}
-            </Button>
-          )
         )}
         {theirs}
       </Box>
