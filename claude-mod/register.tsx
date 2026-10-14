@@ -243,7 +243,7 @@ async function refreshPr($: EngineInterface, mode: PrMode): Promise<PrRefreshed>
         await writePr($, NO_PR_INFO)
         return { pr: NO_PR_INFO, was, isLooked: true }
       }
-      const found = await $.process.run(['gh', 'pr', 'view', '--json', 'id,number,baseRefName,state,url,isDraft,autoMergeRequest,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
+      const found = await $.process.run(['gh', 'pr', 'view', '--json', 'id,number,baseRefName,state,url,autoMergeRequest,mergeable,mergeStateStatus,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
       let view: Parameters<typeof prInfoOf>[0] = {}
       let isRead = false
       if (found?.exitCode === 0) {

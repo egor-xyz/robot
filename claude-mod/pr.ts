@@ -4,7 +4,7 @@ import { fitStatus, textOfStatus } from './statusline'
 import type { StatusGroup } from './statusline'
 
 /** What `gh pr view --json` says of an open PR. */
-export type PrView = { id?: unknown; isDraft?: unknown; autoMergeRequest?: unknown; mergeable?: unknown; mergeStateStatus?: unknown; reviewDecision?: unknown; statusCheckRollup?: unknown }
+export type PrView = { id?: unknown; autoMergeRequest?: unknown; mergeable?: unknown; mergeStateStatus?: unknown; statusCheckRollup?: unknown }
 
 /** One rollup entry: a CheckRun (name/status/conclusion/startedAt) or a StatusContext (context/state). */
 export type Check = { name?: unknown; context?: unknown; status?: unknown; conclusion?: unknown; state?: unknown; startedAt?: unknown; completedAt?: unknown }
@@ -15,14 +15,10 @@ export type PrInfo = {
   url: string
   baseRef: string
   id: string
-  /** The `prStatusOf` word; '' while GitHub has not worked it out. */
-  status: string
   /** Mergeable CONFLICTING or merge state DIRTY. */
   isConflict: boolean
   /** Failed check names: latest run per name, unique, in rollup order. */
   failed: string[]
-  /** Some (latest) check has not completed. */
-  isRunning: boolean
   /** Checks (latest run per name) done and not failed, and still running. */
   passed: number
   running: number
@@ -34,7 +30,7 @@ export type PrInfo = {
   isAutoMerge: boolean
 }
 
-export const NO_PR_INFO: PrInfo = { number: 0, url: '', baseRef: '', id: '', status: '', isConflict: false, failed: [], isRunning: false, passed: 0, running: 0, isUnknown: false, threads: 0, isAutoMerge: false }
+export const NO_PR_INFO: PrInfo = { number: 0, url: '', baseRef: '', id: '', isConflict: false, failed: [], passed: 0, running: 0, isUnknown: false, threads: 0, isAutoMerge: false }
 
 // Theme keys, not fixed colors (see statusline.ts).
 const DIM = 'inactive'
@@ -94,34 +90,9 @@ export function failedChecksOf(rollup: unknown): string[] {
   return [...new Set(names)]
 }
 
+/** Not done yet: a check run has a status and a conclusion; an old-style status has a state. */
 const isRunningCheck = (check: Check): boolean =>
   (check.status !== undefined && check.status !== 'COMPLETED') || check.state === 'PENDING' || check.state === 'EXPECTED'
-
-/** The PR's checks: one failed, some still running, or all done well (or none). */
-function checksOf(rollup: unknown): 'failed' | 'running' | 'passed' {
-  const checks = latestChecksOf(rollup)
-  // A check run has a status and a conclusion; an old-style status has a state.
-  if (checks.some(isFailed)) return 'failed'
-  if (checks.some(isRunningCheck)) return 'running'
-  return 'passed'
-}
-
-/** An open PR's state in one word, the worst first; '' while GitHub has not worked it out. */
-export function prStatusOf(view: PrView): string {
-  const state = view.mergeStateStatus
-  const checks = checksOf(view.statusCheckRollup)
-  if (view.isDraft === true) return 'draft'
-  if (view.mergeable === 'CONFLICTING' || state === 'DIRTY') return 'conflicts'
-  if (checks === 'failed') return 'failing'
-  if (view.reviewDecision === 'CHANGES_REQUESTED') return 'changes'
-  if (state === 'BEHIND') return 'behind'
-  // GitHub counts running checks as not passing (UNSTABLE), and running required checks block (BLOCKED).
-  if (checks === 'running') return 'checks'
-  if (state === 'BLOCKED') return view.reviewDecision === 'REVIEW_REQUIRED' ? 'review' : 'blocked'
-  if (state === 'CLEAN' || state === 'HAS_HOOKS' || state === 'UNSTABLE') return 'ready'
-  // GitHub works out the merge state only when asked: until then, the review still tells something.
-  return view.reviewDecision === 'REVIEW_REQUIRED' ? 'review' : ''
-}
 
 /** The open PR from `gh pr view --json`, with its unresolved thread count; NO_PR_INFO unless it is open. */
 export function prInfoOf(view: PrView & { number?: unknown; url?: unknown; baseRefName?: unknown; state?: unknown }, threads: number): PrInfo {
@@ -133,10 +104,8 @@ export function prInfoOf(view: PrView & { number?: unknown; url?: unknown; baseR
     url: textOf(view.url),
     baseRef: textOf(view.baseRefName),
     id: textOf(view.id),
-    status: prStatusOf(view),
     isConflict: view.mergeable === 'CONFLICTING' || view.mergeStateStatus === 'DIRTY',
     failed: failedChecksOf(view.statusCheckRollup),
-    isRunning: checks.some(isRunningCheck),
     passed: checks.filter(check => !isFailed(check) && !isRunningCheck(check)).length,
     running: checks.filter(isRunningCheck).length,
     isUnknown: view.mergeable === 'UNKNOWN',
@@ -212,7 +181,7 @@ export function prDelayOf(at: { pr: PrInfo; unknownTries: number; sinceActMs: nu
   if (pr.number === 0) return sinceActMs < PR_ACT_MS ? PR_BUSY_MS : PR_NONE_MS
   if (pr.isUnknown && unknownTries < PR_UNKNOWN_TRIES) return PR_UNKNOWN_MS
   // Auto-merge may merge the PR any moment: look often, so the line goes soon after.
-  if (pr.isRunning || sinceActMs < PR_ACT_MS || (pr.isAutoMerge && !pr.isConflict)) return PR_BUSY_MS
+  if (pr.running > 0 || sinceActMs < PR_ACT_MS || (pr.isAutoMerge && !pr.isConflict)) return PR_BUSY_MS
   return PR_CALM_MS
 }
 

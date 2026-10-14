@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { cellsOf } from './frames'
 import {
-  attentionToastOf, failedChecksOf, hostOf, isNoPrOf, isPrActOf, NO_PR_INFO, prDelayOf, prInfoOf, prLineOf, prRowOf, prStatusOf, PR_ACT_MS, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_UNKNOWN_MS, unresolvedOf,
+  attentionToastOf, failedChecksOf, hostOf, isNoPrOf, isPrActOf, NO_PR_INFO, prDelayOf, prInfoOf, prLineOf, prRowOf, PR_ACT_MS, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_UNKNOWN_MS, unresolvedOf,
 } from './pr'
 import type { PrInfo } from './pr'
 import { fitStatus, textOfStatus } from './statusline'
@@ -12,15 +12,15 @@ const pr = (over: Partial<PrInfo> = {}): PrInfo => ({ ...NO_PR_INFO, number: 7, 
 const line = (over: Partial<PrInfo> = {}): string => textOfStatus(prLineOf(pr(over)))
 
 test('the PR line reads the checks, then what needs the person; the number first, no state word', () => {
-  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: ✗ lint, test | ◌ 2 | ✓ 5 | conflicts | 💬 4')
-  expect(line({ status: 'ready', passed: 6 })).toBe('#7: ✓ 6')
-  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('#7: ◌ 1 | ✓ 3 | 💬 2')
+  expect(line({ isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: ✗ lint, test | ◌ 2 | ✓ 5 | conflicts | 💬 4')
+  expect(line({ passed: 6 })).toBe('#7: ✓ 6')
+  expect(line({ running: 1, passed: 3, threads: 2 })).toBe('#7: ◌ 1 | ✓ 3 | 💬 2')
   expect(line({ passed: 3, isAutoMerge: true })).toBe('#7: ✓ 3 | auto merge')
   expect(line({ isAutoMerge: true })).toBe('#7: auto merge')
   expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('#7: ✗ 4 checks')
   expect(line({ failed: ['a', 'b', 'c'] })).toBe('#7: ✗ a, b, c')
-  expect(line({ status: 'draft', threads: 1 })).toBe('#7: 💬 1')
-  expect(line({ status: 'draft', isConflict: true })).toBe('#7: conflicts')
+  expect(line({ threads: 1 })).toBe('#7: 💬 1')
+  expect(line({ isConflict: true })).toBe('#7: conflicts')
 })
 
 test('the PR line links its number to the PR, and colours each part by how bad it is', () => {
@@ -43,7 +43,7 @@ test('no PR, no link, or nothing to say: no PR line', () => {
   expect(prLineOf(NO_PR_INFO)).toEqual([])
   expect(prLineOf(pr({ url: '', passed: 2 }))).toEqual([])
   expect(prLineOf(pr({ number: 0, passed: 2 }))).toEqual([])
-  expect(prLineOf(pr({ status: 'draft' }))).toEqual([])
+  expect(prLineOf(pr())).toEqual([])
 })
 
 test('a narrow screen cuts the PR line from the right, and the number stays a link', () => {
@@ -70,40 +70,13 @@ test('a failed check is gone when its latest run passed, and counts once', () =>
   expect(failedChecksOf(undefined)).toEqual([])
 })
 
-test('the PR state reads the worst first', () => {
-  expect(prStatusOf({ isDraft: true, mergeable: 'CONFLICTING' })).toBe('draft')
-  expect(prStatusOf({ mergeable: 'CONFLICTING', mergeStateStatus: 'DIRTY' })).toBe('conflicts')
-  const failed = [{ status: 'COMPLETED', conclusion: 'FAILURE' }]
-  const running = [{ status: 'IN_PROGRESS', conclusion: '' }, { state: 'SUCCESS' }]
-  const passed = [{ status: 'COMPLETED', conclusion: 'SUCCESS' }, { state: 'SUCCESS' }]
-  expect(prStatusOf({ mergeable: 'MERGEABLE', mergeStateStatus: 'UNSTABLE', statusCheckRollup: failed })).toBe('failing')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED', statusCheckRollup: failed })).toBe('failing')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', statusCheckRollup: [{ state: 'ERROR' }] })).toBe('failing')
-  expect(prStatusOf({ mergeable: 'MERGEABLE', mergeStateStatus: 'UNSTABLE', statusCheckRollup: running })).toBe('checks')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED', statusCheckRollup: running })).toBe('checks')
-  expect(prStatusOf({ mergeStateStatus: 'UNSTABLE', statusCheckRollup: passed })).toBe('ready')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'CHANGES_REQUESTED' })).toBe('changes')
-  expect(prStatusOf({ mergeStateStatus: 'BEHIND' })).toBe('behind')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: 'REVIEW_REQUIRED' })).toBe('review')
-  expect(prStatusOf({ mergeStateStatus: 'BLOCKED', reviewDecision: '' })).toBe('blocked')
-  expect(prStatusOf({ mergeStateStatus: 'CLEAN', reviewDecision: 'APPROVED' })).toBe('ready')
-  expect(prStatusOf({ mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN' })).toBe('')
-  expect(prStatusOf({ mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN', reviewDecision: 'REVIEW_REQUIRED' })).toBe('review')
-  // A re-run: an old failure, then a newer success.
-  const rerun = [
-    { name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE', startedAt: '2026-10-13T10:00:00Z' },
-    { name: 'lint', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-10-13T11:00:00Z' },
-  ]
-  expect(prStatusOf({ mergeStateStatus: 'CLEAN', statusCheckRollup: rerun })).toBe('ready')
-})
-
-test('the PR info keeps the word and the parts from the same checks', () => {
+test('the PR info keeps the parts from the same checks', () => {
   const view = {
     id: 'PR_1', number: 12078, url: URL, baseRefName: 'main', state: 'OPEN', mergeable: 'CONFLICTING', mergeStateStatus: 'DIRTY',
     statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }, { name: 'test', status: 'IN_PROGRESS', conclusion: '' }, { name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }, { context: 'ci/x', state: 'SUCCESS' }, { name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED' }],
   }
   expect(prInfoOf(view, 3)).toEqual({
-    number: 12078, url: URL, baseRef: 'main', id: 'PR_1', status: 'conflicts', isConflict: true, failed: ['lint'], isRunning: true, passed: 3, running: 1, isUnknown: false, threads: 3, isAutoMerge: false,
+    number: 12078, url: URL, baseRef: 'main', id: 'PR_1', isConflict: true, failed: ['lint'], passed: 3, running: 1, isUnknown: false, threads: 3, isAutoMerge: false,
   })
   expect(prInfoOf({ ...view, autoMergeRequest: { enabledAt: '2026-10-14T09:00:00Z' } }, 0).isAutoMerge).toBe(true)
   expect(prInfoOf({ ...view, mergeable: 'UNKNOWN', mergeStateStatus: 'UNKNOWN' }, 0).isUnknown).toBe(true)
@@ -127,9 +100,9 @@ test('the lookup waits by what the PR is doing', () => {
   expect(prDelayOf({ pr: pr({ isUnknown: true }), unknownTries: 2, sinceActMs: PR_ACT_MS })).toBe(PR_UNKNOWN_MS)
   expect(prDelayOf({ pr: pr({ isAutoMerge: true }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
   expect(prDelayOf({ pr: pr({ isAutoMerge: true, isConflict: true }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_CALM_MS)
-  expect(prDelayOf({ pr: pr({ isUnknown: true, isRunning: true }), unknownTries: 3, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
+  expect(prDelayOf({ pr: pr({ isUnknown: true, running: 1 }), unknownTries: 3, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
   expect(prDelayOf({ pr: pr({ isUnknown: true }), unknownTries: 3, sinceActMs: PR_ACT_MS })).toBe(PR_CALM_MS)
-  expect(prDelayOf({ pr: pr({ isRunning: true }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
+  expect(prDelayOf({ pr: pr({ running: 1 }), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_BUSY_MS)
   expect(prDelayOf({ pr: pr(), unknownTries: 0, sinceActMs: 1_000 })).toBe(PR_BUSY_MS)
   expect(prDelayOf({ pr: pr(), unknownTries: 0, sinceActMs: PR_ACT_MS })).toBe(PR_CALM_MS)
 })
