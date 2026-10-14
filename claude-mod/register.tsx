@@ -94,8 +94,6 @@ const NEEDS_YOU_SAY: Span[][] = [[{ text: 'need a human', color: COMMAND_COLOR }
 const TICK = { plugin: 'robot', key: 'tick' } as const
 /** The act `/robot play`, `dice` or `coin` asked for: its id and the value the robot lands on. */
 const ACT = { plugin: 'robot', key: 'act' } as const
-/** The id of the last act started: kept in state, so one ask plays once, even across a reload. */
-const ACT_STARTED = { plugin: 'robot', key: 'actStarted' } as const
 const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
 const CELEBRATION = { plugin: 'robot', key: 'celebration' } as const
@@ -144,6 +142,8 @@ const AGENTS_PANE = 'robot-agents'
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
+/** The id of the last act started. Unset until the first draw of this load, which marks an act left from before a reload as seen, so it does not play again. */
+let actSeen: number | undefined
 /** True while the robot is in an act; the frame it shows then is the act's, with no fire, ice or bubble. */
 const isInAct = (s: RobotState): boolean => ACTS.includes(s.state as ActName)
 /** The subagent friends as of the last tick they were stepped, and that tick. */
@@ -1102,7 +1102,6 @@ export const register: Register = (on, options) => {
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
     const { value: act } = await $.state.get(ACT)
-    const { value: actStarted = 0 } = await $.state.get(ACT_STARTED)
     const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
     const { value: celebration } = await $.state.get(CELEBRATION)
     const { value: subagents = 0 } = await $.state.get(SUBAGENTS)
@@ -1123,13 +1122,15 @@ export const register: Register = (on, options) => {
     }
 
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
+    // An act asked for by a command starts now; it plays to its end whatever the robot felt before.
+    // Drawing is pure (no state writes), so the started id is kept in this module.
+    if (actSeen === undefined) actSeen = act?.id ?? 0
+    else if (act && act.id !== actSeen) {
+      actSeen = act.id
+      shown.state = actOf(shown.state, act.name, act.value, track)
+    }
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
     if (at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
-      // An act asked for by a command starts now; it plays to its end whatever the robot felt before.
-      if (act && act.id !== actStarted) {
-        await $.state.set(ACT_STARTED, act.id)
-        shown.state = actOf(shown.state, act.name, act.value, track)
-      }
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       // Talking (asking for the person, or hot and talking) it dances in place, so its bubble stays put.
       // An act in play is not overridden.
