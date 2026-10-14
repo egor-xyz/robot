@@ -92,10 +92,10 @@ const NEEDS_YOU_SAY: Span[][] = [[{ text: 'need a human', color: COMMAND_COLOR }
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
-/** The act `/robot play`, `dice` or `coin` asked for: its id, the value the robot lands on, and when it was asked. */
+/** The act `/robot play`, `dice` or `coin` asked for: its id and the value the robot lands on. */
 const ACT = { plugin: 'robot', key: 'act' } as const
-/** The window in which an asked act still starts: a reload resets `actSeen` and must not replay the last one. */
-const ACT_WINDOW_MS = 2_000
+/** The id of the last act started: kept in state, so one ask plays once, even across a reload. */
+const ACT_STARTED = { plugin: 'robot', key: 'actStarted' } as const
 const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
 const CELEBRATION = { plugin: 'robot', key: 'celebration' } as const
@@ -144,8 +144,6 @@ const AGENTS_PANE = 'robot-agents'
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
-/** The id of the last act started, so one ask plays once. */
-let actSeen = 0
 /** True while the robot is in an act; the frame it shows then is the act's, with no fire, ice or bubble. */
 const isInAct = (s: RobotState): boolean => ACTS.includes(s.state as ActName)
 /** The subagent friends as of the last tick they were stepped, and that tick. */
@@ -552,8 +550,8 @@ async function resetSettings($: EngineInterface): Promise<void> {
   // The switch itself goes last, so a failed write leaves it on to try again.
   for (const [field, value] of Object.entries(DEFAULTS).sort(([a], [b]) => Number(a === 'resetSettings') - Number(b === 'resetSettings'))) {
     if (saved.find(row => row.key === `robot.${field}`)?.value === value) continue
-    await $.config.set({ key: `robot.${field}`, value }).catch(() => undefined)
-    if (field === 'resetSettings') await $.ui.toast('Robot settings are back to default')
+    const set = await $.config.set({ key: `robot.${field}`, value }).catch(() => undefined)
+    if (field === 'resetSettings' && set && set.deny === undefined) await $.ui.toast('Robot settings are back to default')
   }
   await $.store.delete(STORE_TTL).catch(() => undefined)
 }
@@ -814,7 +812,7 @@ export const register: Register = (on, options) => {
     if (command.kind === 'act') {
       const { act } = command
       const value = act === 'dice' ? 1 + (randomInt() % 6) : act === 'coin' ? randomInt() % 2 : 0
-      if (isRobotOn) await $.state.set(ACT, { id: randomInt(), name: act, value, requestedAt: Date.now() })
+      if (isRobotOn) await $.state.set(ACT, { id: Date.now(), name: act, value })
       else if (act === 'slot') return { text: 'The robot is hidden: /robot shows it.' }
       return { text: actTextOf(act, value) }
     }
@@ -1104,6 +1102,7 @@ export const register: Register = (on, options) => {
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
     const { value: act } = await $.state.get(ACT)
+    const { value: actStarted = 0 } = await $.state.get(ACT_STARTED)
     const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
     const { value: celebration } = await $.state.get(CELEBRATION)
     const { value: subagents = 0 } = await $.state.get(SUBAGENTS)
@@ -1127,8 +1126,8 @@ export const register: Register = (on, options) => {
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
     if (at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
       // An act asked for by a command starts now; it plays to its end whatever the robot felt before.
-      if (act && act.id !== actSeen && Date.now() - act.requestedAt < ACT_WINDOW_MS) {
-        actSeen = act.id
+      if (act && act.id !== actStarted) {
+        await $.state.set(ACT_STARTED, act.id)
         shown.state = actOf(shown.state, act.name, act.value, track)
       }
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
@@ -1163,8 +1162,13 @@ export const register: Register = (on, options) => {
       frame = factory(columns, at - packedFrom, packedSeed)
     } else if (isNeeded) {
       if (!shown.frame) return next(e)
-      const said = typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED)
-      frame = withFriends(speech(decorated(shown.frame), said, columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false, speech(shown.frame, said, columns))
+      // An act wins over needs-you: it plays plain, with no bubble and no friends.
+      if (inAct) {
+        frame = shown.frame
+      } else {
+        const said = typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED)
+        frame = withFriends(speech(decorated(shown.frame), said, columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false, speech(shown.frame, said, columns))
+      }
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
     } else if (!shown.frame) {

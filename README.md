@@ -414,7 +414,7 @@ Re-run the install line later to update — it pins your local copy to the lates
 | `↑` / `↓`   | Cycle animations (also `k` / `j`) |
 | `→`         | Open settings                     |
 | `←`         | Back to the robot (from settings) |
-| `Space`     | 🎰 Slot machine                   |
+| `Space`     | 🎰 Slot machine (in Claude Code: `/robot play`) |
 | `q` / `Esc` | Quit                              |
 
 <details>
