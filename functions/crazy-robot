@@ -152,6 +152,22 @@ $'  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [oo   ]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [   oo]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o'
+$'\' .-----.  .\n  [o   o]\n  /|━━━|\\\n   o   o'
+$'* .-----.    *\n\' [o   o]  .\n  /|━━━|\\\n   o   o'
+$'* .-----. \'\n. [^   ^]    .\n\' /|━━━|\\  *\n   o   o'
+$'\' .--*--.\n. [^   ^]   *\n* /|━━━|\\    \'\n   o   o   .'
+$'. .-*.*-.   \'\n  [^   ^]\n\' /|━━━|\\   .\n . o   o     *'
+$'* .*****.    \'\n  [^   ^]  *\n. /|━━━|\\\n   o   o    .'
+$'  .*****.  .\n* [^   ^]\n  /|━━━|\\    .\n\'  o   o'
+$'  .*****.\n  [-   -]   \'\n. /|━━━|\\\n   o   o    .'
+$' .*-*-*. *\n [-   -]  \' .\n /|━━━|\\\n  o   o'
+$'*  .-*-*-.  .\n\'  [-   -]\n . /|━━━|\\ \'\n    o   o'
+$' .-----.   *\n [-   -]  \'\n /|━━━|\\    .\n  o   o'
+$'  .-----.\n  [o   o]\n  /|━━━|\\    \'\n   o   o   .'
+$'  .-----. *\n  [o   o]\n  /|━━━|━━o\n   o   o'
+$'  .-----.\n  [o   o] *\n  /|━━━|━━o\n   o   o'
+$'  .-----.\n  [^   ^]\n  /|━━━|━━*\n   o   o'
+$'  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o'
 )
 
 # Pick new state when current expires
@@ -161,7 +177,7 @@ if (( _robot_t >= _robot_dur )); then
   if [[ $_robot_state != walk ]]; then
     _robot_state=walk
   else
-    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze)
+    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow)
     _robot_state=${states[$((RANDOM % ${#states} + 1))]}
   fi
   _robot_t=0
@@ -180,6 +196,7 @@ if (( _robot_t >= _robot_dur )); then
     concert)                _w=14 ;;
     glitch)                 _w=12 ;;
     sneeze)                 _w=29 ;;
+    snow)                   _w=15 ;;
   esac
   if (( _w )); then
     (( _robot_pos > track - _w )) && _robot_pos=$(( track - _w ))
@@ -210,6 +227,7 @@ if (( _robot_t >= _robot_dur )); then
     glitch)            _robot_dur=$(( (1 + RANDOM % 2) * 12 )) ;; # 1-2 glitches
     spin)              _robot_dur=$(( (1 + RANDOM % 2) * 12 )) ;; # 1-2 spins
     sneeze)            _robot_dur=$(( (1 + RANDOM % 2) * 12 )) ;; # 1-2 sneezes
+    snow)              _robot_dur=$(( (1 + RANDOM % 2) * 16 )) ;; # 1-2 snowfalls
     *)                 _robot_dur=$(( 8 + RANDOM % 18 )) ;;
   esac
 fi
@@ -243,6 +261,7 @@ case $_robot_state in
   glitch)   color=46  ;;  # terminal green
   spin)     color=159 ;;  # dizzy sky blue
   sneeze)   color=210 ;;  # sniffly pink
+  snow)     color=195 ;;  # icy white-blue
   slot)     color=226 ;;  # yellow (jackpot overrides below)
 esac
 case $_robot_state in
@@ -467,6 +486,10 @@ case $_robot_state in
   sneeze)
     # 12-tick sneeze: tickle, head tilts back, huge atchoo throws the robot back and sprays, sheepish glance.
     raw=${idle_frames[$(( 121 + _robot_t % 12 ))]}
+    ;;
+  snow)
+    # 16-tick snowfall: flakes drift down, pile up on the head, robot shakes them off, catches one.
+    raw=${idle_frames[$(( 133 + _robot_t % 16 ))]}
     ;;
   slot)
     # Reel symbols. 7️⃣ keycap is the jackpot — width matches the other 2-col
