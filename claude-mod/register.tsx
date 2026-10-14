@@ -812,8 +812,12 @@ export const register: Register = (on, options) => {
     if (command.kind === 'act') {
       const { act } = command
       const value = act === 'dice' ? 1 + (randomInt() % 6) : act === 'coin' ? randomInt() % 2 : 0
-      if (isRobotOn) await $.state.set(ACT, { id: Date.now(), name: act, value })
-      else if (act === 'slot') return { text: 'The robot is hidden: /robot shows it.' }
+      // The robot shows the result, so the reply stays empty: no spoiler before it lands.
+      if (isRobotOn) {
+        await $.state.set(ACT, { id: Date.now(), name: act, value })
+        return {}
+      }
+      if (act === 'slot') return { text: 'The robot is hidden: /robot shows it.' }
       return { text: actTextOf(act, value) }
     }
     return { text: HELP_TEXT }

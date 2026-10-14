@@ -324,8 +324,8 @@ Turn them off with the **Branch wave**, **Subagent lines** and **PR and files li
 | `/robot changes` | Hide or show the PR and files line (saved) |
 | `/robot calm` | Turn calm mode on or off (saved) |
 | `/robot play` | The robot plays the slot machine |
-| `/robot dice` | The robot turns into a die, rolls, and lands on 1–6. The reply says the number, e.g. `🎲 You rolled 4.` |
-| `/robot coin` | The robot flips a coin. The reply says `🪙 Yes.` or `🪙 No.` |
+| `/robot dice` | The robot turns into a die, rolls from the left to the middle, and lands on 1–6. With the robot hidden, the reply says the number, e.g. `🎲 You rolled 4.` |
+| `/robot coin` | The robot flips a coin that lands on YES or NO. With the robot hidden, the reply says `🪙 Yes.` or `🪙 No.` |
 | `/robot files` | Open the changed-files panel |
 | `/robot agents` | Open the panel with every running subagent |
 

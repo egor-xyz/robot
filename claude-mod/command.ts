@@ -53,7 +53,7 @@ export function toggleDenyTextOf(key: ToggleKey, deny: string): string {
   return `${TITLE[key]} not changed: ${deny}`
 }
 
-/** The reply to an act; it names the same value the robot lands on. */
+/** The reply to an act while the robot is hidden; it names the value the robot would land on. */
 export function actTextOf(act: ActName, value: number): string {
   if (act === 'dice') return `🎲 You rolled ${value}.`
   if (act === 'coin') return value === 1 ? '🪙 Yes.' : '🪙 No.'

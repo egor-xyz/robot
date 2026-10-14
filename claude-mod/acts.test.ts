@@ -36,9 +36,10 @@ test('dice holds the face of value from tick 16 to 27, for every value', () => {
     for (let t = 16; t <= 27; t++) {
       const rows = textOf(ticks[t]!.frame).map(row => row.trimStart())
       const want = faceRows(value).map(row => row.trimStart())
-      // Ticks 16 and 17 add a sparkle after the top row.
-      expect(rows.slice(1)).toEqual(want.slice(1))
+      // Ticks 16 and 17 add a sparkle after the top row; the number shows beside the die.
+      expect(rows.slice(2)).toEqual(want.slice(2))
       expect(rows[0]!.startsWith(want[0]!)).toBe(true)
+      expect(rows[1]).toBe(`${want[1]}  [${value}]`)
     }
   }
 })

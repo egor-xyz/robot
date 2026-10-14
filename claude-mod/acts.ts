@@ -29,12 +29,12 @@ const sp = (n: number) => ' '.repeat(Math.max(0, n))
 const fg = (index: number) => `\x1b[38;5;${index}m`
 const RESET = '\x1b[39m'
 
-/** Turns raw rows into a frame: pad, orange body, `accent` inside [...]. */
+/** Turns raw rows into a frame: pad, orange body, `accent` inside [...] (never an escape's own `[`). */
 function paint(rows: string[], pos: number, accent: number): Frame {
   const pad = sp(pos)
   const orange = fg(ORANGE_INDEX)
   return rows.map(row => {
-    const lit = `${pad}${row}`.replace(/\[([^\]]*)\]/g, (_, inner: string) => `[${fg(accent)}${inner}${orange}]`)
+    const lit = `${pad}${row}`.replace(/(?<!\x1b)\[([^\]\x1b]*)\]/g, (_, inner: string) => `[${fg(accent)}${inner}${orange}]`)
     return spansOf(`${orange}${lit}${RESET}`)
   })
 }
@@ -83,8 +83,8 @@ function diceFrameOf(s: RobotState, track: number): Frame {
     rows = t % 2 === 1 ? TILTS[Math.floor(t / 2) % 2]! : dieOf(faceOf(1 + ((value + 5 * t) % 6)))
   } else {
     rows = dieOf(value)
-    // Sparkle on landing, after the top row.
-    if (t <= 17) rows = rows.map((row, i) => (i === 0 ? `${row}  ✨` : row))
+    // Sparkle on landing, after the top row; the number beside the die while it holds.
+    rows = rows.map((row, i) => (i === 0 && t <= 17 ? `${row}  ✨` : i === 1 ? `${row}  [${value}]` : row))
   }
   return paint(pipsLit(rows), s.pos, DICE_ACCENT)
 }
