@@ -763,19 +763,21 @@ export const register: Register = (on, options) => {
       if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
       lines.push(fitStatus(groups, columns))
     }
+    // The agent lines go under the PR and files line.
+    const agentLines: Span[][] = []
     if (agentRows.length > 0) {
       // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
       await $.state.get(TICK)
       const now = Date.now()
-      for (const row of agentRows.slice(0, MAX_AGENT_LINES)) lines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
+      for (const row of agentRows.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
       const more = moreOf(agentRows.length)
-      if (more.length > 0) lines.push([AGENT_MARK, ...more])
+      if (more.length > 0) agentLines.push([AGENT_MARK, ...more])
     }
     // The open PR (a link to it, and what needs the person), then the changed files: one line.
     // The files are a button that opens the panel with the list.
     const row = prRowOf(isPrLineOn ? prLineOf(prInfo) : [], changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
     const changed = row.changed
-    if (lines.length === 0 && row.pr.length === 0 && changed.length === 0) return theirs
+    if (lines.length === 0 && agentLines.length === 0 && row.pr.length === 0 && changed.length === 0) return theirs
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
     // Mobile and the IDE draw no Client: there the branch stays still, in its blue.
@@ -821,6 +823,9 @@ export const register: Register = (on, options) => {
             )}
           </Box>
         )}
+        {agentLines.map(spans => (
+          <Box>{spans.map(spanOf)}</Box>
+        ))}
         {theirs}
       </Box>
     )
