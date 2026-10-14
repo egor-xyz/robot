@@ -197,24 +197,42 @@ const IDLE_FRAMES = [
   "  .-----.\n  [~~   ]━━\n  /|━━━|/\n   o   o",
   "  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o",
   "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [o   o] o\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [-   -] O\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [o   o] ( )\n  /|━━━|\\\n   o   o",
+  "  .-----. .---.\n  [O   O] (   )\n  /|━━━|\\ '---'\n   o   o",
+  "  .-----. .-----.\n  [ O O ] (     )\n  /|━━━|\\ (     )\n   o   o  '-----'",
+  "  .-----. ' .-----. .\n  [O   O]  .(     ) ,\n  /|━━━|\\ , (     ) '\n   o   o   ''-----' .",
+  "  .-----.   .-----.\n  [O   O]   [oo   ] .\n  /|━━━|\\   (     )\n   o   o  ' '-----'",
+  "  .-----.   .-----.\n  [   oo]   [oo   ]\n  /|━━━|\\   /|━━━|\\ ,\n   o   o    '-----'",
+  "  .-----.   .-----.\n  [   oo]   [oo   ]\n  /|━━━|\\   /|━━━|\\\n   o   o     o   o",
+  "  .-----.\\o .-----.\n  [   oo]   [oo   ]\n   |━━━|    /|━━━|\\\n   o   o     o   o",
+  "  .-----.\\o .-----.\\o\n  [   oo]   [oo   ]\n   |━━━|     |━━━|\n   o   o     o   o",
+  "  .-----.   .-----.\n  [^   ^]   [oo   ]\n   |━━━|    /|━━━|\\\n   '   '     o   o",
+  "  .-----.   .-----.\n  [   oo]   [^   ^]\n  /|━━━|\\    |━━━|\n   o   o     '   '",
+  "  .-----.   .-----.\\o\n  [O   O]   [o   -]\n  /|━━━|\\    |━━━|\n   o   o     o   o",
+  "  .-----.    '  .  ,\n  [O   O]   .  *  '\n  /|━━━|\\    ,   .  *\n   o   o    '   ,  .",
+  "  .-----.  .        '\n  [O   O]\n  /|━━━|\\      ,\n   o   o            .",
+  "  .-----.\n  [O   O]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
 ]
 
 /** Random states, in the same order as the `states` array in crazy-robot. */
 export const STATES = [
   'static', 'blink', 'wave', 'sleep', 'surprise', 'smile', 'dance', 'jump', 'moon', 'catpeek',
   'basketball', 'campfire', 'fishing', 'coffee', 'garden', 'balloon', 'goal', 'concert', 'ufo', 'photo',
-  'stretch', 'glitch', 'spin', 'sneeze', 'snow', 'gum',
+  'stretch', 'glitch', 'spin', 'sneeze', 'snow', 'gum', 'clone',
 ]
 
 const WIDTH: Record<string, number> = {
   moon: 20, basketball: 18, ufo: 18, goal: 21, balloon: 16, photo: 16, fishing: 16,
-  campfire: 13, coffee: 13, garden: 13, concert: 14, glitch: 12, sneeze: 29, snow: 15, gum: 21,
+  campfire: 13, coffee: 13, garden: 13, concert: 14, glitch: 12, sneeze: 29, snow: 15, gum: 21, clone: 21,
 }
 
 const COLOR: Record<string, number> = {
   walk: 208, static: 244, blink: 214, wave: 220, surprise: 214, smile: 213, sleep: 63, moon: 75,
   catpeek: 213, basketball: 214, campfire: 203, fishing: 39, coffee: 130, garden: 114, balloon: 219,
-  goal: 82, concert: 135, photo: 231, ufo: 51, stretch: 180, glitch: 46, spin: 159, sneeze: 210, snow: 195, gum: 213,
+  goal: 82, concert: 135, photo: 231, ufo: 51, stretch: 180, glitch: 46, spin: 159, sneeze: 210, snow: 195, gum: 213, clone: 87,
 }
 
 const RAINBOW = [208, 220, 46, 51, 75, 99, 165, 213]
@@ -246,6 +264,7 @@ function durOf(state: string, random: () => number): number {
     case 'sneeze': return (1 + (r() % 2)) * 12
     case 'snow': return (1 + (r() % 2)) * 16
     case 'gum': return (1 + (r() % 2)) * 14
+    case 'clone': return (1 + (r() % 2)) * 18
     default: return 8 + (r() % 18)
   }
 }
@@ -259,7 +278,7 @@ function paint(raw: string, pos: number, color: number): Frame {
   const body = raw.replaceAll('\n', `\n${pad}`)
   const orange = `\x1b[38;5;${ORANGE_INDEX}m`
   const accent = `\x1b[38;5;${color}m`
-  const highlighted = body.replace(/\[([^\]]*)\]/g, (_, inner: string) => `[${accent}${inner}${orange}]`)
+  const highlighted = body.replace(/\[(.*)\]/g, (_, inner: string) => `[${accent}${inner}${orange}]`)
   const rows = `${orange}${pad}${highlighted}\x1b[39m`.split('\n')
   return rows.map(spansOf)
 }
@@ -338,6 +357,7 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
     case 'sneeze': return { raw: idle(121 + (t % 12)), pad: s.pos }
     case 'snow': return { raw: idle(133 + (t % 16)), pad: s.pos }
     case 'gum': return { raw: idle(149 + (t % 14)), pad: s.pos }
+    case 'clone': return { raw: idle(163 + (t % 18)), pad: s.pos }
     case 'photo': reroll(); return { raw: idle((s.mirror ? 83 : 75) + (t % 8)), pad: s.pos }
     default: return { raw: '', pad: s.pos }
   }

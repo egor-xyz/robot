@@ -182,6 +182,24 @@ $'  .-----.\n  [~~~~~]━\n  /|━━━|/\n   o   o'
 $'  .-----.\n  [~~   ]━━\n  /|━━━|/\n   o   o'
 $'  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [o   o] o\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [-   -] O\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [o   o] ( )\n  /|━━━|\\\n   o   o'
+$'  .-----. .---.\n  [O   O] (   )\n  /|━━━|\\ \'---\'\n   o   o'
+$'  .-----. .-----.\n  [ O O ] (     )\n  /|━━━|\\ (     )\n   o   o  \'-----\''
+$'  .-----. \' .-----. .\n  [O   O]  .(     ) ,\n  /|━━━|\\ , (     ) \'\n   o   o   \'\'-----\' .'
+$'  .-----.   .-----.\n  [O   O]   [oo   ] .\n  /|━━━|\\   (     )\n   o   o  \' \'-----\''
+$'  .-----.   .-----.\n  [   oo]   [oo   ]\n  /|━━━|\\   /|━━━|\\ ,\n   o   o    \'-----\''
+$'  .-----.   .-----.\n  [   oo]   [oo   ]\n  /|━━━|\\   /|━━━|\\\n   o   o     o   o'
+$'  .-----.\\o .-----.\n  [   oo]   [oo   ]\n   |━━━|    /|━━━|\\\n   o   o     o   o'
+$'  .-----.\\o .-----.\\o\n  [   oo]   [oo   ]\n   |━━━|     |━━━|\n   o   o     o   o'
+$'  .-----.   .-----.\n  [^   ^]   [oo   ]\n   |━━━|    /|━━━|\\\n   \'   \'     o   o'
+$'  .-----.   .-----.\n  [   oo]   [^   ^]\n  /|━━━|\\    |━━━|\n   o   o     \'   \''
+$'  .-----.   .-----.\\o\n  [O   O]   [o   -]\n  /|━━━|\\    |━━━|\n   o   o     o   o'
+$'  .-----.    \'  .  ,\n  [O   O]   .  *  \'\n  /|━━━|\\    ,   .  *\n   o   o    \'   ,  .'
+$'  .-----.  .        \'\n  [O   O]\n  /|━━━|\\      ,\n   o   o            .'
+$'  .-----.\n  [O   O]\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o'
 )
 
 # Pick new state when current expires
@@ -191,7 +209,7 @@ if (( _robot_t >= _robot_dur )); then
   if [[ $_robot_state != walk ]]; then
     _robot_state=walk
   else
-    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow gum)
+    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow gum clone)
     _robot_state=${states[$((RANDOM % ${#states} + 1))]}
   fi
   _robot_t=0
@@ -212,6 +230,7 @@ if (( _robot_t >= _robot_dur )); then
     sneeze)                 _w=29 ;;
     snow)                   _w=15 ;;
     gum)                    _w=21 ;;
+    clone)                  _w=21 ;;
   esac
   if (( _w )); then
     (( _robot_pos > track - _w )) && _robot_pos=$(( track - _w ))
@@ -244,6 +263,7 @@ if (( _robot_t >= _robot_dur )); then
     sneeze)            _robot_dur=$(( (1 + RANDOM % 2) * 12 )) ;; # 1-2 sneezes
     snow)              _robot_dur=$(( (1 + RANDOM % 2) * 16 )) ;; # 1-2 snowfalls
     gum)               _robot_dur=$(( (1 + RANDOM % 2) * 14 )) ;; # 1-2 bubbles
+    clone)             _robot_dur=$(( (1 + RANDOM % 2) * 18 )) ;; # 1-2 clonings
     *)                 _robot_dur=$(( 8 + RANDOM % 18 )) ;;
   esac
 fi
@@ -279,6 +299,7 @@ case $_robot_state in
   sneeze)   color=210 ;;  # sniffly pink
   snow)     color=195 ;;  # icy white-blue
   gum)      color=213 ;;  # bubblegum pink
+  clone)    color=87 ;;   # scanner cyan
   slot)     color=226 ;;  # yellow (jackpot overrides below)
 esac
 case $_robot_state in
@@ -511,6 +532,10 @@ case $_robot_state in
   gum)
     # 14-tick bubble: chews and blows a bubble beside the face, it pops, gum splats on the face, wipes it off, blinks.
     raw=${idle_frames[$(( 149 + _robot_t % 14 ))]}
+    ;;
+  clone)
+    # 18-tick clone: a gum bubble grows to robot size and pops into a second robot; they copy each other, the clone winks, the original is shocked, the clone pops into flying bits.
+    raw=${idle_frames[$(( 163 + _robot_t % 18 ))]}
     ;;
   slot)
     # Reel symbols. 7️⃣ keycap is the jackpot — width matches the other 2-col
