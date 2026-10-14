@@ -44,12 +44,17 @@ test('more than 3 agents add a count line', () => {
 
 test('the last tool reads short: a file name, a command line, a pattern', () => {
   expect(stepOf('Read', { file_path: '/Users/egor/my/robot/claude-mod/agents.ts' })).toBe('Read agents.ts')
-  expect(stepOf('Bash', { command: 'git status\ngit log', description: 'Show status' })).toBe('Bash git status')
+  expect(stepOf('Bash', { command: 'git status\ngit log' })).toBe('Bash git status')
+  expect(stepOf('Bash', { command: "{ cat <<'EOF'\nhi\nEOF\n}", description: 'Trimming withPrOf from statusline.ts' })).toBe('Trimming withPrOf from statusline.ts')
   expect(stepOf('Grep', { pattern: 'AgentRow', path: 'claude-mod' })).toBe('Grep AgentRow')
   expect(stepOf('TaskList', {})).toBe('TaskList')
+  expect(stepOf('TaskCreate', { subject: 'x', description: 'Long task text' })).toBe('TaskCreate')
+  const long = stepOf('Bash', { command: 'make', description: 'Run the whole test suite of the robot mod once more' })
+  expect(long).toBe('Run the whole test suite of the robot m…')
+  expect(long.length).toBe(40)
   expect(stepOf('Bash', { command: 'cd /Users/egor/my/robot && git log' })).toBe('Bash git log')
   expect(stepOf('mcp__plugin_engineering_notion__notion-search', { query: 'robot' })).toBe('notion-search robot')
-  expect(stepOf('Bash', { command: 'npx -y -p typescript@5.6.3 tsc -p .' })).toBe('Bash npx -y -p typescript@5.6.3…')
+  expect(stepOf('Bash', { command: 'npx -y -p typescript@5.6.3 tsc -p .' })).toBe('Bash npx -y -p typescript@5.6.3 tsc -p .')
 })
 
 test('an agent line shows its last tool after the task, and drops it before the model', () => {

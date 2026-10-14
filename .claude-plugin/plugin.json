@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.9.5",
+  "version": "0.10.1",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -119,6 +119,12 @@
       "type": "boolean",
       "title": "Changed files",
       "description": "One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run /robot files, for the list. false hides it.",
+      "default": true
+    },
+    "prLine": {
+      "type": "boolean",
+      "title": "PR line",
+      "description": "One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts with the base branch, unresolved review threads and auto-merge. A toast says when something new needs you. Uses gh. false hides both.",
       "default": true
     },
     "resetSettings": {

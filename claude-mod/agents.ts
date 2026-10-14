@@ -17,7 +17,7 @@ export const MAX_AGENT_LINES = 3
 // On a narrow screen the lowest rank goes first: the task stays longest.
 const RANK = { type: 1, tokens: 2, step: 3, model: 4, time: 5, task: 6 }
 /** The last tool's part is cut to this many characters. */
-const STEP_MAX = 32
+const STEP_MAX = 40
 
 /** Time since `startedAt`: `0:06`, `12:40`. */
 export function elapsedOf(startedAt: number, now: number): string {
@@ -31,7 +31,7 @@ export const stepTokensOf = (usage: StepUsage): number =>
 
 /** What a tool call works on, short: a file's name, a command's first line, a pattern, a URL. */
 function targetOf(input: Record<string, unknown>): string {
-  for (const key of ['file_path', 'notebook_path', 'command', 'pattern', 'url', 'query', 'description']) {
+  for (const key of ['file_path', 'notebook_path', 'command', 'pattern', 'url', 'query']) {
     const value = input[key]
     if (typeof value !== 'string' || !value.trim()) continue
     const text = value.trim().split('\n')[0] ?? ''
@@ -40,12 +40,15 @@ function targetOf(input: Record<string, unknown>): string {
   return ''
 }
 
-/** The last tool an agent called, as its line shows it: `Read agents.ts`, `Bash git status`. */
+/** The last tool an agent called, as its line shows it: `Read agents.ts`, `Bash git status`, or the call's own description. */
 export function stepOf(tool: string, input: Record<string, unknown>): string {
+  // Bash and Agent calls say what they do: that reads best, as Claude Code's own list shows it.
+  // Other tools' `description` is content (a task's text), not a label.
+  const said = (tool === 'Bash' || tool === 'Agent') && typeof input.description === 'string' ? (input.description.trim().split('\n')[0] ?? '') : ''
   // `mcp__server__tool` reads as its tool; `cd somewhere && make` as the command after the `cd`.
   const name = tool.startsWith('mcp__') ? (tool.split('__').at(-1) ?? tool) : tool
   const target = targetOf(input).replace(/^cd\s+\S+\s*&&\s*/, '')
-  const text = target ? `${name} ${target}` : name
+  const text = said || (target ? `${name} ${target}` : name)
   return text.length > STEP_MAX ? `${text.slice(0, STEP_MAX - 1)}…` : text
 }
 

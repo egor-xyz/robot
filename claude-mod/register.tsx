@@ -9,13 +9,15 @@ import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
-import { accountNameOf, coldGroupOf, fitStatus, groupsOf, prStatusOf, SHIMMER, wavedOf, withPrOf } from './statusline'
+import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, moreOf, stepOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
-import type { PrView, RateLimit } from './statusline'
+import type { RateLimit } from './statusline'
+import { NO_PR_INFO, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_TICK_MS, THREADS_QUERY, PR_ROW_SEPARATOR, attentionToastOf, hostOf, isNoPrOf, isPrActOf, prDelayOf, prInfoOf, prLineOf, prRowOf, unresolvedOf } from './pr'
+import type { PrInfo, PrView } from './pr'
 
 const TICK_MS = 250
 const ROWS = 4
@@ -119,7 +121,9 @@ const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
 const CHANGES_CURSOR = { plugin: 'robot', key: 'changesCursor' } as const
 /** The branch's open PR (`number` 0: none) and the commit its diff starts from (HEAD with none). */
 const CHANGES_PR = { plugin: 'robot', key: 'changesPr' } as const
-const NO_PR = { number: 0, base: 'HEAD', url: '', status: '', files: 0, added: 0, removed: 0 }
+const NO_PR = { number: 0, base: 'HEAD', url: '', files: 0, added: 0, removed: 0 }
+/** The branch's open PR for the PR line: its checks, conflicts, open review threads and auto-merge (`number` 0: none). */
+const PR = { plugin: 'robot', key: 'pr' } as const
 /** The panel lists the files: no file previewed. */
 const NO_PREVIEW = { path: '', group: 'local' as const, root: '', diff: '' }
 /** The most of a diff the preview draws. */
@@ -152,6 +156,9 @@ async function refreshStatus($: EngineInterface, { account, windows, limitsAt, h
     const { value: was } = await $.state.get(BRANCH)
     if ((branch ?? '') !== was) {
       await $.state.set(BRANCH, branch ?? '')
+      // A new branch: look its PR up at once, and often for a minute.
+      prDueAt = 0
+      prActAt = Date.now()
       if (was !== undefined && branch) await startWave($)
     }
     await $.state.set(STATUS, groupsOf({
@@ -196,26 +203,111 @@ async function updateAgentRows($: EngineInterface, change: (rows: AgentRow[]) =>
 
 type Git = (args: string[]) => ReturnType<EngineInterface['process']['run']>
 
-/** How long a PR lookup holds before `gh` is asked again. */
-const PR_MS = 60_000
-/** The last PR lookup: the branch it was for, when, and the PR (0: none open). Starts over on a reload. */
-let prLookup = { key: '', at: 0, number: 0, baseRef: '', url: '', status: '' }
+/** The last PR lookup: the branch it was for, and the PR (number 0: none open). Starts over on a reload. */
+let prLookup = { key: '', pr: NO_PR_INFO, threadsAt: 0, unknownTries: 0 }
+/** ms: the tick looks the PR up when the time is past this. */
+let prDueAt = 0
+/** ms of the last push, `gh pr` act or branch change. */
+let prActAt = 0
+/** The lookup running now, so that two asks for one branch make one call. */
+let prFlight: { key: string; promise: Promise<PrRefreshed> } | undefined
+/** `cached`: reuse the last lookup of this branch; `due`: look up only when the time is up; `now`: look up. */
+type PrMode = 'cached' | 'due' | 'now'
+/** The PR as read, the PR before it on this branch, and whether `gh` was asked this time. */
+type PrRefreshed = { pr: PrInfo; was: PrInfo; isLooked: boolean }
 
-/** The open PR of the branch at `root`, by `gh`, kept for a minute; none when `gh` is missing or not signed in. */
-async function prOf($: EngineInterface, git: Git, root: string): Promise<{ number: number; baseRef: string; url: string; status: string }> {
-  const branch = (await git(['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
-  const key = `${root}\n${branch}`
-  if (prLookup.key === key && Date.now() - prLookup.at < PR_MS) return prLookup
-  const found = await $.process.run(['gh', 'pr', 'view', '--json', 'number,baseRefName,state,url,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
-  let pr = { number: 0, baseRef: '', url: '', status: '' }
+/** The open PR of the branch, by `gh`, and its unresolved review threads; none when `gh` is missing or not signed in. Writes the PR line's state. */
+async function refreshPr($: EngineInterface, mode: PrMode): Promise<PrRefreshed> {
+  const cached = (): PrRefreshed => ({ pr: prLookup.pr, was: prLookup.pr, isLooked: false })
   try {
-    const view = found?.exitCode === 0 ? (JSON.parse(found.stdout) as PrView & { number?: number; baseRefName?: string; state?: string; url?: string }) : {}
-    if (view.state === 'OPEN' && view.number) pr = { number: view.number, baseRef: view.baseRefName ?? '', url: view.url ?? '', status: prStatusOf(view) }
-  } catch {
-    // Not JSON: no PR known.
+    const cwd = await $.session.cwd()
+    const git: Git = args => $.process.run(['git', '--no-optional-locks', '-C', cwd, ...args], { timeoutMs: 5_000, env: { GIT_OPTIONAL_LOCKS: '0' } })
+    const top = await git(['rev-parse', '--show-toplevel'])
+    if (top.exitCode !== 0) {
+      prDueAt = Date.now() + PR_NONE_MS
+      return { pr: NO_PR_INFO, was: NO_PR_INFO, isLooked: false }
+    }
+    const root = top.stdout.trim()
+    const branch = (await git(['-C', root, 'rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
+    const key = `${root}\n${branch}`
+    const isSame = prLookup.key === key
+    if (isSame && (mode === 'cached' || (mode === 'due' && Date.now() < prDueAt))) return cached()
+    if (prFlight?.key === key) return await prFlight.promise.then(found => ({ ...found, isLooked: false }))
+    const was = isSame ? prLookup.pr : NO_PR_INFO
+    const look = async (): Promise<PrRefreshed> => {
+      // A detached HEAD and the default branch have no PR of their own: no call.
+      const defaultBranch = (await git(['-C', root, 'symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'])).stdout.trim().replace(/^origin\//, '')
+      if (branch === 'HEAD' || (defaultBranch && branch === defaultBranch)) {
+        prLookup = { key, pr: NO_PR_INFO, threadsAt: 0, unknownTries: 0 }
+        prDueAt = Date.now() + PR_NONE_MS
+        await writePr($, NO_PR_INFO)
+        return { pr: NO_PR_INFO, was, isLooked: true }
+      }
+      const found = await $.process.run(['gh', 'pr', 'view', '--json', 'id,number,baseRefName,state,url,isDraft,autoMergeRequest,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup'], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
+      let view: Parameters<typeof prInfoOf>[0] = {}
+      let isRead = false
+      if (found?.exitCode === 0) {
+        try {
+          view = JSON.parse(found.stdout) as PrView
+          isRead = true
+        } catch {
+          // Not JSON: a failure, not a PR.
+        }
+      }
+      // Only gh saying there is no PR means none; a timeout, the network or auth keep what we had and retry soon.
+      if (!isRead && !isNoPrOf(`${found?.stderr ?? ''}\n${found?.stdout ?? ''}`)) {
+        $.ui.log(`robot: gh pr view failed: ${found?.stderr?.trim() || 'no answer'}`, { to: 'debug' })
+        prDueAt = Date.now() + PR_BUSY_MS
+        return { pr: isSame ? prLookup.pr : NO_PR_INFO, was, isLooked: false }
+      }
+      const now = Date.now()
+      const open = prInfoOf(view, 0)
+      const isSamePr = isSame && open.number > 0 && prLookup.pr.number === open.number
+      let threads = isSamePr ? prLookup.pr.threads : 0
+      let threadsAt = isSamePr ? prLookup.threadsAt : 0
+      if (open.number > 0 && open.id && (mode === 'now' || !isSamePr || now - prLookup.threadsAt >= PR_CALM_MS)) {
+        const asked = await $.process.run(['gh', 'api', 'graphql', '--hostname', hostOf(open.url), '-f', `query=${THREADS_QUERY}`, '-f', `id=${open.id}`], { cwd: root, timeoutMs: 5_000 }).catch(() => undefined)
+        let count: number | undefined
+        try {
+          count = asked?.exitCode === 0 ? unresolvedOf(JSON.parse(asked.stdout)) : undefined
+        } catch {
+          // Not JSON: keep the count we had.
+        }
+        threads = count ?? threads
+        threadsAt = now
+      }
+      const pr = { ...open, threads }
+      const unknownTries = pr.isUnknown ? (isSamePr ? prLookup.unknownTries + 1 : 1) : 0
+      prLookup = { key, pr, threadsAt, unknownTries }
+      prDueAt = now + prDelayOf({ pr, unknownTries, sinceActMs: now - prActAt })
+      await writePr($, pr)
+      return { pr, was, isLooked: true }
+    }
+    const promise = look().finally(() => {
+      if (prFlight?.promise === promise) prFlight = undefined
+    })
+    prFlight = { key, promise }
+    return await promise
+  } catch (error) {
+    $.ui.log(`robot: PR unavailable: ${String(error)}`, { to: 'debug' })
+    return cached()
   }
-  prLookup = { key, at: Date.now(), ...pr }
-  return pr
+}
+
+/** Keeps the PR in $.state for the PR line, written only when it changed. */
+async function writePr($: EngineInterface, pr: PrInfo): Promise<void> {
+  const { value: was } = await $.state.get(PR)
+  if (JSON.stringify(was) !== JSON.stringify(pr)) await $.state.set(PR, pr)
+}
+
+/** Looks the PR up without waiting for it; the changed files read again when the PR changed, and the person hears what needs them. */
+function pokePr($: EngineInterface, mode: PrMode, isChangesOn: boolean, isPrLineOn: boolean): void {
+  void refreshPr($, mode).then(async ({ pr, was, isLooked }) => {
+    if (!isLooked) return
+    if (isChangesOn && (pr.number !== was.number || pr.baseRef !== was.baseRef)) await refreshChanges($)
+    const said = isPrLineOn ? attentionToastOf(was, pr) : undefined
+    if (said) $.ui.toast(said, { timeoutMs: 8_000 })
+  }).catch(error => $.ui.log(`robot: PR unavailable: ${String(error)}`, { to: 'debug' }))
 }
 
 /** Where the PR's branch began: the commit its diff starts from; HEAD when none is found. */
@@ -239,7 +331,7 @@ async function refreshChanges($: EngineInterface): Promise<void> {
     const top = await git(['rev-parse', '--show-toplevel'])
     if (top.exitCode !== 0) return
     const root = top.stdout.trim()
-    const pr = await prOf($, git, root)
+    const pr = (await refreshPr($, 'cached')).pr
     const base = pr.number > 0 ? await baseOf(git, root, pr.baseRef) : 'HEAD'
     const diffOf = async (...range: string[]) => {
       const [counts, letters] = await Promise.all([
@@ -258,13 +350,13 @@ async function refreshChanges($: EngineInterface): Promise<void> {
     }))
     const local = await diffOf('HEAD')
     let changes = groupOf('local', local.counts, local.letters, fresh)
-    let prNow = { number: 0, base: 'HEAD', url: '', status: '', ...totalsOf(changes) }
+    let prNow = { number: 0, base: 'HEAD', url: '', ...totalsOf(changes) }
     if (base !== 'HEAD') {
       const committed = await diffOf(base, 'HEAD')
       changes = [...changes, ...groupOf('pr', committed.counts, committed.letters)]
       // The line counts the PR as it will be once all is committed: the branch's start to the files on disk.
       const all = await diffOf(base)
-      prNow = { number: pr.number, base, url: pr.url, status: pr.status, ...totalsOf(groupOf('pr', all.counts, all.letters, fresh)) }
+      prNow = { number: pr.number, base, url: pr.url, ...totalsOf(groupOf('pr', all.counts, all.letters, fresh)) }
     }
     const { value: was = [] } = await $.state.get(CHANGES)
     if (JSON.stringify(was) !== JSON.stringify(changes)) await $.state.set(CHANGES, changes)
@@ -329,7 +421,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, cacheCold: true, cacheTtl: '1h', resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, prLine: true, cacheCold: true, cacheTtl: '1h', resetSettings: false,
 }
 
 /** The cache has outlived its TTL: keep the context it would re-read in $.state, or 0 once it is warm. */
@@ -423,6 +515,9 @@ export const register: Register = (on, options) => {
   const isWaveOn = options.branchWave !== false
   const isAgentLinesOn = options.agentLines !== false
   const isChangesOn = options.changedFiles !== false
+  // The PR line and the changed files both read the PR, so either one starts the lookups.
+  const isPrLineOn = options.prLine !== false
+  const isPrOn = isPrLineOn || isChangesOn
   // The `cacheCold` option turns the ice cubes and the status part off; on unless set to false.
   const isColdOn = options.cacheCold !== false
   // Which rate-limit windows the status line shows: both, or one.
@@ -497,6 +592,8 @@ export const register: Register = (on, options) => {
     $.ui.status(undefined)
     if (isStatusOn) $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
     if (isChangesOn) $.clock.every(STATUS_MS, () => refreshChanges($))
+    // The PR is looked up when its time is up: soon while checks run, rarely when calm.
+    if (isPrOn) $.clock.every(PR_TICK_MS, () => { if (Date.now() >= prDueAt) pokePr($, 'due', isChangesOn, isPrLineOn) })
     // The first reads all at once, and the session does not wait for them: git and gh can take seconds.
     void Promise.all([
       checkAgents(),
@@ -504,6 +601,7 @@ export const register: Register = (on, options) => {
         account = found
         return refreshStatus($, { account, windows, limitsAt, hotAt })
       }) : undefined,
+      isPrOn ? refreshPr($, 'due') : undefined,
       isChangesOn ? refreshChanges($) : undefined,
     ])
 
@@ -601,6 +699,11 @@ export const register: Register = (on, options) => {
   // A git commit or push that went through: the robot cheers for CELEBRATE_TICKS and the branch waves. Subagent commands count too.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
+    // A push, a branch change or a `gh pr` act moves the PR: look it up at once, without holding the tool's result.
+    if (isPrOn && ran.deny === undefined && isPrActOf(e.command)) {
+      prActAt = Date.now()
+      pokePr($, 'now', isChangesOn, isPrLineOn)
+    }
     // Any command may change, add or commit files.
     if (isChangesOn && ran.deny === undefined) await refreshChanges($)
     if (!isCheerOn && !isWaveOn) return ran
@@ -641,11 +744,12 @@ export const register: Register = (on, options) => {
   // The status line: a row of coloured parts above Claude Code's own hint line, which stays as it is.
   // The status line, then one line for each running subagent: rows above Claude Code's own hint line, which stays as it is.
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
-    if (!isStatusOn && !isAgentLinesOn && !isChangesOn) return next(e)
+    if (!isStatusOn && !isAgentLinesOn && !isChangesOn && !isPrLineOn) return next(e)
     const { value: status = [] } = await $.state.get(STATUS)
     const { value: agentRows = [] } = isAgentLinesOn ? await $.state.get(AGENT_ROWS) : { value: [] }
     const { value: changes = [] } = isChangesOn ? await $.state.get(CHANGES) : { value: [] }
     const { value: pr = NO_PR } = isChangesOn ? await $.state.get(CHANGES_PR) : { value: undefined }
+    const { value: prInfo = NO_PR_INFO } = isPrLineOn ? await $.state.get(PR) : { value: undefined }
     const { value: coldTokens = 0 } = isColdOn && isStatusOn ? await $.state.get(COLD_TOKENS) : { value: 0 }
     const theirs = await next(e)
     // A few cells of room for the line's indent and the right edge.
@@ -656,58 +760,72 @@ export const register: Register = (on, options) => {
       let groups = status.filter(group => Array.isArray(group.spans))
       // The shimmer module runs its own fast clock, so the line itself does not redraw while the branch shimmers.
       if (isWaveOn && waveAt >= 0) groups = wavedOf(groups)
-      // The open PR, read with the changed files: a link to it, only when gh gave its URL.
-      groups = withPrOf(groups, pr)
       if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
       lines.push(fitStatus(groups, columns))
     }
+    // The agent lines go under the PR and files line.
+    const agentLines: Span[][] = []
     if (agentRows.length > 0) {
       // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
       await $.state.get(TICK)
       const now = Date.now()
-      for (const row of agentRows.slice(0, MAX_AGENT_LINES)) lines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
+      for (const row of agentRows.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
       const more = moreOf(agentRows.length)
-      if (more.length > 0) lines.push([AGENT_MARK, ...more])
+      if (more.length > 0) agentLines.push([AGENT_MARK, ...more])
     }
-    // The changed files: one line, a button that opens the panel with the list.
-    const changed = fitStatus(changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
-    if (lines.length === 0 && changed.length === 0) return theirs
+    // The open PR (a link to it, and what needs the person), then the changed files: one line.
+    // The files are a button that opens the panel with the list.
+    const row = prRowOf(isPrLineOn ? prLineOf(prInfo) : [], changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
+    const changed = row.changed
+    if (lines.length === 0 && agentLines.length === 0 && row.pr.length === 0 && changed.length === 0) return theirs
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
     // Mobile and the IDE draw no Client: there the branch stays still, in its blue.
     const Client = 'Client' in elements ? elements.Client : undefined
     const Link = 'Link' in elements ? elements.Link : undefined
+    const spanOf = (span: Span) =>
+      span.color === SHIMMER && Client ? (
+        <Client key={`shimmer-${waveAt}`} module="./shimmer.tsx" props={{ text: span.text, frames: SHIMMER_FRAMES }} />
+      ) : span.href && Link ? (
+        <Text color={span.color || undefined} wrap="truncate">
+          <Link href={span.href}>{span.text}</Link>
+        </Text>
+      ) : (
+        <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
+          {span.text}
+        </Text>
+      )
     return (
       <Box flexDirection="column">
         {lines.map(spans => (
+          <Box>{spans.map(spanOf)}</Box>
+        ))}
+        {(row.pr.length > 0 || changed.length > 0) && (
           <Box>
-            {spans.map(span =>
-              span.color === SHIMMER && Client ? (
-                <Client key={`shimmer-${waveAt}`} module="./shimmer.tsx" props={{ text: span.text, frames: SHIMMER_FRAMES }} />
-              ) : span.href && Link ? (
-                <Text color={span.color || undefined} wrap="truncate">
-                  <Link href={span.href}>{span.text}</Link>
-                </Text>
+            {/* prRowOf already fits the PR info: it must not shrink, or the files part squeezes it. */}
+            <Box flexShrink={0}>
+              {row.pr.map(spanOf)}
+              {row.pr.length > 0 && changed.length > 0 && <Text color={PR_ROW_SEPARATOR.color}>{PR_ROW_SEPARATOR.text}</Text>}
+            </Box>
+            {changed.length > 0 && (
+              Client ? (
+                // Under the pointer it shimmers as the panel's rows do; a click opens the panel.
+                <Box flexGrow={1}>
+                  <Client key="changes" module="./changes-line.tsx" width="100%" props={{ spans: changed.map(span => ({ text: span.text, color: span.color })) }} />
+                </Box>
               ) : (
-                <Text color={span.color === SHIMMER ? 'ide' : span.color || undefined} wrap="truncate">
-                  {span.text}
-                </Text>
-              ),
+                <Button key="changes" plain onPress={() => void openChanges($)}>
+                  {changed.map(span => (
+                    <Text color={span.color || undefined}>{span.text}</Text>
+                  ))}
+                </Button>
+              )
             )}
           </Box>
-        ))}
-        {changed.length > 0 && (
-          Client ? (
-            // Under the pointer it shimmers as the panel's rows do; a click opens the panel.
-            <Client key="changes" module="./changes-line.tsx" width="100%" props={{ spans: changed.map(span => ({ text: span.text, color: span.color })) }} />
-          ) : (
-            <Button key="changes" plain onPress={() => void openChanges($)}>
-              {changed.map(span => (
-                <Text color={span.color || undefined}>{span.text}</Text>
-              ))}
-            </Button>
-          )
         )}
+        {agentLines.map(spans => (
+          <Box>{spans.map(spanOf)}</Box>
+        ))}
         {theirs}
       </Box>
     )
