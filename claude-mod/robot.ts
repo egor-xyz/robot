@@ -155,24 +155,36 @@ const IDLE_FRAMES = [
   " .-----.\n [x   x]\n  /|━━━|\\\n   o   o",
   "  .-----.\n  [@   @]\n  /|━━━|\\\n   o   o",
   "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [-   o]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [>   -]\n  \\|━━━|/\n   o   o",
+  "  .-----.\n  [>   <]\n  \\|━━━|/\n   o   o",
+  ".-----.   '  .\n[>   <]  * ' *\n\\|━━━|/   , .\n o   o",
+  ".-----.         '    .\n[>   <]    *    ,   *\n\\|━━━|/      .   '\n o   o",
+  " .-----.             .\n [-   -]         '    ,   .\n /|━━━|\\       .    '\n  o   o",
+  "  .-----.\n  [-   -]                   .\n  /|━━━|\\      .       '\n   o   o",
+  "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [oo   ]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [   oo]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
 ]
 
 /** Random states, in the same order as the `states` array in crazy-robot. */
 export const STATES = [
   'static', 'blink', 'wave', 'sleep', 'surprise', 'smile', 'dance', 'jump', 'moon', 'catpeek',
   'basketball', 'campfire', 'fishing', 'coffee', 'garden', 'balloon', 'goal', 'concert', 'ufo', 'photo',
-  'stretch', 'glitch', 'spin',
+  'stretch', 'glitch', 'spin', 'sneeze',
 ]
 
 const WIDTH: Record<string, number> = {
   moon: 20, basketball: 18, ufo: 18, goal: 21, balloon: 16, photo: 16, fishing: 16,
-  campfire: 13, coffee: 13, garden: 13, concert: 14, glitch: 12,
+  campfire: 13, coffee: 13, garden: 13, concert: 14, glitch: 12, sneeze: 29,
 }
 
 const COLOR: Record<string, number> = {
   walk: 208, static: 244, blink: 214, wave: 220, surprise: 214, smile: 213, sleep: 63, moon: 75,
   catpeek: 213, basketball: 214, campfire: 203, fishing: 39, coffee: 130, garden: 114, balloon: 219,
-  goal: 82, concert: 135, photo: 231, ufo: 51, stretch: 180, glitch: 46, spin: 159,
+  goal: 82, concert: 135, photo: 231, ufo: 51, stretch: 180, glitch: 46, spin: 159, sneeze: 210,
 }
 
 const RAINBOW = [208, 220, 46, 51, 75, 99, 165, 213]
@@ -201,6 +213,7 @@ function durOf(state: string, random: () => number): number {
     case 'stretch': return (2 + (r() % 2)) * 6
     case 'glitch': return (1 + (r() % 2)) * 12
     case 'spin': return (1 + (r() % 2)) * 12
+    case 'sneeze': return (1 + (r() % 2)) * 12
     default: return 8 + (r() % 18)
   }
 }
@@ -290,6 +303,7 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
     case 'stretch': return { raw: idle(91 + (t % 6)), pad: s.pos }
     case 'glitch': return { raw: idle(97 + (t % 12)), pad: s.pos }
     case 'spin': return { raw: idle(109 + (t % 12)), pad: s.pos }
+    case 'sneeze': return { raw: idle(121 + (t % 12)), pad: s.pos }
     case 'photo': reroll(); return { raw: idle((s.mirror ? 83 : 75) + (t % 8)), pad: s.pos }
     default: return { raw: '', pad: s.pos }
   }
