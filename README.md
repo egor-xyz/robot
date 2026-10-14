@@ -348,6 +348,7 @@ Every act has a switch. To change one:
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
 | Changed files | `true` | One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
 | PR line | `true` | One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts, unresolved review threads and auto-merge. A toast says when something new needs you. Uses `gh`. `false` hides both. |
+| Update toast | `true` | A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. `false` turns it off. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
 `/robot` hides or shows the robot for this session only.
@@ -359,6 +360,8 @@ Every act has a switch. To change one:
 /reload-plugins                      # use it now
 /plugin uninstall robot@robot        # remove it
 ```
+
+The mod tells you when a newer robot is out: one toast per version, with these commands. Turn it off with the **Update toast** setting.
 
 ---
 

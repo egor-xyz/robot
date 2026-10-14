@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.10.4",
+  "version": "0.11.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -125,6 +125,12 @@
       "type": "boolean",
       "title": "PR line",
       "description": "One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts with the base branch, unresolved review threads and auto-merge. A toast says when something new needs you. Uses gh. false hides both.",
+      "default": true
+    },
+    "updateToast": {
+      "type": "boolean",
+      "title": "Update toast",
+      "description": "A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. false turns it off.",
       "default": true
     },
     "resetSettings": {

@@ -18,6 +18,7 @@ import type { FileChange } from './changes'
 import type { RateLimit } from './statusline'
 import { NO_PR_INFO, PR_BUSY_MS, PR_CALM_MS, PR_NONE_MS, PR_TICK_MS, THREADS_QUERY, PR_ROW_SEPARATOR, attentionToastOf, hostOf, isNoPrOf, isPrActOf, prDelayOf, prInfoOf, prLineOf, prRowOf, unresolvedOf } from './pr'
 import type { PrInfo, PrView } from './pr'
+import { LATEST_URL, UPDATE_CHECK_MS, UPDATE_TOAST_MS, isCheckDueOf, storedUpdateOf, updateToastOf, versionOf } from './update'
 
 const TICK_MS = 250
 const ROWS = 4
@@ -114,6 +115,8 @@ const CACHE_TTL = { plugin: 'robot', key: 'cacheTtl' } as const
 const COLD_TOKENS = { plugin: 'robot', key: 'coldTokens' } as const
 /** The learned cache TTL and the account it was learned on, kept across sessions in $.store. */
 const STORE_TTL = 'learnedCacheTtl'
+/** The last update check and the version the person was told about, kept across sessions in $.store. */
+const STORE_UPDATE = 'updateCheck'
 const CHANGES_QUERY = { plugin: 'robot', key: 'changesQuery' } as const
 /** The file the panel previews, with its diff; no path: the panel lists the files. */
 const CHANGES_PREVIEW = { plugin: 'robot', key: 'changesPreview' } as const
@@ -421,7 +424,41 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, prLine: true, cacheCold: true, cacheTtl: '1h', resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, prLine: true, cacheCold: true, cacheTtl: '1h', updateToast: true, resetSettings: false,
+}
+
+/** A newer robot on main than the installed one: one toast per version, fetched at most every 6 hours across sessions. Never throws. */
+async function checkUpdate($: EngineInterface): Promise<void> {
+  try {
+    // An update check is non-essential traffic.
+    if (await $.env.get('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC')) return
+    const installed = versionOf(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`))
+    if (!installed) {
+      $.ui.log('robot: installed version unknown', { to: 'debug' })
+      return
+    }
+    const memo = storedUpdateOf(await $.store.get(STORE_UPDATE))
+    const now = Date.now()
+    let latest = memo.latest
+    let checkedAt = memo.checkedAt
+    if (isCheckDueOf(memo.checkedAt, now)) {
+      const res = await $.http.fetch(LATEST_URL)
+      const found = res.ok ? versionOf(res.text) : undefined
+      if (found) {
+        latest = found
+        checkedAt = now
+      } else {
+        $.ui.log(`robot: newest version unavailable: ${res.status}`, { to: 'debug' })
+      }
+    }
+    const said = updateToastOf(installed, latest, memo.told)
+    // Stored before the toast: if the write throws there is no toast, and the next check retries.
+    if (said) await $.store.set(STORE_UPDATE, { checkedAt, latest, told: latest })
+    else if (checkedAt !== memo.checkedAt) await $.store.set(STORE_UPDATE, { ...memo, checkedAt, latest })
+    if (said) $.ui.toast(said, { timeoutMs: UPDATE_TOAST_MS })
+  } catch (error) {
+    $.ui.log(`robot: update check failed: ${String(error)}`, { to: 'debug' })
+  }
 }
 
 /** The cache has outlived its TTL: keep the context it would re-read in $.state, or 0 once it is warm. */
@@ -518,6 +555,7 @@ export const register: Register = (on, options) => {
   // The PR line and the changed files both read the PR, so either one starts the lookups.
   const isPrLineOn = options.prLine !== false
   const isPrOn = isPrLineOn || isChangesOn
+  const isUpdateOn = options.updateToast !== false
   // The `cacheCold` option turns the ice cubes and the status part off; on unless set to false.
   const isColdOn = options.cacheCold !== false
   // Which rate-limit windows the status line shows: both, or one.
@@ -590,6 +628,11 @@ export const register: Register = (on, options) => {
 
     // An older version pinned the line as a notice; the hint line draws it now.
     $.ui.status(undefined)
+    // A newer robot on main: one toast per version, fetched at most every 6 hours across sessions.
+    if (isUpdateOn) {
+      void checkUpdate($)
+      $.clock.every(UPDATE_CHECK_MS, () => checkUpdate($))
+    }
     if (isStatusOn) $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
     if (isChangesOn) $.clock.every(STATUS_MS, () => refreshChanges($))
     // The PR is looked up when its time is up: soon while checks run, rarely when calm.
