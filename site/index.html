@@ -742,6 +742,8 @@ footer nav { display: flex; gap: 20px; }
           <tr><td>Branch wave</td><td>true</td><td>A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. false keeps it still.</td></tr>
           <tr><td>Subagent lines</td><td>true</td><td>One line for each running subagent under the status line: task, type, model, tokens and time. false hides them.</td></tr>
           <tr><td>Changed files</td><td>true</td><td>One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run /robot files, for the list. false hides it.</td></tr>
+          <tr><td>PR line</td><td>true</td><td>One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts with the base branch, unresolved review threads and auto-merge. A toast says when something new needs you. Uses gh. false hides both.</td></tr>
+          <tr><td>Update toast</td><td>true</td><td>A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. false turns it off.</td></tr>
           <tr><td>Reset all settings to default</td><td>false</td><td>Set to true and save: every setting goes back to its default, and this switch goes back to false.</td></tr>
         </tbody>
       </table>

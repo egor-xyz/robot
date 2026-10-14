@@ -33,15 +33,15 @@ const COLD_MS = 5000
 const HOT_AT = 25
 // An animation that never ends by itself: how the robot is held walking or dancing while hot.
 const FOREVER = Number.MAX_SAFE_INTEGER
-// Hot pace, in ticks (4 a second): every 30 seconds it stops, waves its arms and talks for TALK ticks;
+// Hot pace, in ticks (4 a second; 2 in calm mode, so every wait below takes twice as long): every 30 seconds it stops, waves its arms and talks for TALK ticks;
 // the rest of the time it walks for PACE_WALK ticks, then stands still for the rest of PACE.
 const TALK_EVERY = 120
 const TALK = 32
 const PACE = 48
 const PACE_WALK = 32
-// A git commit or push is celebrated for 3 seconds, at 4 ticks a second.
+// A git commit or push is celebrated for 3 seconds, at 4 ticks a second (calm mode skips it).
 const CELEBRATE_TICKS = 12
-// The branch name waves for 3 seconds, at 4 ticks a second.
+// The branch name waves for 3 seconds, at 4 ticks a second (calm mode skips it).
 const WAVE_TICKS = 12
 // The shimmer module draws its own frames, 90 ms apart: 33 of them fill the same 3 seconds.
 const SHIMMER_FRAMES = 33
@@ -779,11 +779,13 @@ export const register: Register = (on, options) => {
   })
 
   on('command.run', { command: 'robot' }, async ($, e) => {
-    if (e.args.trim() === 'files') {
+    // Any letter case: `/robot Files` opens the panel too.
+    const args = e.args.trim().toLowerCase()
+    if (args === 'files') {
       await openChanges($)
       return { text: 'Changed files.' }
     }
-    if (e.args.trim() === 'agents') {
+    if (args === 'agents') {
       await openAgents($)
       return { text: 'Subagents.' }
     }
@@ -797,6 +799,8 @@ export const register: Register = (on, options) => {
       }
       return { text: calm.text }
     }
+    // Only a bare /robot hides it: a typo gets the list, not a hidden robot.
+    if (args) return { text: 'Use /robot, /robot files, /robot agents or /robot calm [on|off].' }
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
     await $.state.set(IS_HIDDEN, hidden)
