@@ -583,7 +583,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     if (options.resetSettings === true) await resetSettings($)
-    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files; `/robot agents` lists the running subagents; `/robot calm` slows it down', argumentHint: '[files | agents | calm [on|off]]' })
+    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files; `/robot agents` lists the running subagents; `/robot calm` turns calm mode on or off', argumentHint: '[files | agents | calm]' })
 
     $.clock.every(isCalm ? CALM_TICK_MS : TICK_MS, async () => {
       const { value: hidden = false } = await $.state.get(IS_HIDDEN)
@@ -800,7 +800,7 @@ export const register: Register = (on, options) => {
       return { text: calm.text }
     }
     // Only a bare /robot hides it: a typo gets the list, not a hidden robot.
-    if (args) return { text: 'Use /robot, /robot files, /robot agents or /robot calm [on|off].' }
+    if (args) return { text: 'Use /robot, /robot files, /robot agents or /robot calm.' }
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
     await $.state.set(IS_HIDDEN, hidden)

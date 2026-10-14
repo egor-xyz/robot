@@ -321,7 +321,7 @@ Turn them off with the **Branch wave**, **Subagent lines** and **Changed files**
 | `/robot` | Hide or show the robot |
 | `/robot files` | Open the changed-files panel |
 | `/robot agents` | Open the panel with every running subagent |
-| `/robot calm` | Calm mode on or off (`/robot calm on`, `/robot calm off`) |
+| `/robot calm` | Turn calm mode on or off: each run flips it |
 
 ### Settings
 
@@ -335,7 +335,7 @@ Every act has a switch. To change one:
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Robot | `true` | `false` hides the robot above the prompt. |
-| Calm | `false` | A calmer robot: half speed, only its quiet acts, no git cheer, compacting factory line or branch wave. Fire, ice, "need a human" and friends still show. `/robot calm` turns it on or off. |
+| Calm | `false` | A calmer robot: half speed, only its quiet acts, no git cheer, compacting factory line or branch wave. Fire, ice, "need a human" and friends still show. Each `/robot calm` flips it. |
 | Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. |
 | Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
@@ -355,7 +355,7 @@ Every act has a switch. To change one:
 | Update toast | `true` | A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. `false` turns it off. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
-`/robot` hides or shows the robot for this session only. `/robot calm` saves the Calm setting, so it lasts across sessions.
+`/robot` hides or shows the robot for this session only. `/robot calm` flips the Calm setting and saves it, so it lasts across sessions.
 
 ### Update or remove
 
