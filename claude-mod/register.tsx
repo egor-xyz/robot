@@ -631,7 +631,8 @@ export const register: Register = (on, options) => {
     // A newer robot on main: one toast per version, fetched at most every 6 hours across sessions.
     if (isUpdateOn) {
       void checkUpdate($)
-      $.clock.every(UPDATE_CHECK_MS, () => checkUpdate($))
+      // Ticks hourly: a tick right on the 6-hour mark can come in a few ms early and skip a whole round.
+      $.clock.every(UPDATE_CHECK_MS / 6, () => checkUpdate($))
     }
     if (isStatusOn) $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
     if (isChangesOn) $.clock.every(STATUS_MS, () => refreshChanges($))
