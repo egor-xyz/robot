@@ -12,13 +12,13 @@ const pr = (over: Partial<PrInfo> = {}): PrInfo => ({ ...NO_PR_INFO, number: 7, 
 const line = (over: Partial<PrInfo> = {}): string => textOfStatus(prLineOf(pr(over)))
 
 test('the PR line reads the checks, then what needs the person; the number first, no state word', () => {
-  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4')
-  expect(line({ status: 'ready', passed: 6 })).toBe('#7: checks: ✓ 6')
-  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('#7: checks: ◌ 1 · ✓ 3 · 💬 2')
-  expect(line({ passed: 3, isAutoMerge: true })).toBe('#7: checks: ✓ 3 · auto merge')
+  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: ✗ lint, test  ◌ 2  ✓ 5 | conflicts | 💬 4')
+  expect(line({ status: 'ready', passed: 6 })).toBe('#7: ✓ 6')
+  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('#7: ◌ 1  ✓ 3 | 💬 2')
+  expect(line({ passed: 3, isAutoMerge: true })).toBe('#7: ✓ 3 | auto merge')
   expect(line({ isAutoMerge: true })).toBe('#7: auto merge')
-  expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('#7: checks: ✗ 4 checks')
-  expect(line({ failed: ['a', 'b', 'c'] })).toBe('#7: checks: ✗ a, b, c')
+  expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('#7: ✗ 4 checks')
+  expect(line({ failed: ['a', 'b', 'c'] })).toBe('#7: ✗ a, b, c')
   expect(line({ status: 'draft', threads: 1 })).toBe('#7: 💬 1')
   expect(line({ status: 'draft', isConflict: true })).toBe('#7: conflicts')
 })
@@ -28,9 +28,8 @@ test('the PR line links its number to the PR, and colours each part by how bad i
   const colorOf = (text: string) => spans.find(span => span.text === text)?.color
   expect(spans[0]).toEqual({ text: '#7', color: 'suggestion', href: URL })
   expect(spans.filter(span => span.href)).toHaveLength(1)
-  expect(colorOf('checks')).toBe('suggestion')
   expect(colorOf(': ')).toBe('inactive')
-  expect(colorOf(' · ')).toBe('subtle')
+  expect(colorOf(' | ')).toBe('subtle')
   expect(colorOf('✗ lint')).toBe('error')
   expect(colorOf('◌ 1')).toBe('warning')
   expect(colorOf('✓ 2')).toBe('success')
@@ -174,12 +173,12 @@ test('the PR info and the changed files share one line; the files get the room t
   const files = [{ rank: 3, spans: [{ text: '10 files changed', color: 'inactive' }] }, { rank: 2, spans: [{ text: '+550', color: 'success' }] }, { rank: 1, spans: [{ text: '-126', color: 'error' }] }]
   const info = prLineOf(pr({ passed: 3 }))
   const wide = prRowOf(info, files, 80)
-  expect(`${textOfStatus(wide.pr)} | ${textOfStatus(wide.changed)}`).toBe('#7: checks: ✓ 3 | 10 files changed | +550 | -126')
+  expect(`${textOfStatus(wide.pr)} | ${textOfStatus(wide.changed)}`).toBe('#7: ✓ 3 | 10 files changed | +550 | -126')
   // Narrow: the lowest-ranked file part goes first, the PR info stays whole.
-  expect(textOfStatus(prRowOf(info, files, 42).changed)).toBe('10 files changed | +550')
-  expect(textOfStatus(prRowOf(info, files, 42).pr)).toBe('#7: checks: ✓ 3')
+  expect(textOfStatus(prRowOf(info, files, 34).changed)).toBe('10 files changed | +550')
+  expect(textOfStatus(prRowOf(info, files, 34).pr)).toBe('#7: ✓ 3')
   // No room left: no files part.
-  expect(prRowOf(info, files, 18).changed).toEqual([])
+  expect(prRowOf(info, files, 12).changed).toEqual([])
   // No PR info: the files take the whole line.
   expect(textOfStatus(prRowOf([], files, 80).changed)).toBe('10 files changed | +550 | -126')
   expect(prRowOf([], files, 80).pr).toEqual([])

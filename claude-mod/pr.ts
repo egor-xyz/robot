@@ -167,7 +167,7 @@ export function hostOf(url: string): string {
 /** Up to 3 names as they are, more as a count. */
 const namesOf = (failed: readonly string[]): string => (failed.length <= 3 ? failed.join(', ') : `${failed.length} checks`)
 
-/** The PR line, `#7: checks: ✗ lint, test · ◌ 2 · ✓ 5 · conflicts · 💬 4 · auto merge`: the number links to the PR, then the checks, what needs the person, and auto-merge. Nothing to say, no line. */
+/** The PR line, `#7: ✗ lint, test  ◌ 2  ✓ 5 | conflicts | 💬 4 | auto merge`: the number links to the PR, then the checks, what needs the person, and auto-merge. Nothing to say, no line. */
 export function prLineOf(pr: PrInfo): Span[] {
   if (pr.number <= 0 || !pr.url) return []
   const checks: Span[] = [
@@ -175,16 +175,17 @@ export function prLineOf(pr: PrInfo): Span[] {
     ...(pr.running > 0 ? [{ text: `◌ ${pr.running}`, color: WARN }] : []),
     ...(pr.passed > 0 ? [{ text: `✓ ${pr.passed}`, color: 'success' }] : []),
   ]
-  const parts: Span[] = [
-    ...checks,
-    ...(pr.isConflict ? [{ text: 'conflicts', color: ALARM }] : []),
-    ...(pr.threads > 0 ? [{ text: `💬 ${pr.threads}`, color: WARN }] : []),
-    ...(pr.isAutoMerge ? [{ text: 'auto merge', color: 'success' }] : []),
+  // The checks are one section, their parts apart by two spaces; the sections are apart by ` | `, as on the status line.
+  const checksPart: Span[] = checks.flatMap((check, i): Span[] => (i === 0 ? [check] : [{ text: '  ', color: DIM }, check]))
+  const sections: Span[][] = [
+    ...(checks.length > 0 ? [checksPart] : []),
+    ...(pr.isConflict ? [[{ text: 'conflicts', color: ALARM }]] : []),
+    ...(pr.threads > 0 ? [[{ text: `💬 ${pr.threads}`, color: WARN }]] : []),
+    ...(pr.isAutoMerge ? [[{ text: 'auto merge', color: 'success' }]] : []),
   ]
-  if (parts.length === 0) return []
-  const joined = parts.flatMap((part, i): Span[] => (i === 0 ? [part] : [{ text: ' · ', color: LINE }, part]))
-  const label: Span[] = checks.length > 0 ? [{ text: 'checks', color: 'suggestion' }, { text: ': ', color: DIM }] : []
-  return [{ text: `#${pr.number}`, color: 'suggestion', href: pr.url }, { text: ': ', color: DIM }, ...label, ...joined]
+  if (sections.length === 0) return []
+  const joined = sections.flatMap((section, i): Span[] => (i === 0 ? section : [PR_ROW_SEPARATOR, ...section]))
+  return [{ text: `#${pr.number}`, color: 'suggestion', href: pr.url }, { text: ': ', color: DIM }, ...joined]
 }
 
 /** Between the PR info and the changed files on their shared line. */
@@ -192,7 +193,7 @@ export const PR_ROW_SEPARATOR: Span = { text: ' | ', color: LINE }
 /** The changed files show only with at least this much room left after the PR info. */
 const CHANGES_MIN = 4
 
-/** The PR info and the changed files on one line, `#7: checks: ✓ 3 | 10 files changed | +550`: the PR info keeps its room, the files get what is left. */
+/** The PR info and the changed files on one line, `#7: ✓ 3 | 10 files changed | +550`: the PR info keeps its room, the files get what is left. */
 export function prRowOf(pr: readonly Span[], changes: readonly StatusGroup[], columns: number): { pr: Span[]; changed: Span[] } {
   if (pr.length === 0) return { pr: [], changed: fitStatus(changes, columns) }
   const fitted = fitStatus([{ rank: 1, spans: [...pr] }], columns)
