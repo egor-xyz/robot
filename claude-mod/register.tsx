@@ -4,6 +4,7 @@ import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chil
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
+import { CALM_STATES, CALM_TICK_MS, calmCommandOf } from './calm'
 import { gitActOf } from './git'
 import { INITIAL, randomInt, step } from './robot'
 import type { RobotState } from './robot'
@@ -427,7 +428,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
-  robot: true, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
+  robot: true, calm: false, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
   subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, prLine: true, cacheCold: true, cacheTtl: '1h', updateToast: true, resetSettings: false,
 }
 
@@ -545,15 +546,17 @@ export const register: Register = (on, options) => {
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
   // The `contextFire` option turns the whole context-on-fire act off; on unless set to false.
   const isFireOn = options.contextFire !== false
+  // The `calm` option: slower, quiet acts only, no cheer, factory line or branch wave; off unless set to true.
+  const isCalm = options.calm === true
   const isRobotOn = options.robot !== false
   const isStatusOn = options.statusLine !== false
   const limitsAt = typeof options.limitsAt === 'number' && options.limitsAt >= 0 && options.limitsAt <= 100 ? options.limitsAt : LIMITS_AT
   const isNeedsOn = options.needsYou !== false
   const isSpinnerOn = options.robotSpinner !== false
-  const isFactoryOn = options.compactFactory !== false
-  const isCheerOn = options.gitCheer !== false
+  const isFactoryOn = options.compactFactory !== false && !isCalm
+  const isCheerOn = options.gitCheer !== false && !isCalm
   const isFriendsOn = options.subagentFriends !== false
-  const isWaveOn = options.branchWave !== false
+  const isWaveOn = options.branchWave !== false && !isCalm
   const isAgentLinesOn = options.agentLines !== false
   const isChangesOn = options.changedFiles !== false
   // The PR line and the changed files both read the PR, so either one starts the lookups.
@@ -572,9 +575,9 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     if (options.resetSettings === true) await resetSettings($)
-    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files' })
+    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files; `/robot calm` slows it down', argumentHint: '[files | calm [on|off]]' })
 
-    $.clock.every(TICK_MS, async () => {
+    $.clock.every(isCalm ? CALM_TICK_MS : TICK_MS, async () => {
       const { value: hidden = false } = await $.state.get(IS_HIDDEN)
       const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
       // The wave counts ticks; while hidden they stop, so the wave ends at once.
@@ -771,6 +774,14 @@ export const register: Register = (on, options) => {
     if (e.args.trim() === 'files') {
       await openChanges($)
       return { text: 'Changed files.' }
+    }
+    const calm = calmCommandOf(e.args, isCalm)
+    if (calm) {
+      if (calm.calm !== undefined) {
+        const set = await $.config.set({ key: 'robot.calm', value: calm.calm })
+        if (set.deny !== undefined) return { text: `Calm mode not changed: ${set.deny}` }
+      }
+      return { text: calm.text }
     }
     const { value: was = false } = await $.state.get(IS_HIDDEN)
     const hidden = !was
@@ -1057,7 +1068,7 @@ export const register: Register = (on, options) => {
       }
       // Cold: the robot freezes where it stands.
       if (!shown.frame || (!isCold && (!isHot || isHotStep(at)))) {
-        const drawn = step(shown.state, track, randomInt)
+        const drawn = step(shown.state, track, randomInt, isCalm ? CALM_STATES : undefined)
         shown.state = drawn.state
         shown.frame = drawn.frame
       }

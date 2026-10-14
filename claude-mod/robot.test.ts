@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
+import { CALM_STATES } from './calm'
 import { FRAME_SEPARATOR, cellsOf, framesOf } from './frames'
 import type { Frame } from './frames'
 import { CASES, POS, TRACK } from './parity.fixture'
@@ -61,4 +62,16 @@ test('every state draws what the real zsh draws', () => {
 
     expect({ state, t, mirror, frame }).toEqual({ state, t, mirror, frame: framesOf(`${out}${FRAME_SEPARATOR}`)[0] })
   }
+})
+
+test('a calm pool picks only its own states', () => {
+  const random = seeded(7)
+  let state = { ...INITIAL }
+  const seen = new Set<string>()
+  for (let i = 0; i < 20000; i++) {
+    state = step(state, 40, random, CALM_STATES).state
+    seen.add(state.state)
+  }
+  for (const name of seen) expect(['walk', ...CALM_STATES]).toContain(name)
+  for (const name of CALM_STATES) expect([...seen]).toContain(name)
 })

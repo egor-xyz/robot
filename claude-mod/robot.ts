@@ -340,7 +340,7 @@ function ufoOf(s: RobotState): { raw: string; pad: number } {
 }
 
 /** One tick of crazy-robot: the frame it prints and the state after. `random()` is like zsh $RANDOM (0..32767). */
-export function step(state: RobotState, track: number, random: () => number): { frame: Frame; state: RobotState } {
+export function step(state: RobotState, track: number, random: () => number, pool: readonly string[] = STATES): { frame: Frame; state: RobotState } {
   const s: RobotState = { ...state }
   const width = Math.max(1, track)
 
@@ -348,7 +348,7 @@ export function step(state: RobotState, track: number, random: () => number): { 
     if (s.state !== 'walk') {
       s.state = 'walk'
     } else {
-      s.state = STATES[random() % STATES.length] ?? 'static'
+      s.state = pool[random() % pool.length] ?? 'static'
     }
     s.t = 0
     const w = WIDTH[s.state] ?? 0
