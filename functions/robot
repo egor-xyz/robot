@@ -115,7 +115,7 @@ _rbt_setting_toggle() {
 
 # --- Robot animation state --------------------------------------------------
 local _robot_state="walk" _robot_t=0 _robot_dur=6 _robot_pos=0 _robot_dir=1 _robot_mirror=0
-local -a robot_order=(walk static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow slot)
+local -a robot_order=(walk static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow gum slot)
 local rcount=${#robot_order} rsel=1
 local _robot_lock_ts=$SECONDS
 
