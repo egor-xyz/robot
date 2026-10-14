@@ -4,10 +4,12 @@ import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chil
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
-import { CALM_STATES, CALM_TICK_MS, calmCommandOf } from './calm'
+import { CALM_STATES, CALM_TICK_MS } from './calm'
+import { HELP_TEXT, actTextOf, commandOf, isOnOf, toggleDenyTextOf, toggleTextOf } from './command'
+import type { ToggleKey } from './command'
 import { gitActOf } from './git'
-import { INITIAL, randomInt, step } from './robot'
-import type { RobotState } from './robot'
+import { ACTS, INITIAL, actOf, randomInt, step } from './robot'
+import type { ActName, RobotState } from './robot'
 import { isQuestion } from './ask'
 import { robotWord } from './spinner'
 import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
@@ -90,7 +92,10 @@ const NEEDS_YOU_SAY: Span[][] = [[{ text: 'need a human', color: COMMAND_COLOR }
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
-const IS_HIDDEN = { plugin: 'robot', key: 'isHidden' } as const
+/** The act `/robot play`, `dice` or `coin` asked for: its id, the value the robot lands on, and when it was asked. */
+const ACT = { plugin: 'robot', key: 'act' } as const
+/** The window in which an asked act still starts: a reload resets `actSeen` and must not replay the last one. */
+const ACT_WINDOW_MS = 2_000
 const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
 const CELEBRATION = { plugin: 'robot', key: 'celebration' } as const
@@ -139,6 +144,10 @@ const AGENTS_PANE = 'robot-agents'
 
 /** The robot as of the last tick drawn: its state, which tick, and that tick's frame. */
 const shown: { state: RobotState; at: number; frame: Frame | undefined } = { state: INITIAL, at: -1, frame: undefined }
+/** The id of the last act started, so one ask plays once. */
+let actSeen = 0
+/** True while the robot is in an act; the frame it shows then is the act's, with no fire, ice or bubble. */
+const isInAct = (s: RobotState): boolean => ACTS.includes(s.state as ActName)
 /** The subagent friends as of the last tick they were stepped, and that tick. */
 let friends: Friend[] = []
 let friendsAt = -1
@@ -311,11 +320,11 @@ async function writePr($: EngineInterface, pr: PrInfo): Promise<void> {
 }
 
 /** Looks the PR up without waiting for it; the changed files read again when the PR changed, and the person hears what needs them. */
-function pokePr($: EngineInterface, mode: PrMode, isChangesOn: boolean, isPrLineOn: boolean): void {
+function pokePr($: EngineInterface, mode: PrMode, isLineOn: boolean): void {
   void refreshPr($, mode).then(async ({ pr, was, isLooked }) => {
     if (!isLooked) return
-    if (isChangesOn && (pr.number !== was.number || pr.baseRef !== was.baseRef)) await refreshChanges($)
-    const said = isPrLineOn ? attentionToastOf(was, pr) : undefined
+    if (isLineOn && (pr.number !== was.number || pr.baseRef !== was.baseRef)) await refreshChanges($)
+    const said = isLineOn ? attentionToastOf(was, pr) : undefined
     if (said) $.ui.toast(said, { timeoutMs: 8_000 })
   }).catch(error => $.ui.log(`robot: PR unavailable: ${String(error)}`, { to: 'debug' }))
 }
@@ -437,7 +446,7 @@ async function noteEffort($: EngineInterface, level: string | undefined, isStatu
 // Every setting's default, as .claude-plugin/plugin.json declares it; "Reset all settings to default" writes these back.
 const DEFAULTS: Record<string, boolean | number | string> = {
   robot: true, calm: false, statusLine: true, contextFire: true, hotAt: 25, compactFactory: true, gitCheer: true,
-  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changedFiles: true, prLine: true, cacheCold: true, cacheTtl: '1h', updateToast: true, resetSettings: false,
+  subagentFriends: true, limitWindows: 'both', limitsAt: 0, needsYou: true, robotSpinner: true, branchWave: true, agentLines: true, changesLine: true, cacheCold: true, cacheTtl: '1h', updateToast: true, resetSettings: false,
 }
 
 /** A newer robot on main than the installed one: one toast per version, fetched at most every 6 hours across sessions. Never throws. */
@@ -538,12 +547,23 @@ async function learnTtl($: EngineInterface, breakMs: number, usage: StepUsage, p
 }
 
 async function resetSettings($: EngineInterface): Promise<void> {
+  // A reload runs this again while the settings are still being written: a field already at its default is not written twice.
+  const saved = await $.config.list().catch(() => [])
   // The switch itself goes last, so a failed write leaves it on to try again.
   for (const [field, value] of Object.entries(DEFAULTS).sort(([a], [b]) => Number(a === 'resetSettings') - Number(b === 'resetSettings'))) {
+    if (saved.find(row => row.key === `robot.${field}`)?.value === value) continue
     await $.config.set({ key: `robot.${field}`, value }).catch(() => undefined)
+    if (field === 'resetSettings') await $.ui.toast('Robot settings are back to default')
   }
   await $.store.delete(STORE_TTL).catch(() => undefined)
-  await $.ui.toast('Robot settings are back to default')
+}
+
+/** Flips one saved setting: the saved value, not this load's (a write may not have reloaded the mod yet). */
+async function flipSetting($: EngineInterface, key: ToggleKey): Promise<string> {
+  const { value } = (await $.config.list().catch(() => [])).find(row => row.key === `robot.${key}`) ?? {}
+  const isOn = isOnOf(key, value)
+  const set = await $.config.set({ key: `robot.${key}`, value: !isOn })
+  return set.deny !== undefined ? toggleDenyTextOf(key, set.deny) : toggleTextOf(key, !isOn)
 }
 
 export const register: Register = (on, options) => {
@@ -566,10 +586,8 @@ export const register: Register = (on, options) => {
   const isFriendsOn = options.subagentFriends !== false
   const isWaveOn = options.branchWave !== false && !isCalm
   const isAgentLinesOn = options.agentLines !== false
-  const isChangesOn = options.changedFiles !== false
-  // The PR line and the changed files both read the PR, so either one starts the lookups.
-  const isPrLineOn = options.prLine !== false
-  const isPrOn = isPrLineOn || isChangesOn
+  // The PR and the changed files share one line and one setting: it starts both lookups.
+  const isLineOn = options.changesLine !== false
   const isUpdateOn = options.updateToast !== false
   // The `cacheCold` option turns the ice cubes and the status part off; on unless set to false.
   const isColdOn = options.cacheCold !== false
@@ -580,23 +598,27 @@ export const register: Register = (on, options) => {
   /** The organisation the person signed in with, read once a session. */
   let account: string | undefined
 
+  // A setting changed (by /robot or /plugin) reloads the mod; session.start runs again on a reload only
+  // when the plugin hooks plugin.register (types: 'session.start'). Without it the robot has no clock and stands still.
+  on('plugin.register', (_$, e, next) => next(e))
+
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     if (options.resetSettings === true) await resetSettings($)
-    await $.command.register({ name: 'robot', description: 'Hide or show the robot above the prompt; `/robot files` lists the changed files; `/robot agents` lists the running subagents; `/robot calm` turns calm mode on or off', argumentHint: '[files | agents | calm]' })
 
+    // The clock first: nothing after it may stop the robot walking.
     $.clock.every(isCalm ? CALM_TICK_MS : TICK_MS, async () => {
-      const { value: hidden = false } = await $.state.get(IS_HIDDEN)
       const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
-      // The wave counts ticks; while hidden they stop, so the wave ends at once.
-      if (hidden) {
-        if (waveAt >= 0) await $.state.set(WAVE_AT, -1)
-        return
-      }
       const { value: at = 0 } = await $.state.get(TICK)
       await $.state.set(TICK, at + 1)
       if (waveAt >= 0 && at + 1 - waveAt >= WAVE_TICKS) await $.state.set(WAVE_AT, -1)
     })
+
+    try {
+      await $.command.register({ name: 'robot', description: 'Toggle the robot, `/robot status`, `/robot changes` or `/robot calm` (saved); `/robot files` and `/robot agents` open panels; `/robot play`, `/robot dice` and `/robot coin` play', argumentHint: '[status | changes | calm | files | agents | play | dice | coin]' })
+    } catch (error) {
+      $.ui.log(`robot: /robot not registered: ${String(error)}`, { to: 'debug' })
+    }
 
     if (isFireOn) $.clock.every(HEAT_MS, async () => {
       try {
@@ -650,9 +672,9 @@ export const register: Register = (on, options) => {
       $.clock.every(UPDATE_CHECK_MS / 6, () => checkUpdate($))
     }
     if (isStatusOn) $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
-    if (isChangesOn) $.clock.every(STATUS_MS, () => refreshChanges($))
+    if (isLineOn) $.clock.every(STATUS_MS, () => refreshChanges($))
     // The PR is looked up when its time is up: soon while checks run, rarely when calm.
-    if (isPrOn) $.clock.every(PR_TICK_MS, () => { if (Date.now() >= prDueAt) pokePr($, 'due', isChangesOn, isPrLineOn) })
+    if (isLineOn) $.clock.every(PR_TICK_MS, () => { if (Date.now() >= prDueAt) pokePr($, 'due', isLineOn) })
     // The first reads all at once, and the session does not wait for them: git and gh can take seconds.
     void Promise.all([
       checkAgents(),
@@ -660,8 +682,8 @@ export const register: Register = (on, options) => {
         account = found
         return refreshStatus($, { account, windows, limitsAt, hotAt })
       }) : undefined,
-      isPrOn ? refreshPr($, 'due') : undefined,
-      isChangesOn ? refreshChanges($) : undefined,
+      isLineOn ? refreshPr($, 'due') : undefined,
+      isLineOn ? refreshChanges($) : undefined,
     ])
 
     return started
@@ -741,7 +763,7 @@ export const register: Register = (on, options) => {
   // Claude changed a file: the changed-files line counts again.
   on('tool.call', { tool: ['Edit', 'Write', 'NotebookEdit'] }, async ($, e, next) => {
     const ran = await next(e)
-    if (isChangesOn && ran.deny === undefined) await refreshChanges($)
+    if (isLineOn && ran.deny === undefined) await refreshChanges($)
     return ran
   })
 
@@ -749,12 +771,12 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
     // A push, a branch change or a `gh pr` act moves the PR: look it up at once, without holding the tool's result.
-    if (isPrOn && ran.deny === undefined && isPrActOf(e.command)) {
+    if (isLineOn && ran.deny === undefined && isPrActOf(e.command)) {
       prActAt = Date.now()
-      pokePr($, 'now', isChangesOn, isPrLineOn)
+      pokePr($, 'now', isLineOn)
     }
     // Any command may change, add or commit files.
-    if (isChangesOn && ran.deny === undefined) await refreshChanges($)
+    if (isLineOn && ran.deny === undefined) await refreshChanges($)
     if (!isCheerOn && !isWaveOn) return ran
     if (ran.deny !== undefined || ran.isError === true) return ran
     const act = gitActOf(e.command)
@@ -779,44 +801,35 @@ export const register: Register = (on, options) => {
   })
 
   on('command.run', { command: 'robot' }, async ($, e) => {
-    // Any letter case: `/robot Files` opens the panel too.
-    const args = e.args.trim().toLowerCase()
-    if (args === 'files') {
+    const command = commandOf(e.args)
+    if (command.kind === 'files') {
       await openChanges($)
       return { text: 'Changed files.' }
     }
-    if (args === 'agents') {
+    if (command.kind === 'agents') {
       await openAgents($)
       return { text: 'Subagents.' }
     }
-    // The saved value, not the one this load started with: a write may not have reloaded the mod yet.
-    const isCalmNow = (await $.config.list().catch(() => [])).find(row => row.key === 'robot.calm')?.value === true
-    const calm = calmCommandOf(e.args, isCalmNow)
-    if (calm) {
-      if (calm.calm !== undefined) {
-        const set = await $.config.set({ key: 'robot.calm', value: calm.calm })
-        if (set.deny !== undefined) return { text: `Calm mode not changed: ${set.deny}` }
-      }
-      return { text: calm.text }
+    if (command.kind === 'toggle') return { text: await flipSetting($, command.key) }
+    if (command.kind === 'act') {
+      const { act } = command
+      const value = act === 'dice' ? 1 + (randomInt() % 6) : act === 'coin' ? randomInt() % 2 : 0
+      if (isRobotOn) await $.state.set(ACT, { id: randomInt(), name: act, value, requestedAt: Date.now() })
+      else if (act === 'slot') return { text: 'The robot is hidden: /robot shows it.' }
+      return { text: actTextOf(act, value) }
     }
-    // Only a bare /robot hides it: a typo gets the list, not a hidden robot.
-    if (args) return { text: 'Use /robot, /robot files, /robot agents or /robot calm.' }
-    const { value: was = false } = await $.state.get(IS_HIDDEN)
-    const hidden = !was
-    await $.state.set(IS_HIDDEN, hidden)
-
-    return { text: hidden ? 'Robot hidden.' : 'Robot is back.' }
+    return { text: HELP_TEXT }
   })
 
   // The status line: a row of coloured parts above Claude Code's own hint line, which stays as it is.
   // The status line, then one line for each running subagent: rows above Claude Code's own hint line, which stays as it is.
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
-    if (!isStatusOn && !isAgentLinesOn && !isChangesOn && !isPrLineOn) return next(e)
+    if (!isStatusOn && !isAgentLinesOn && !isLineOn) return next(e)
     const { value: status = [] } = await $.state.get(STATUS)
     const { value: agentRows = [] } = isAgentLinesOn ? await $.state.get(AGENT_ROWS) : { value: [] }
-    const { value: changes = [] } = isChangesOn ? await $.state.get(CHANGES) : { value: [] }
-    const { value: pr = NO_PR } = isChangesOn ? await $.state.get(CHANGES_PR) : { value: undefined }
-    const { value: prInfo = NO_PR_INFO } = isPrLineOn ? await $.state.get(PR) : { value: undefined }
+    const { value: changes = [] } = isLineOn ? await $.state.get(CHANGES) : { value: [] }
+    const { value: pr = NO_PR } = isLineOn ? await $.state.get(CHANGES_PR) : { value: undefined }
+    const { value: prInfo = NO_PR_INFO } = isLineOn ? await $.state.get(PR) : { value: undefined }
     const { value: coldTokens = 0 } = isColdOn && isStatusOn ? await $.state.get(COLD_TOKENS) : { value: 0 }
     const theirs = await next(e)
     // A few cells of room for the line's indent and the right edge.
@@ -845,7 +858,7 @@ export const register: Register = (on, options) => {
     }
     // The open PR (a link to it, and what needs the person), then the changed files: one line.
     // The files are a button that opens the panel with the list.
-    const row = prRowOf(isPrLineOn ? prLineOf(prInfo) : [], changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
+    const row = prRowOf(isLineOn ? prLineOf(prInfo) : [], changesGroupsOf(pr.number > 0 ? pr : totalsOf(changes as FileChange[])), columns)
     const changed = row.changed
     if (lines.length === 0 && agentLines.length === 0 && row.pr.length === 0 && changed.length === 0) return theirs
     const elements = $.ui.resolve(e)
@@ -1084,13 +1097,13 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const columns = e.props.bodyColumns
     const { value: at = 0 } = await $.state.get(TICK)
-    const { value: hidden = false } = await $.state.get(IS_HIDDEN)
-    const isQuiet = !isRobotOn || e.props.hasSurvey || e.props.maxRows < ROWS || hidden
+    const isQuiet = !isRobotOn || e.props.hasSurvey || e.props.maxRows < ROWS
     if (isQuiet) {
       return next(e)
     }
 
     const { value: percent = 0 } = await $.state.get(CONTEXT_PERCENT)
+    const { value: act } = await $.state.get(ACT)
     const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
     const { value: celebration } = await $.state.get(CELEBRATION)
     const { value: subagents = 0 } = await $.state.get(SUBAGENTS)
@@ -1113,16 +1126,22 @@ export const register: Register = (on, options) => {
     const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
     if (at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
+      // An act asked for by a command starts now; it plays to its end whatever the robot felt before.
+      if (act && act.id !== actSeen && Date.now() - act.requestedAt < ACT_WINDOW_MS) {
+        actSeen = act.id
+        shown.state = actOf(shown.state, act.name, act.value, track)
+      }
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       // Talking (asking for the person, or hot and talking) it dances in place, so its bubble stays put.
-      const wanted = isNeeded || (isHot && talkAt(at) >= 0) ? 'dance' : isHot ? 'walk' : undefined
+      // An act in play is not overridden.
+      const wanted = isInAct(shown.state) ? undefined : isNeeded || (isHot && talkAt(at) >= 0) ? 'dance' : isHot ? 'walk' : undefined
       if (wanted && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
         shown.state = { ...shown.state, state: wanted, t: 0, dur: FOREVER }
       } else if (!wanted && shown.state.dur === FOREVER) {
         shown.state = { ...shown.state, dur: shown.state.t }
       }
-      // Cold: the robot freezes where it stands.
-      if (!shown.frame || (!isCold && (!isHot || isHotStep(at)))) {
+      // Cold: the robot freezes where it stands. An act plays every tick, cold or hot.
+      if (!shown.frame || isInAct(shown.state) || (!isCold && (!isHot || isHotStep(at)))) {
         const drawn = step(shown.state, track, randomInt, isCalm ? CALM_STATES : undefined)
         shown.state = drawn.state
         shown.frame = drawn.frame
@@ -1136,7 +1155,9 @@ export const register: Register = (on, options) => {
     }
     // Priority: compacting, then needs-you, then celebrating, then the robot as it walks (hot or not).
     // Cold ice, or fire; cold wins (isHot is already false then).
-    const decorated = (f: Frame) => (isCold ? chilled(f, true, at) : heated(f, isHot, at))
+    // An act draws its own frames: no fire, no ice, no bubble, no friends.
+    const inAct = isInAct(shown.state)
+    const decorated = (f: Frame) => (inAct ? f : isCold ? chilled(f, true, at) : heated(f, isHot, at))
     let frame: Frame
     if (isCompacting) {
       frame = factory(columns, at - packedFrom, packedSeed)
@@ -1149,12 +1170,12 @@ export const register: Register = (on, options) => {
     } else if (!shown.frame) {
       return next(e)
     } else {
-      const said = (isHot || isCold) && talkAt(at) >= 0 ? typedSoFar(isHot ? sayOf(percent) : COLD_SAY, (talkAt(at) + 1) * TYPE_SPEED) : undefined
+      const said = !inAct && (isHot || isCold) && talkAt(at) >= 0 ? typedSoFar(isHot ? sayOf(percent) : COLD_SAY, (talkAt(at) + 1) * TYPE_SPEED) : undefined
       const robot = said ? speech(decorated(shown.frame), said, columns) : decorated(shown.frame)
       // The friends' side is measured without the sparks or snow, which change every tick.
       const layout = said ? speech(shown.frame, said, columns) : shown.frame
       // The cat act fills both sides of the robot: the friends stay out of it.
-      frame = shown.state.state === 'catpeek'
+      frame = shown.state.state === 'catpeek' || inAct
         ? robot
         : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk', layout)
     }

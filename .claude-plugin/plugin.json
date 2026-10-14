@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.14.4",
+  "version": "0.15.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -14,7 +14,7 @@
     "robot": {
       "type": "boolean",
       "title": "Robot",
-      "description": "The animated robot above the prompt. false hides it, as /robot does, and keeps the status line.",
+      "description": "The animated robot above the prompt. false hides it, as /robot does, and keeps the status line. Each /robot flips it.",
       "default": true
     },
     "calm": {
@@ -26,7 +26,7 @@
     "statusLine": {
       "type": "boolean",
       "title": "Status line",
-      "description": "A line under the prompt: account | model [effort] | project | branch ↑unpushed | 7d and 5h limits with time left | cost | context % | ❄ cache cold.",
+      "description": "A line under the prompt: account | model [effort] | project | branch ↑unpushed | 7d and 5h limits with time left | cost | context % | ❄ cache cold. Each /robot status flips it.",
       "default": true
     },
     "contextFire": {
@@ -121,16 +121,10 @@
       "description": "While subagents run, one line for each under the status line: its task, type, model, tokens and time, up to 3. false hides them.",
       "default": true
     },
-    "changedFiles": {
+    "changesLine": {
       "type": "boolean",
-      "title": "Changed files",
-      "description": "One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run /robot files, for the list. false hides it.",
-      "default": true
-    },
-    "prLine": {
-      "type": "boolean",
-      "title": "PR line",
-      "description": "One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts with the base branch, unresolved review threads and auto-merge. A toast says when something new needs you. Uses gh. false hides both.",
+      "title": "PR and files line",
+      "description": "One line under the status line: the branch's open PR (checks, conflicts with the base, unresolved review threads, auto-merge; a toast says when something new needs you; uses gh), then the changed files with lines added and removed. Click the files, or run /robot files, for the list. Each /robot changes flips it.",
       "default": true
     },
     "updateToast": {

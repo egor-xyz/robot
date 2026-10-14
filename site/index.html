@@ -326,10 +326,15 @@ footer nav { display: flex; gap: 20px; }
       <li class="step panel reveal" style="--c:var(--goal)"><span class="num">3</span><div class="step-body"><small>Done</small><span class="plain">The robot appears above the prompt. No restart.</span></div></li>
     </ol>
     <div class="tips">
-      <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot</code><p>Hide or show the robot.</p></div>
+      <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot</code><p>Hide or show the robot. It stays that way.</p></div>
+      <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot status</code><p>Hide or show the status line.</p></div>
+      <div class="tip panel reveal" style="--c:var(--ufo)"><code>/robot changes</code><p>Hide or show the PR and files line.</p></div>
+      <div class="tip panel reveal" style="--c:var(--smile)"><code>/robot play</code><p>The robot plays the slot machine.</p></div>
+      <div class="tip panel reveal" style="--c:var(--smile)"><code>/robot dice</code><p>The robot becomes a die and rolls. The reply says what it rolled.</p></div>
+      <div class="tip panel reveal" style="--c:var(--smile)"><code>/robot coin</code><p>The robot flips a coin. Yes or no.</p></div>
       <div class="tip panel reveal" style="--c:var(--walk)"><code>/robot files</code><p>See the changed files and their diffs.</p></div>
       <div class="tip panel reveal" style="--c:var(--walk)"><code>/robot agents</code><p>See every running subagent in a panel.</p></div>
-      <div class="tip panel reveal" style="--c:var(--moon)"><code>/robot calm</code><p>A slower robot with only its quiet acts. Run it again to turn it off.</p></div>
+      <div class="tip panel reveal" style="--c:var(--moon)"><code>/robot calm</code><p>A slower robot with only its quiet acts. Run it again to turn it off. Play, dice and coin still work.</p></div>
       <div class="tip panel reveal" style="--c:var(--fire)"><code>/plugin → robot → Configure</code><p>Turn the fire off, or set when it starts.</p></div>
       <div class="tip panel reveal" style="--c:var(--concert)"><code>/plugin marketplace update robot</code><p>Get the newest robot. It reloads by itself.</p></div>
     </div>
@@ -719,15 +724,15 @@ footer nav { display: flex; gap: 20px; }
     <div class="head">
       <div class="eyebrow reveal" style="--c:var(--moon)">settings</div>
       <h2 class="reveal">Your robot,<br><span class="rb">your rules.</span></h2>
-      <p class="lead reveal">In Claude Code, type <code>/plugin</code>, open <b>Installed</b>, pick <b>robot</b>, choose <b>Configure</b>. Change a value and save. Then run <code>/reload-plugins</code> (or start a new session). <code>/robot</code> hides or shows the robot for this session. <code>/robot calm</code> turns calm mode on or off (each run flips it), and it stays that way.</p>
+      <p class="lead reveal">In Claude Code, type <code>/plugin</code>, open <b>Installed</b>, pick <b>robot</b>, choose <b>Configure</b>. Change a value and save. It applies at once. <code>/robot</code>, <code>/robot status</code>, <code>/robot changes</code> and <code>/robot calm</code> flip the Robot, Status line, PR and files line and Calm settings (each run flips one), and they stay that way.</p>
     </div>
     <div class="tbl-wrap panel reveal" style="--c:var(--moon)">
       <table class="tbl">
         <thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td>Robot</td><td>true</td><td>false hides the robot above the prompt.</td></tr>
+          <tr><td>Robot</td><td>true</td><td>false hides the robot above the prompt. Each /robot flips it.</td></tr>
           <tr><td>Calm</td><td>false</td><td>A calmer robot: half speed, only its quiet acts, no git cheer, factory line or branch wave. Each /robot calm flips it.</td></tr>
-          <tr><td>Status line</td><td>true</td><td>false hides the status line under the prompt.</td></tr>
+          <tr><td>Status line</td><td>true</td><td>false hides the status line under the prompt. Each /robot status flips it.</td></tr>
           <tr><td>Context on fire</td><td>true</td><td>false turns the burning-head act off.</td></tr>
           <tr><td>Fire at (% context)</td><td>25</td><td>Context % where the head catches fire and ctx turns red.</td></tr>
           <tr><td>Cache cold</td><td>true</td><td>false turns the ice cubes and the status line's ❄ cache cold part off.</td></tr>
@@ -741,8 +746,7 @@ footer nav { display: flex; gap: 20px; }
           <tr><td>Robot spinner words</td><td>true</td><td>false keeps Claude Code's own spinner words.</td></tr>
           <tr><td>Branch wave</td><td>true</td><td>A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. false keeps it still.</td></tr>
           <tr><td>Subagent lines</td><td>true</td><td>One line for each running subagent under the status line: task, type, model, tokens and time. false hides them.</td></tr>
-          <tr><td>Changed files</td><td>true</td><td>One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run /robot files, for the list. false hides it.</td></tr>
-          <tr><td>PR line</td><td>true</td><td>One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts with the base branch, unresolved review threads and auto-merge. A toast says when something new needs you. Uses gh. false hides both.</td></tr>
+          <tr><td>PR and files line</td><td>true</td><td>One line under the status line: how many files git would commit (with a PR open, all the PR's files, with the lines added and removed), and the open PR's checks, conflicts, unresolved review threads and auto-merge. A toast says when something new needs you. Click it, or run /robot files, for the list. Uses gh. Each /robot changes flips it. false hides the line and the toast.</td></tr>
           <tr><td>Update toast</td><td>true</td><td>A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. false turns it off.</td></tr>
           <tr><td>Reset all settings to default</td><td>false</td><td>Set to true and save: every setting goes back to its default, and this switch goes back to false.</td></tr>
         </tbody>

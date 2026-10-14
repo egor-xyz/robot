@@ -75,6 +75,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something. `/robot calm` slows it down and keeps only its quiet acts.
+- 🎲 **Plays on command.** `/robot play` pulls the slot machine, `/robot dice` turns it into a die, `/robot coin` flips a coin. The reply tells you the result.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 🧊 **Freezes when the cache goes cold.** After a break, ice cubes gather around it and the status line says `❄ cache cold` — [see below](#-cache-cold).
 - 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
@@ -265,7 +266,7 @@ The number links to the PR on GitHub. A part shows only when it applies. With no
 | `💬 4` | unresolved review threads | 🟡 yellow |
 | `auto merge` | auto-merge is on: GitHub merges the PR when it can | 🟢 green |
 
-A new problem pops up once as a toast, for about 8 seconds: a new conflict, a newly failed check, more unresolved threads, or auto-merge turned off (by GitHub or by you). For example `PR #7: failing: lint`. It does not fire when you reload. The **PR line** setting turns the line and the toast off.
+A new problem pops up once as a toast, for about 8 seconds: a new conflict, a newly failed check, more unresolved threads, or auto-merge turned off (by GitHub or by you). For example `PR #7: failing: lint`. It does not fire when you reload. The **PR and files line** setting turns the line and the toast off.
 
 The line needs `gh`, signed in. It looks for the PR at once after `git push`, `gh pr …` or a branch switch. Then it looks every 15 seconds while checks run or in the minute after a push, and every 2 minutes when things are calm. A branch with no PR is checked every 5 minutes. It never looks on the default branch or a detached HEAD.
 
@@ -308,7 +309,7 @@ In PR · 12
 - ↗ In the diff, `↗ open` opens the file in its default app. `← files` goes back.
 - `Esc` or **Close** closes the panel.
 
-Turn them off with the **Branch wave**, **Subagent lines** and **Changed files** settings.
+Turn them off with the **Branch wave**, **Subagent lines** and **PR and files line** settings.
 
 **Your theme decides the exact colors.** The line uses Claude Code's theme colors (warning, error, …), not fixed ones. It reads well in dark, light and color-blind themes. With a `-ansi` theme in `/theme`, it uses your terminal's own color scheme.
 
@@ -316,12 +317,19 @@ Turn them off with the **Branch wave**, **Subagent lines** and **Changed files**
 
 ## 🎮 Use it
 
-| Command  | Action                 |
-| -------- | ---------------------- |
-| `/robot` | Hide or show the robot |
+| Command | Action |
+| ------- | ------ |
+| `/robot` | Hide or show the robot (saved) |
+| `/robot status` | Hide or show the status line (saved) |
+| `/robot changes` | Hide or show the PR and files line (saved) |
+| `/robot calm` | Turn calm mode on or off (saved) |
+| `/robot play` | The robot plays the slot machine |
+| `/robot dice` | The robot turns into a die, rolls, and lands on 1–6. The reply says the number, e.g. `🎲 You rolled 4.` |
+| `/robot coin` | The robot flips a coin. The reply says `🪙 Yes.` or `🪙 No.` |
 | `/robot files` | Open the changed-files panel |
 | `/robot agents` | Open the panel with every running subagent |
-| `/robot calm` | Turn calm mode on or off: each run flips it |
+
+Each toggle flips its setting on every run, and the setting is saved, so it lasts across sessions. Play, dice and coin also work in calm mode.
 
 ### Settings
 
@@ -330,13 +338,14 @@ Every act has a switch. To change one:
 1. In Claude Code, type `/plugin`.
 2. Open **Installed**, pick **robot**, then choose **Configure**.
 3. Change a value and save.
-4. Run `/reload-plugins`, or start a new session.
+
+The change applies at once; the plugin reloads by itself.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| Robot | `true` | `false` hides the robot above the prompt. |
+| Robot | `true` | `false` hides the robot above the prompt. Each `/robot` flips it. |
 | Calm | `false` | A calmer robot: half speed, only its quiet acts, no git cheer, compacting factory line or branch wave. Fire, ice, "need a human" and friends still show. Each `/robot calm` flips it. |
-| Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. |
+| Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. Each `/robot status` flips it. |
 | Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |
 | Cache cold | `true` | `false` turns the [ice cubes](#-cache-cold) and the status line's `❄ cache cold` part off. |
@@ -350,12 +359,11 @@ Every act has a switch. To change one:
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
 | Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
 | Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
-| Changed files | `true` | One line under the status line: how many files git would commit; with a PR open, all the PR's files, committed or not, with the lines added and removed. Click it, or run `/robot files`, for the list. `false` hides it. |
-| PR line | `true` | One line under the status line for the branch's open PR: its checks (failed, running, passed), conflicts, unresolved review threads and auto-merge. A toast says when something new needs you. Uses `gh`. `false` hides both. |
+| PR and files line | `true` | One line under the status line: how many files git would commit (with a PR open, all the PR's files, with the lines added and removed), and the open PR's checks, conflicts, unresolved review threads and auto-merge. A toast says when something new needs you. Click it, or run `/robot files`, for the list. Uses `gh`. Each `/robot changes` flips it. `false` hides the line and the toast. |
 | Update toast | `true` | A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. `false` turns it off. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
-`/robot` hides or shows the robot for this session only. `/robot calm` flips the Calm setting and saves it, so it lasts across sessions.
+`/robot`, `/robot status`, `/robot changes` and `/robot calm` flip the Robot, Status line, PR and files line and Calm settings. They save, so they last across sessions.
 
 ### Update or remove
 
