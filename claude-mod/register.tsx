@@ -153,8 +153,11 @@ async function refreshStatus($: EngineInterface, { account, windows, limitsAt, h
   try {
     const { value: effort } = await $.state.get(EFFORT)
     const [usage, model, cwd] = await Promise.all([$.session.usage(), $.session.model(), $.session.cwd()])
-    const git = await $.process.run(['git', '-C', cwd, 'branch', '--show-current']).catch(() => undefined)
+    const git = await $.process.run(['git', '-C', cwd, 'branch', '--show-current'], { timeoutMs: 5_000 }).catch(() => undefined)
     const branch = git?.exitCode === 0 ? git.stdout.trim() : undefined
+    // Commits not pushed yet, against where `git push` sends them; never pushed (or no branch) shows no count.
+    const count = branch ? await $.process.run(['git', '-C', cwd, 'rev-list', '--count', '@{push}..HEAD'], { timeoutMs: 5_000 }).catch(() => undefined) : undefined
+    const ahead = count?.exitCode === 0 ? Number(count.stdout.trim()) || 0 : 0
     // A new branch waves; the first one a session reads does not.
     const { value: was } = await $.state.get(BRANCH)
     if ((branch ?? '') !== was) {
@@ -170,6 +173,7 @@ async function refreshStatus($: EngineInterface, { account, windows, limitsAt, h
       effort,
       project: cwd.split('/').filter(Boolean).at(-1),
       branch,
+      ahead,
       rateLimits: usage.rateLimits as readonly RateLimit[],
       windows,
       limitsAt,

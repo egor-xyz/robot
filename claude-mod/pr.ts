@@ -185,7 +185,7 @@ export function prDelayOf(at: { pr: PrInfo; unknownTries: number; sinceActMs: nu
   return PR_CALM_MS
 }
 
-/** What is new for the person on the same PR, `PR #7: failing: lint · 💬 3`; undefined when nothing is. */
+/** What is new for the person on the same PR, `PR #7: failing: lint · 💬 3 · auto merge off`; undefined when nothing is. */
 export function attentionToastOf(was: PrInfo, now: PrInfo): string | undefined {
   if (now.number === 0 || was.number !== now.number) return undefined
   const items: string[] = []
@@ -193,5 +193,7 @@ export function attentionToastOf(was: PrInfo, now: PrInfo): string | undefined {
   const fresh = now.failed.filter(name => !was.failed.includes(name))
   if (fresh.length > 0) items.push(`failing: ${namesOf(fresh)}`)
   if (now.threads > was.threads) items.push(`💬 ${now.threads}`)
+  // Auto-merge went off: by GitHub (a push from someone else, for example) or by the person; either way the PR now waits.
+  if (was.isAutoMerge && !now.isAutoMerge) items.push('auto merge off')
   return items.length > 0 ? `PR #${now.number}: ${items.join(' · ')}` : undefined
 }

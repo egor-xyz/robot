@@ -11,6 +11,8 @@ export type StatusParts = {
   effort?: string
   project?: string
   branch?: string
+  /** Commits on the branch not pushed to its upstream yet; 0 or missing shows nothing. */
+  ahead?: number
   rateLimits: readonly RateLimit[]
   /** Which windows to show, in order. */
   windows: readonly string[]
@@ -91,9 +93,9 @@ export function coldGroupOf(tokens: number): StatusGroup {
   return { rank: RANK.cold, spans: [{ text: `❄ cache cold · ${tokensOf(tokens)}`, color: 'ide' }] }
 }
 
-/** The status line's parts in order: account | model [effort] | project | branch | 7d … | 5h … | $cost | ctx N%. */
+/** The status line's parts in order: account | model [effort] | project | branch ↑ahead | 7d … | 5h … | $cost | ctx N%. */
 export function groupsOf(parts: StatusParts): StatusGroup[] {
-  const { account, model, effort, project, branch, rateLimits, windows, limitsAt, costUsd, contextPercent, hotAt, now } = parts
+  const { account, model, effort, project, branch, ahead, rateLimits, windows, limitsAt, costUsd, contextPercent, hotAt, now } = parts
   const limits = windows.flatMap((kind): StatusGroup[] => {
     const limit = rateLimits.find(each => each.kind === kind)
     if (!limit || !Number.isFinite(limit.percentUsed) || limit.percentUsed < limitsAt) return []
@@ -108,7 +110,7 @@ export function groupsOf(parts: StatusParts): StatusGroup[] {
     account ? { rank: RANK.account, spans: [{ text: account, color: DIM }] } : undefined,
     model ? { rank: RANK.model, spans: [{ text: modelNameOf(model), color: modelColorOf(model) }, ...(effort ? [{ text: ` [${effort}]`, color: effortColorOf(effort) }] : [])] } : undefined,
     isProjectShown ? { rank: RANK.project, spans: [{ text: project, color: 'planMode' }] } : undefined,
-    branch ? { rank: RANK.branch, spans: [{ text: branch, color: 'ide' }] } : undefined,
+    branch ? { rank: RANK.branch, spans: [{ text: branch, color: 'ide' }, ...(ahead && ahead > 0 ? [{ text: ` ↑${ahead}`, color: WARN }] : [])] } : undefined,
     ...limits,
     costUsd !== undefined && Number.isFinite(costUsd) ? { rank: RANK.cost, spans: [{ text: `$${costUsd.toFixed(2)}`, color: costUsd > COST_HIGH ? WARN : DIM }] } : undefined,
     contextPercent !== undefined && Number.isFinite(contextPercent) ? { rank: RANK.ctx, spans: [{ text: `ctx ${Math.round(contextPercent)}%`, color: contextPercent >= hotAt ? ALARM : DIM }] } : undefined,
@@ -151,7 +153,12 @@ export const SHIMMER = 'shimmer'
 
 /** The groups with the branch marked to shimmer. */
 export const wavedOf = (groups: readonly StatusGroup[]): StatusGroup[] =>
-  groups.map(group => (group.rank === RANK.branch ? { ...group, spans: [{ text: textOfStatus(group.spans), color: SHIMMER }] } : group))
+  groups.map(group => {
+    if (group.rank !== RANK.branch) return group
+    // Only the name shimmers; the unpushed count after it keeps its colour.
+    const [name, ...rest] = group.spans
+    return name ? { ...group, spans: [{ text: name.text, color: SHIMMER }, ...rest] } : group
+  })
 
 /** The line's text, colours left out. */
 export const textOfStatus = (spans: readonly Span[]): string => spans.map(span => span.text).join('')

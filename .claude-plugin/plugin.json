@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -20,7 +20,7 @@
     "statusLine": {
       "type": "boolean",
       "title": "Status line",
-      "description": "A line under the prompt: account | model [effort] | project | branch | 7d and 5h limits with time left | cost | context % | ❄ cache cold.",
+      "description": "A line under the prompt: account | model [effort] | project | branch ↑unpushed | 7d and 5h limits with time left | cost | context % | ❄ cache cold.",
       "default": true
     },
     "contextFire": {

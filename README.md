@@ -240,6 +240,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 | `[high]` | the effort | grey up to `medium`, then `high` / `xhigh` yellow → `max` red |
 | `my-app` | the project folder | teal |
 | `feat/login` | the git branch | blue. A worktree folder named like its branch shows once. |
+| `↑2` | commits not pushed yet, after the branch | 🟡 yellow. Shows only after the branch's first push, with at least 1 commit to push. |
 | `7d 25% (2d)` `5h 15% (4h)` | usage limits and the time until they reset | grey → 🟡 at 50% → 🔴 at 80% |
 | `$21.97` | session cost | grey → 🟡 above $100 |
 | `ctx 12%` | context used | grey → 🔴 at the **Fire at** setting (25%) |
@@ -264,7 +265,7 @@ The number links to the PR on GitHub. A part shows only when it applies. With no
 | `💬 4` | unresolved review threads | 🟡 yellow |
 | `auto merge` | auto-merge is on: GitHub merges the PR when it can | 🟢 green |
 
-A new problem pops up once as a toast, for about 8 seconds: a new conflict, a newly failed check, or more unresolved threads. For example `PR #7: failing: lint`. It does not fire when you reload. The **PR line** setting turns the line and the toast off.
+A new problem pops up once as a toast, for about 8 seconds: a new conflict, a newly failed check, more unresolved threads, or auto-merge turned off (by GitHub or by you). For example `PR #7: failing: lint`. It does not fire when you reload. The **PR line** setting turns the line and the toast off.
 
 The line needs `gh`, signed in. It looks for the PR at once after `git push`, `gh pr …` or a branch switch. Then it looks every 15 seconds while checks run or in the minute after a push, and every 2 minutes when things are calm. A branch with no PR is checked every 5 minutes. It never looks on the default branch or a detached HEAD.
 

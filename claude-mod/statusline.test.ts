@@ -146,6 +146,17 @@ test('only the branch waves', () => {
   expect(waved.find(group => group.spans[0]?.text === 'main')?.spans[0]?.color).toBe(SHIMMER)
 })
 
+test('unpushed commits show after the branch in yellow, and only the name waves', () => {
+  const at = (ahead?: number) => groupsOf({ project: 'robot', branch: 'main', ahead, rateLimits: [], windows: [], limitsAt: 0, hotAt: 25, now: NOW })
+  expect(textOfStatus(fitStatus(at(3), Number.POSITIVE_INFINITY))).toBe('robot | main ↑3')
+  expect(textOfStatus(fitStatus(at(0), Number.POSITIVE_INFINITY))).toBe('robot | main')
+  expect(textOfStatus(fitStatus(at(), Number.POSITIVE_INFINITY))).toBe('robot | main')
+  const branch = at(3).find(group => group.spans[0]?.text === 'main')
+  expect(branch?.spans[1]).toEqual({ text: ' ↑3', color: 'warning' })
+  const waved = wavedOf(at(3)).find(group => group.spans[0]?.text === 'main')
+  expect(waved?.spans).toEqual([{ text: 'main', color: SHIMMER }, { text: ' ↑3', color: 'warning' }])
+})
+
 test('the cache-cold part reads ❄ cache cold with the context to re-read, in the ide colour, 19 cells', () => {
   const { spans } = coldGroupOf(117_000)
 

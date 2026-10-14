@@ -133,6 +133,12 @@ test('the toast names what is new on the same PR', () => {
   expect(attentionToastOf(pr({ number: 6 }), pr({ failed: ['lint'] }))).toBeUndefined()
   expect(attentionToastOf(NO_PR_INFO, pr({ failed: ['lint'] }))).toBeUndefined()
   expect(attentionToastOf(pr(), NO_PR_INFO)).toBeUndefined()
+  expect(attentionToastOf(pr({ isAutoMerge: true }), pr())).toBe('PR #7: auto merge off')
+  expect(attentionToastOf(pr(), pr({ isAutoMerge: true }))).toBeUndefined()
+  expect(attentionToastOf(pr({ isAutoMerge: true }), pr({ isAutoMerge: true }))).toBeUndefined()
+  // Merged: the PR is gone, so no toast says auto-merge went off.
+  expect(attentionToastOf(pr({ isAutoMerge: true }), NO_PR_INFO)).toBeUndefined()
+  expect(attentionToastOf(pr({ isAutoMerge: true, threads: 1 }), pr({ threads: 2 }))).toBe('PR #7: 💬 2 · auto merge off')
 })
 
 test('only the gh message about a missing PR means no PR; any other error is a failure', () => {
