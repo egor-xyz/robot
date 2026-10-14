@@ -143,13 +143,25 @@ const IDLE_FRAMES = [
   "  .-----.\n  [▮▮▮▮▮]\n  /|━━━|\\\n   o   o",
   "  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o",
   "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [   oo]\n   |━━━|\n    o o",
+  "  .-----.\n  [     ]\n  \\|━━━|/\n   o   o",
+  "  .-----.\n  [oo   ]\n   |━━━|\n    o o",
+  "  .-----.\n  [o   o]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [     ]\n  \\|━━━|/\n   o   o",
+  "  .-----.\n  [o o o]\n  /|━━━|\\\n   o   o",
+  " .-----.\n [@   @]\n  /|━━━|\\\n   o   o",
+  "   .-----.\n   [@   @]\n  /|━━━|\\\n o   o",
+  " .-----.\n [x   x]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [@   @]\n  /|━━━|\\\n   o   o",
+  "  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o",
 ]
 
 /** Random states, in the same order as the `states` array in crazy-robot. */
 export const STATES = [
   'static', 'blink', 'wave', 'sleep', 'surprise', 'smile', 'dance', 'jump', 'moon', 'catpeek',
   'basketball', 'campfire', 'fishing', 'coffee', 'garden', 'balloon', 'goal', 'concert', 'ufo', 'photo',
-  'stretch', 'glitch',
+  'stretch', 'glitch', 'spin',
 ]
 
 const WIDTH: Record<string, number> = {
@@ -160,7 +172,7 @@ const WIDTH: Record<string, number> = {
 const COLOR: Record<string, number> = {
   walk: 208, static: 244, blink: 214, wave: 220, surprise: 214, smile: 213, sleep: 63, moon: 75,
   catpeek: 213, basketball: 214, campfire: 203, fishing: 39, coffee: 130, garden: 114, balloon: 219,
-  goal: 82, concert: 135, photo: 231, ufo: 51, stretch: 180, glitch: 46,
+  goal: 82, concert: 135, photo: 231, ufo: 51, stretch: 180, glitch: 46, spin: 159,
 }
 
 const RAINBOW = [208, 220, 46, 51, 75, 99, 165, 213]
@@ -188,6 +200,7 @@ function durOf(state: string, random: () => number): number {
     case 'ufo': return 999
     case 'stretch': return (2 + (r() % 2)) * 6
     case 'glitch': return (1 + (r() % 2)) * 12
+    case 'spin': return (1 + (r() % 2)) * 12
     default: return 8 + (r() % 18)
   }
 }
@@ -276,6 +289,7 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
     case 'ufo': return ufoOf(s)
     case 'stretch': return { raw: idle(91 + (t % 6)), pad: s.pos }
     case 'glitch': return { raw: idle(97 + (t % 12)), pad: s.pos }
+    case 'spin': return { raw: idle(109 + (t % 12)), pad: s.pos }
     case 'photo': reroll(); return { raw: idle((s.mirror ? 83 : 75) + (t % 8)), pad: s.pos }
     default: return { raw: '', pad: s.pos }
   }
