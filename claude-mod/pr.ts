@@ -167,7 +167,7 @@ export function hostOf(url: string): string {
 /** Up to 3 names as they are, more as a count. */
 const namesOf = (failed: readonly string[]): string => (failed.length <= 3 ? failed.join(', ') : `${failed.length} checks`)
 
-/** The PR line, `#7: ✗ lint, test  ◌ 2  ✓ 5 | conflicts | 💬 4 | auto merge`: the number links to the PR, then the checks, what needs the person, and auto-merge. Nothing to say, no line. */
+/** The PR line, `#7: ✗ lint, test | ◌ 2 | ✓ 5 | conflicts | 💬 4 | auto merge`: the number links to the PR, then the checks, what needs the person, and auto-merge. Nothing to say, no line. */
 export function prLineOf(pr: PrInfo): Span[] {
   if (pr.number <= 0 || !pr.url) return []
   const checks: Span[] = [
@@ -175,10 +175,9 @@ export function prLineOf(pr: PrInfo): Span[] {
     ...(pr.running > 0 ? [{ text: `◌ ${pr.running}`, color: WARN }] : []),
     ...(pr.passed > 0 ? [{ text: `✓ ${pr.passed}`, color: 'success' }] : []),
   ]
-  // The checks are one section, their parts apart by two spaces; the sections are apart by ` | `, as on the status line.
-  const checksPart: Span[] = checks.flatMap((check, i): Span[] => (i === 0 ? [check] : [{ text: '  ', color: DIM }, check]))
+  // Every part is apart by ` | `, as on the status line.
   const sections: Span[][] = [
-    ...(checks.length > 0 ? [checksPart] : []),
+    ...checks.map(check => [check]),
     ...(pr.isConflict ? [[{ text: 'conflicts', color: ALARM }]] : []),
     ...(pr.threads > 0 ? [[{ text: `💬 ${pr.threads}`, color: WARN }]] : []),
     ...(pr.isAutoMerge ? [[{ text: 'auto merge', color: 'success' }]] : []),

@@ -250,7 +250,7 @@ Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | 
 **The PR line.** With a PR open on the branch, one more line shows its checks, what needs you, and whether auto-merge is on. The changed files follow on the same line:
 
 ```text
-#7: ✗ lint, test  ◌ 2  ✓ 5 | conflicts | 💬 4 | auto merge | 10 files changed | +550 | -126
+#7: ✗ lint, test | ◌ 2 | ✓ 5 | conflicts | 💬 4 | auto merge | 10 files changed | +550 | -126
 ```
 
 The number links to the PR on GitHub. A part shows only when it applies. With nothing to show, the files have the line to themselves. On a narrow screen the files part is cut first.

@@ -12,9 +12,9 @@ const pr = (over: Partial<PrInfo> = {}): PrInfo => ({ ...NO_PR_INFO, number: 7, 
 const line = (over: Partial<PrInfo> = {}): string => textOfStatus(prLineOf(pr(over)))
 
 test('the PR line reads the checks, then what needs the person; the number first, no state word', () => {
-  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: ✗ lint, test  ◌ 2  ✓ 5 | conflicts | 💬 4')
+  expect(line({ status: 'conflicts', isConflict: true, failed: ['lint', 'test'], running: 2, passed: 5, threads: 4 })).toBe('#7: ✗ lint, test | ◌ 2 | ✓ 5 | conflicts | 💬 4')
   expect(line({ status: 'ready', passed: 6 })).toBe('#7: ✓ 6')
-  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('#7: ◌ 1  ✓ 3 | 💬 2')
+  expect(line({ status: 'checks', running: 1, passed: 3, threads: 2 })).toBe('#7: ◌ 1 | ✓ 3 | 💬 2')
   expect(line({ passed: 3, isAutoMerge: true })).toBe('#7: ✓ 3 | auto merge')
   expect(line({ isAutoMerge: true })).toBe('#7: auto merge')
   expect(line({ failed: ['a', 'b', 'c', 'd'] })).toBe('#7: ✗ 4 checks')
