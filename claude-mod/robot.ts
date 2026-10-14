@@ -1,3 +1,4 @@
+import { ACT_DUR, ACT_WIDTH, actFrameOf } from './acts'
 import { ORANGE_INDEX, spansOf } from './frames'
 import type { Frame } from './frames'
 
@@ -6,7 +7,23 @@ import type { Frame } from './frames'
 // runs the real zsh and compares every frame.
 
 /** Where the robot is in its show: which state, how far in, where it stands. */
-export type RobotState = { state: string; t: number; dur: number; pos: number; dir: 1 | -1; mirror: 0 | 1 }
+export type RobotState = { state: string; t: number; dur: number; pos: number; dir: 1 | -1; mirror: 0 | 1; value?: number }
+
+/** Acts play on command (/robot play, dice, coin), never on the random schedule. */
+export type ActName = 'slot' | 'dice' | 'coin'
+export const ACTS: readonly ActName[] = ['slot', 'dice', 'coin']
+
+/** True while a command-triggered act plays. */
+export function isActing(s: RobotState): boolean {
+  return ACTS.includes(s.state as ActName) && s.t < s.dur
+}
+
+/** Starts an act now: t 0, its own dur, `value` set, pos clamped so the act fits. */
+export function actOf(state: RobotState, name: ActName, value: number, track: number): RobotState {
+  const width = ACT_WIDTH[name]
+  const pos = width > 0 ? Math.min(Math.max(0, state.pos), Math.max(0, track - width)) : state.pos
+  return { ...state, state: name, t: 0, dur: ACT_DUR[name], pos, value }
+}
 
 export const INITIAL: RobotState = { state: 'walk', t: 0, dur: 6, pos: 0, dir: 1, mirror: 0 }
 
@@ -357,6 +374,12 @@ export function step(state: RobotState, track: number, random: () => number, poo
       if (s.pos < 0) s.pos = 0
     }
     s.dur = durOf(s.state, random)
+  }
+
+  if (ACTS.includes(s.state as ActName)) {
+    const frame = actFrameOf(s, width, random)
+    s.t += 1
+    return { frame, state: s }
   }
 
   const color = s.state === 'dance' || s.state === 'jump' ? (RAINBOW[s.t % RAINBOW.length] ?? ORANGE_INDEX) : (COLOR[s.state] ?? ORANGE_INDEX)

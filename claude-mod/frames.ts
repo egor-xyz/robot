@@ -58,7 +58,7 @@ export function cellsOf(text: string): number {
   let cells = 0
   for (const char of text) {
     const code = char.codePointAt(0) ?? 0
-    cells += code >= 0x1f000 || [0x2615, 0x26bd, 0x2728].includes(code) ? 2 : 1
+    cells += code >= 0x1f000 || [0x2615, 0x26bd, 0x2728, 0x2753, 0x2b50].includes(code) ? 2 : 1
   }
   return cells
 }
