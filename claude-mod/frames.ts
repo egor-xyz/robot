@@ -303,6 +303,18 @@ export function speech(frame: Frame, lines: Span[][], columns: number): Frame {
   })
 }
 
+/** Cuts each row at `columns` cells, so a row too wide is clipped at the edge, not squeezed span by span. */
+export function clipped(frame: Frame, columns: number): Frame {
+  return frame.map(row => {
+    if (cellsOf(textOfSpans(row)) <= columns) return row
+    const kept = cellsOfFrameRow(row).reduce<{ cells: Cell[]; width: number }>((acc, cell) => {
+      const width = cellsOf(cell.char)
+      return acc.width + width > columns ? { ...acc, width: columns } : { cells: [...acc.cells, cell], width: acc.width + width }
+    }, { cells: [], width: 0 })
+    return spansOfCells(kept.cells)
+  })
+}
+
 /** The first `count` characters of the lines, read across them in order, each line padded to its full width. */
 export function typedSoFar(lines: Span[][], count: number): Span[][] {
   let left = count

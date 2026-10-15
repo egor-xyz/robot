@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Frame, FriendMood, Span } from './frames'
 import type { Friend } from './friends'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, chilled, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, chilled, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, clipped, typedSoFar, withFriends, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -591,4 +591,13 @@ test('fire sparks and snow do not move a friend: its side is measured on the pla
       expect([...at][0]).toBeGreaterThanOrEqual(0)
     }
   }
+})
+
+test('a row wider than the band is cut at its edge, by cells', () => {
+  const wide: Frame = [[{ text: '🔥🔥 abc', color: '#f00' }, { text: 'xyz', color: '' }], [{ text: 'ok', color: '' }]]
+  const out = clipped(wide, 6)
+  expect(out.map(row => row.map(span => span.text).join(''))).toEqual(['🔥🔥 a', 'ok'])
+  expect(cellsOf(out[0]!.map(span => span.text).join(''))).toBe(6)
+  // A 2-cell char that would cross the edge is dropped whole.
+  expect(clipped([[{ text: 'ab🔥', color: '' }]], 3)[0]!.map(span => span.text).join('')).toBe('ab')
 })

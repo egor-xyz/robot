@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, clipped, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
@@ -1202,6 +1202,9 @@ export const register: Register = (on, options) => {
         ? robot
         : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk', layout)
     }
+
+    // A row wider than the band (bubble, robot and friends at a narrow width) is cut at the edge.
+    frame = clipped(frame, columns)
 
     const els = $.ui.resolve(e)
     if (e.surface !== 'terminal' && 'Svg' in els) {
