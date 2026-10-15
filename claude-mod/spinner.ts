@@ -31,3 +31,8 @@ export function robotWord(seed: string): string {
   for (const ch of seed) h = (h * 31 + (ch.codePointAt(0) ?? 0)) >>> 0
   return ROBOT_WORDS[h % ROBOT_WORDS.length] ?? 'Beep-booping'
 }
+
+// The engine's spinner text while the conversation compacts, as in "Compacting conversation".
+export function isCompactingMessage(message: string | null): boolean {
+  return message?.startsWith('Compacting') === true
+}

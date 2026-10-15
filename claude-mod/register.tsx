@@ -11,7 +11,7 @@ import { gitActOf } from './git'
 import { ACTS, INITIAL, actOf, randomInt, step } from './robot'
 import type { ActName, RobotState } from './robot'
 import { isQuestion } from './ask'
-import { robotWord } from './spinner'
+import { isCompactingMessage, robotWord } from './spinner'
 import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf } from './agents'
 import type { AgentRow, StepUsage } from './agents'
@@ -569,6 +569,10 @@ export const register: Register = (on, options) => {
   let needFrom = -1
   /** The desktop spinner's seed: a new robot word each turn, the same one all through it. */
   let turnSeed = ''
+  /** The main spinner says it is compacting. A render hook may not write state, so the clock carries this to IS_COMPACTING. */
+  let isSpinnerCompacting = false
+  /** What the clock last wrote: it writes only a change, so the session.compact hook keeps its own writes. Unset after a reload, so the first tick clears a flag the last copy left on. */
+  let wasSpinnerCompacting: boolean | undefined
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
   // The `contextFire` option turns the whole context-on-fire act off; on unless set to false.
   const isFireOn = options.contextFire !== false
@@ -610,6 +614,11 @@ export const register: Register = (on, options) => {
       const { value: at = 0 } = await $.state.get(TICK)
       await $.state.set(TICK, at + 1)
       if (waveAt >= 0 && at + 1 - waveAt >= WAVE_TICKS) await $.state.set(WAVE_AT, -1)
+      const isSpinnerFactory = isFactoryOn && isSpinnerCompacting
+      if (isSpinnerFactory !== wasSpinnerCompacting) {
+        wasSpinnerCompacting = isSpinnerFactory
+        await $.state.set(IS_COMPACTING, isSpinnerFactory)
+      }
     })
 
     try {
@@ -744,10 +753,13 @@ export const register: Register = (on, options) => {
 
   on('prompt.submit', async ($, e, next) => {
     await $.state.set(IS_ASKED, false)
+    // A spinner that went away mid-compact leaves no render to clear the flag: the next prompt clears it, and the clock writes that.
+    isSpinnerCompacting = false
     return next(e)
   })
 
   // The main conversation compacting, by /compact, the threshold or a plugin: the robot cools down while it runs.
+  // Where an organization manages Claude Code this event skips installed plugins: the Spinner hook below covers that.
   on('session.compact', async ($, e, next) => {
     if (!isFactoryOn || e.trigger === 'precompute' || e.agentId) return next(e)
     await $.state.set(IS_COMPACTING, true)
@@ -791,7 +803,9 @@ export const register: Register = (on, options) => {
   })
 
   // The spinner word becomes a robot word, stable for the turn. The engine keeps its elapsed/tokens and the ellipsis.
+  // It also tells the clock when the spinner says the conversation is compacting.
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    isSpinnerCompacting = isCompactingMessage(e.props.message)
     if (!isSpinnerOn || e.props.message !== null) return next(e)
     if (e.surface !== 'terminal' && e.props.word !== 'Working') return next(e)
     const seed = e.surface === 'terminal' ? e.props.word : turnSeed
