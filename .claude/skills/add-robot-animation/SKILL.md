@@ -41,8 +41,8 @@ The Claude Code mod draws frames in TypeScript, not zsh. Mirror touchpoints 1-6
 here: the frame in `IDLE_FRAMES` (same index), the name in `STATES`, `WIDTH`,
 `durOf`, `COLOR` and a `case` in `drawOf`. Then run
 `node scripts/gen-parity-fixture.mjs` and `claude plugin test .` — the parity
-test fails if the TypeScript frames differ from the real zsh ones. Add the
-state to `STATES` in `scripts/gen-parity-fixture.mjs` too.
+test fails if the TypeScript frames differ from the real zsh ones. The
+fixture script reads the state list from `functions/crazy-robot` by itself.
 
 ### `functions/robot`
 7. **`robot_order` list** — the single list the screensaver ↑↓ steps through.

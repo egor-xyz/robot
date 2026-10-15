@@ -104,6 +104,15 @@ session before you push:
    - allow wait: run a tool that needs permission.
    Check both the terminal and the desktop app (the desktop draws an `Svg`,
    because its `Text` font is proportional).
+
+   The dev copy loads as `robot@inline`, not `robot@robot`. Its options live
+   under `pluginConfigs."robot@inline"` in `~/.claude/settings.json`. If that
+   has `calm: true`, the calm-off acts (factory line, git cheer, branch wave)
+   never show. Set `calm: false` there before you test them.
+
+   Org-managed Claude Code does not run `session.compact` hooks for
+   user-installed plugins. So the mod also finds compaction from the Spinner
+   text "Compacting conversation". Keep both paths.
 7. Clean up after the test. The permission check blocks `rm -rf` for
    Claude, so the user runs it with `!`:
 

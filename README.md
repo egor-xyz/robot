@@ -71,7 +71,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 
 ## ✨ What it does
 
-- 🤖 **20+ hand-drawn animations.** Walk, dance, jump, sleep, campfire, garden, concert, photoshoot…
+- 🤖 **25+ hand-drawn animations.** Walk, dance, jump, sleep, campfire, garden, concert, photoshoot…
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something. `/robot calm` slows it down and keeps only its quiet acts.
