@@ -7,7 +7,7 @@ import type { StatusGroup } from './statusline'
 export type PrView = { id?: unknown; autoMergeRequest?: unknown; mergeable?: unknown; mergeStateStatus?: unknown; statusCheckRollup?: unknown }
 
 /** One rollup entry: a CheckRun (name/status/conclusion/startedAt) or a StatusContext (context/state). */
-export type Check = { name?: unknown; context?: unknown; status?: unknown; conclusion?: unknown; state?: unknown; startedAt?: unknown; completedAt?: unknown }
+export type Check = { name?: unknown; context?: unknown; status?: unknown; conclusion?: unknown; state?: unknown; startedAt?: unknown; completedAt?: unknown; workflowName?: unknown; detailsUrl?: unknown }
 
 /** The branch's open PR as the PR line and the scheduler need it; number 0: none. */
 export type PrInfo = {
@@ -57,9 +57,32 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value : 
 /** The check's name: a check run has a `name`, an old-style status a `context`. */
 const nameOf = (check: Check): string => textOf(check.name) || textOf(check.context)
 
-/** The rollup with one entry per check name: a re-run replaces the run before it. A check with no name stays as it is. */
+/** The Actions run id in a check's details URL; 0 when it has none. */
+const runIdOf = (check: Check): number => Number(/\/actions\/runs\/(\d+)/.exec(textOf(check.detailsUrl))?.[1] ?? 0)
+
+/**
+ * The checks without a cancelled run that a newer run of the same workflow replaced (a concurrency-cancelled
+ * duplicate). Its failed summary must not show while the newer run has not reached that job yet.
+ * An older run that was not cancelled stays: it may be a different workflow with the same name.
+ */
+function currentRunsOf(checks: Check[]): Check[] {
+  const newest = new Map<string, number>()
+  const cancelled = new Set<number>()
+  for (const check of checks) {
+    const workflow = textOf(check.workflowName)
+    const runId = runIdOf(check)
+    if (workflow) newest.set(workflow, Math.max(newest.get(workflow) ?? 0, runId))
+    if (runId && check.conclusion === 'CANCELLED') cancelled.add(runId)
+  }
+  return checks.filter(check => {
+    const runId = runIdOf(check)
+    return !cancelled.has(runId) || runId === newest.get(textOf(check.workflowName))
+  })
+}
+
+/** The rollup without replaced cancelled runs, then with one entry per check name: a re-run replaces the run before it. A check with no name stays as it is. */
 export function latestChecksOf(rollup: unknown): Check[] {
-  const checks = Array.isArray(rollup) ? (rollup as Check[]) : []
+  const checks = currentRunsOf(Array.isArray(rollup) ? (rollup as Check[]) : [])
   const timeOf = (check: Check): string => String(check.startedAt ?? check.completedAt ?? '')
   const winners = new Map<string, Check>()
   for (const check of checks) {

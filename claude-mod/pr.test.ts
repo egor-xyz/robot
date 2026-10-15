@@ -162,3 +162,25 @@ test('the PR info and the changed files share one line; the files get the room t
   expect(textOfStatus(prRowOf([], files, 80).changed)).toBe('10 files changed | +550 | -126')
   expect(prRowOf([], files, 80).pr).toEqual([])
 })
+
+test('a run replaced by a newer run of the same workflow does not count, even before the newer run reaches that job', () => {
+  const job = (name: string, conclusion: string, runId: number, workflowName = 'Build'): Record<string, unknown> => ({
+    name, status: 'COMPLETED', conclusion, startedAt: '2026-10-15T17:05:18Z', workflowName,
+    detailsUrl: `https://github.com/o/r/actions/runs/${runId}/job/1`,
+  })
+  // The older run was cancelled; its summary failed. The newer run has a job running and no summary yet.
+  const rollup = [
+    job('Build Layer', 'CANCELLED', 100),
+    job('Build Summary', 'FAILURE', 100),
+    { name: 'Build Layer', status: 'IN_PROGRESS', workflowName: 'Build', detailsUrl: 'https://github.com/o/r/actions/runs/200/job/2' },
+    job('Tests', 'FAILURE', 50, 'Tests'),
+  ]
+  expect(failedChecksOf(rollup)).toEqual(['Tests'])
+  expect(failedChecksOf([job('Build Summary', 'FAILURE', 100)])).toEqual(['Build Summary'])
+  // An older run that was not cancelled stays: its failure is real.
+  expect(failedChecksOf([job('Lint', 'FAILURE', 100), job('Other', 'SUCCESS', 200)])).toEqual(['Lint'])
+  // A re-run inside one run keeps its run id: the newer attempt wins by time.
+  expect(failedChecksOf([job('Lint', 'FAILURE', 300), { ...job('Lint', 'SUCCESS', 300), startedAt: '2026-10-15T18:00:00Z' }])).toEqual([])
+  // An old-style status has no workflow and always counts.
+  expect(failedChecksOf([...rollup, { context: 'ci/x', state: 'ERROR' }])).toEqual(['Tests', 'ci/x'])
+})
