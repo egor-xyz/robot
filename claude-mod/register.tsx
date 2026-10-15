@@ -1113,7 +1113,8 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const columns = e.props.bodyColumns
     const { value: at = 0 } = await $.state.get(TICK)
-    const isQuiet = !isRobotOn || e.props.hasSurvey || e.props.maxRows < ROWS
+    // An agent's transcript in view (opened from the tasks list): the robot steps aside.
+    const isQuiet = !isRobotOn || e.props.hasSurvey || e.props.maxRows < ROWS || e.props.view?.agentId !== undefined
     if (isQuiet) {
       return next(e)
     }
