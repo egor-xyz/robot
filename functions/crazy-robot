@@ -200,6 +200,35 @@ $'  .-----.    \'  .  ,\n  [O   O]   .  *  \'\n  /|━━━|\\    ,   .  *\n   
 $'  .-----.  .        \'\n  [O   O]\n  /|━━━|\\      ,\n   o   o            .'
 $'  .-----.\n  [O   O]\n  /|━━━|\\\n   o   o'
 $'  .-----.\n  [-   -]\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [O   O]\n  /|━━━|\\\n   o   o'
+$'  .-----.\n  [>   <]\n  \\|━S━|/\n   o   o'
+$'  .-----. o\n  [O   O]/\n  /|━S━|\n   o   o'
+$'     .-----.\n  ___[O   O]\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]             🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[*   *]             🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[*   *]=====        🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[*   *]==========   🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[*   *]=============🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[O   O]             💥\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[O   O]\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]        🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[*   *]        🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[*   *]====    🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[*   *]========🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]        💥\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[O   O]\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[O   O]     🎯      🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[*   *]     🎯      🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[*   *]=====🎯      🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[*   *]=====💥===   🎯\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[*   *]=====  ======🎯\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]             💥\n \\___/|━S━|\n       \'  \''
+$'     .-----.\n  ___[O   O]\n /___/|━S━|\n       \'  \''
+$'     .-----.\n ____[O   O]\n \\___/|━S━|\\\n      o   o'
+$'     .-----. o\n  ___[^   ^]/\n /___/|━S━|\n      o   o'
+$'     .-----. o\n ____[^   -]/\n \\___/|━S━|\n      o   o'
 )
 
 # Pick new state when current expires
@@ -209,7 +238,7 @@ if (( _robot_t >= _robot_dur )); then
   if [[ $_robot_state != walk ]]; then
     _robot_state=walk
   else
-    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow gum clone)
+    local -a states=(static blink wave sleep surprise smile dance jump moon catpeek basketball campfire fishing coffee garden balloon goal concert ufo photo stretch glitch spin sneeze snow gum clone super)
     _robot_state=${states[$((RANDOM % ${#states} + 1))]}
   fi
   _robot_t=0
@@ -231,6 +260,7 @@ if (( _robot_t >= _robot_dur )); then
     snow)                   _w=15 ;;
     gum)                    _w=21 ;;
     clone)                  _w=21 ;;
+    super)                  _w=27 ;;
   esac
   if (( _w )); then
     (( _robot_pos > track - _w )) && _robot_pos=$(( track - _w ))
@@ -264,6 +294,7 @@ if (( _robot_t >= _robot_dur )); then
     snow)              _robot_dur=$(( (1 + RANDOM % 2) * 16 )) ;; # 1-2 snowfalls
     gum)               _robot_dur=$(( (1 + RANDOM % 2) * 14 )) ;; # 1-2 bubbles
     clone)             _robot_dur=$(( (1 + RANDOM % 2) * 18 )) ;; # 1-2 clonings
+    super)             _robot_dur=$(( (1 + RANDOM % 2) * 29 )) ;; # 1-2 flights
     *)                 _robot_dur=$(( 8 + RANDOM % 18 )) ;;
   esac
 fi
@@ -300,6 +331,7 @@ case $_robot_state in
   snow)     color=195 ;;  # icy white-blue
   gum)      color=213 ;;  # bubblegum pink
   clone)    color=87 ;;   # scanner cyan
+  super)    color=196 ;;  # hero red
   slot)     color=226 ;;  # yellow (jackpot overrides below)
 esac
 case $_robot_state in
@@ -536,6 +568,10 @@ case $_robot_state in
   clone)
     # 18-tick clone: a gum bubble grows to robot size and pops into a second robot; they copy each other, the clone winks, the original is shocked, the clone pops into flying bits.
     raw=${idle_frames[$(( 163 + _robot_t % 18 ))]}
+    ;;
+  super)
+    # 29-tick hero: powers up with an S on the chest, puts on a cape, flies, zaps three targets with slow eye lasers (a pause between shots), lands and winks.
+    raw=${idle_frames[$(( 181 + _robot_t % 29 ))]}
     ;;
   slot)
     # Reel symbols. 7️⃣ keycap is the jackpot — width matches the other 2-col
