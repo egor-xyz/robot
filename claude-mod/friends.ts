@@ -1,4 +1,4 @@
-/** One subagent friend: `lag` is the cells it still is away from its slot, toward the back edge of the screen. */
+/** One subagent friend: `lag` is the cells it still is away from its slot, toward the right edge of the screen. */
 export type Friend = { id: number; lag: number; leaving: boolean }
 
 /** Most friends drawn at once. */

@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, clipped, heated, factory, speech, svgOf, typedSoFar, withFriends } from './frames'
+import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, clipped, heated, factory, friendsZone, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
@@ -1140,7 +1140,12 @@ export const register: Register = (on, options) => {
       packedSeed = randomInt()
     }
 
-    const track = Math.max(MIN_TRACK, columns - BODY_CELLS)
+    // The subagent friends keep the right edge; the robot walks left of them. A robot already in their zone when they
+    // come is not snapped out: it turns and walks out, and the friends show once their cells are free.
+    const zone = friendsZone(subagents)
+    const zoneTrack = Math.max(MIN_TRACK, columns - BODY_CELLS - zone)
+    if (shown.state.pos >= zoneTrack && shown.state.state === 'walk') shown.state = { ...shown.state, dir: -1 }
+    const track = Math.max(zoneTrack, Math.min(shown.state.pos + 1, columns - BODY_CELLS))
     // An act asked for by a command starts now; it plays to its end whatever the robot felt before.
     // Drawing is pure (no state writes), so the started id is kept in this module.
     if (actSeen === undefined) actSeen = act?.id ?? 0
@@ -1177,6 +1182,11 @@ export const register: Register = (on, options) => {
     // An act draws its own frames: no fire, no ice, no bubble, no friends.
     const inAct = isInAct(shown.state)
     const decorated = (f: Frame) => (inAct ? f : isCold ? chilled(f, true, at) : heated(f, isHot, at))
+    // Words go left of the friends' zone; if they fit nowhere there, they take the whole band and hide the friends under them.
+    const spoken = (f: Frame, said: Span[][]) => {
+      const kept = speech(f, said, columns - zone)
+      return kept === f ? speech(f, said, columns) : kept
+    }
     let frame: Frame
     if (isCompacting) {
       frame = factory(columns, at - packedFrom, packedSeed)
@@ -1187,21 +1197,20 @@ export const register: Register = (on, options) => {
         frame = shown.frame
       } else {
         const said = typedSoFar(NEEDS_YOU_SAY, (at - needFrom + 1) * TYPE_SPEED)
-        frame = withFriends(speech(decorated(shown.frame), said, columns), shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', false, speech(shown.frame, said, columns))
+        frame = withFriends(spoken(decorated(shown.frame), said), columns, friends, subagents, at, isHot ? 'hot' : 'normal')
       }
     } else if (isCelebrating && celebration) {
-      frame = withFriends(celebrating(shown.state.pos, columns, celebration.act, at - celebration.at), shown.state.pos, shown.state.dir, columns, friends, subagents, at, 'cheer', false)
+      frame = withFriends(celebrating(shown.state.pos, columns - zone, celebration.act, at - celebration.at), columns, friends, subagents, at, 'cheer')
     } else if (!shown.frame) {
       return next(e)
     } else {
       const said = !inAct && (isHot || isCold) && talkAt(at) >= 0 ? typedSoFar(isHot ? sayOf(percent) : COLD_SAY, (talkAt(at) + 1) * TYPE_SPEED) : undefined
-      const robot = said ? speech(decorated(shown.frame), said, columns) : decorated(shown.frame)
-      // The friends' side is measured without the sparks or snow, which change every tick.
-      const layout = said ? speech(shown.frame, said, columns) : shown.frame
+      // Words stay left of the friends' zone, so the friends keep their cells.
+      const robot = said ? spoken(decorated(shown.frame), said) : decorated(shown.frame)
       // The cat act fills both sides of the robot: the friends stay out of it.
       frame = shown.state.state === 'catpeek' || inAct
         ? robot
-        : withFriends(robot, shown.state.pos, shown.state.dir, columns, friends, subagents, at, isHot ? 'hot' : 'normal', shown.state.state === 'walk', layout)
+        : withFriends(robot, columns, friends, subagents, at, isHot ? 'hot' : 'normal')
     }
 
     // A row wider than the band (bubble, robot and friends at a narrow width) is cut at the edge.

@@ -370,10 +370,18 @@ export function celebrating(x: number, columns: number, act: 'commit' | 'push', 
 
 // A friend is a small WALL-E robot, six cells wide.
 const FRIEND_WIDTH = 6
-// Empty cells between friends.
-const FRIEND_GAP = 1
-// Empty cells between the robot's drawing and its nearest friend.
-const BACK_GAP = 4
+// Empty cells between two friends at rest; each can shuffle one cell, so they never touch.
+const FRIEND_GAP = 3
+// Empty cells between the right edge and the rightmost friend at rest.
+const EDGE_GAP = 1
+// Empty cells between the rightmost friend and the `+extra` label.
+const LABEL_GAP = 2
+// Cells kept for the label and its gap while more than MAX_FRIENDS subagents run, whatever its digits, so the friends never jump as it grows.
+const LABEL_ROOM = LABEL_GAP + 4
+// Empty cells between the robot's walk and the leftmost friend.
+const BACK_GAP = 3
+// The friends' slow shuffle, one entry per tick: rest, a step left, rest, a step right. All step together, so the gaps stay the same.
+const SHUFFLE = [0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0] as const
 const FRIEND_BODY_COLOR = hexOf(178)
 const FRIEND_TREADS_COLOR = hexOf(244)
 const FRIEND_EYES = { normal: '(o)(o)', blink: '(-)(-)', curious: '(O)(o)', wide: '(O)(O)' } as const
@@ -387,10 +395,11 @@ export type FriendMood = 'normal' | 'hot' | 'cheer'
 type FriendPart = { up: number; text: string; color: string }
 
 /** The parts of one friend, each `up` rows above the feet row. */
-function friendParts(friend: Friend, tick: number, mood: FriendMood, isWalking: boolean): FriendPart[] {
+function friendParts(friend: Friend, tick: number, mood: FriendMood, isShuffling: boolean): FriendPart[] {
   const isMoving = friend.leaving || friend.lag > 0
-  const isRolling = isMoving || isWalking
-  const treads = { up: 0, text: isRolling ? (FRIEND_TREADS[tick % 2] ?? FRIEND_TREADS[0]) : FRIEND_TREADS[0], color: FRIEND_TREADS_COLOR }
+  const isRolling = isMoving || isShuffling
+  // A one-cell shuffle lasts one tick: its treads turn on that tick, whatever its parity.
+  const treads = { up: 0, text: isShuffling ? FRIEND_TREADS[1] : isMoving ? (FRIEND_TREADS[tick % 2] ?? FRIEND_TREADS[0]) : FRIEND_TREADS[0], color: FRIEND_TREADS_COLOR }
   const body = (up: number): FriendPart => ({ up, text: FRIEND_BODY, color: FRIEND_BODY_COLOR })
   const eyes = (up: number, text: string): FriendPart => ({ up, text, color: DEFAULT_COLOR })
 
@@ -403,32 +412,35 @@ function friendParts(friend: Friend, tick: number, mood: FriendMood, isWalking: 
   return [eyes(2, isBlinking ? FRIEND_EYES.blink : isCurious ? FRIEND_EYES.curious : FRIEND_EYES.normal), body(1), treads]
 }
 
+/** The cells the waiting friends shuffle away from their slots at `tick`: -1 left, 0, or 1 right. */
+const shuffleOf = (tick: number): number => SHUFFLE[((tick % SHUFFLE.length) + SHUFFLE.length) % SHUFFLE.length] ?? 0
+
 /**
- * Adds one small WALL-E robot per friend (`friends` come from stepFriends) at the robot's back, and a `+extra` label (the subagents past the friends drawn)
- * after the last one only when more subagents run (`count`) than the most friends drawn. The back is the side of the
- * body the drawing reaches out the least (the fishing rod, the balloon, the cow are all in front); a tie, such as a
- * plain walk, falls back to `dir` (1 walks right, so the back is on the left). A friend sits at its slot plus its `lag`
- * cells further toward the back edge, and is drawn only when it fits whole inside `columns`. Friends only ever stand on
- * empty cells, so speech and arms are never overwritten. No friends, no change. `layout` is the frame the side and
- * the slots are measured on (default `frame`): the frame without the fire sparks or snow, which change every tick and
- * would make the friends jump from side to side.
+ * Cells at the right edge of a band `columns` wide that the friends of `count` subagents keep for themselves: the robot
+ * walks only left of them. One slot per friend (at most MAX_FRIENDS), the room for the `+extra` label when more
+ * subagents run, and the gap to the robot. No subagents, no zone.
  */
-export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, isWalking: boolean, layout: Frame = frame): Frame {
+export function friendsZone(count: number): number {
+  const shown = Math.min(Math.max(count, 0), MAX_FRIENDS)
+  if (shown === 0) return 0
+  const label = count > MAX_FRIENDS ? LABEL_ROOM : 0
+  return EDGE_GAP + shown * FRIEND_WIDTH + (shown - 1) * FRIEND_GAP + 1 + label + BACK_GAP
+}
+
+/**
+ * Adds one small WALL-E robot per friend (`friends` come from stepFriends) at the right edge of the band, slot 0 the
+ * rightmost, and a `+extra` label (the subagents past the friends drawn) right of slot 0 only when more subagents run
+ * (`count`) than the most friends drawn. The friends wait there: now and then they all shuffle one cell left or right together.
+ * A friend's slot is its rank among the friends not leaving before it, so a new friend takes the place a leaving one
+ * frees and the slots never pass MAX_FRIENDS. A friend sits at its slot plus its `lag` cells further right and is drawn
+ * only when it fits whole inside `columns` on empty cells, so speech, arms and the friend beside it are never
+ * overwritten: slot 0 rolls in from the edge and off it, the others show once they clear their right neighbour. The
+ * robot walks left of friendsZone, so they do not meet. No friends, no change.
+ */
+export function withFriends(frame: Frame, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood): Frame {
   if (friends.length === 0 || frame.length < 4) return frame
   // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
-  const cellRowsOf = (f: Frame) => f.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
-  const rows = cellRowsOf(frame)
-  const measured = layout === frame ? rows : cellRowsOf(layout)
-  // Mirrored acts pad the body to the right of `x`, so find it by its eyes: the head's `[` sits two cells in.
-  const eyesAt = measured.map(cells => cells.findIndex(cell => cell.char === '[')).find(at => at >= 0)
-  const bodyStart = eyesAt === undefined ? x : eyesAt - 2
-  const bodyEnd = bodyStart + BODY_END
-  const inks = measured.flatMap(cells => cells.flatMap((cell, at) => (cell.char === ' ' || cell.char === '' ? [] : [at])))
-  const first = Math.min(bodyStart, ...inks)
-  const last = Math.max(bodyEnd, ...inks)
-  const reachLeft = bodyStart - first
-  const reachRight = last - bodyEnd
-  const isLeft = reachLeft === reachRight ? dir === 1 : reachLeft < reachRight
+  const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
   const feet = rows.length - 1
   const isFree = (start: number, width: number, upTo: number[]): boolean =>
     start >= 0 && start + width <= columns && upTo.every(row => (rows[row] ?? []).slice(start, start + width).every(cell => cell.char === ' '))
@@ -439,24 +451,29 @@ export function withFriends(frame: Frame, x: number, dir: 1 | -1, columns: numbe
       cells[at + i] = { char, color }
     })
   }
-  const slotOf = (index: number, lag: number): number => (isLeft ? first - BACK_GAP - FRIEND_WIDTH - index * (FRIEND_WIDTH + FRIEND_GAP) - lag : last + 1 + BACK_GAP + index * (FRIEND_WIDTH + FRIEND_GAP) + lag)
+  const label = `+${count - MAX_FRIENDS}`
+  const labelRoom = count > MAX_FRIENDS ? LABEL_ROOM : 0
+  const slotOf = (index: number): number => columns - EDGE_GAP - labelRoom - FRIEND_WIDTH - index * (FRIEND_WIDTH + FRIEND_GAP)
 
-  let isLastDrawn = false
+  let firstAt: number | undefined
   friends.forEach((friend, index) => {
-    const start = slotOf(index, friend.lag)
-    const parts = friendParts(friend, tick, mood, isWalking)
+    // A friend on its way in or out does not shuffle.
+    const isWaiting = friend.lag === 0 && !friend.leaving
+    const shuffle = isWaiting ? shuffleOf(tick) : 0
+    const isShuffling = isWaiting && shuffle !== shuffleOf(tick - 1)
+    const rank = friends.slice(0, index).filter(other => !other.leaving).length
+    const start = slotOf(rank) + shuffle + friend.lag
+    const parts = friendParts(friend, tick, mood, isShuffling)
     const used = parts.map(part => feet - part.up)
     const isDrawn = used.every(row => row >= 0) && isFree(start, FRIEND_WIDTH, used)
-    if (index === friends.length - 1) isLastDrawn = isDrawn
+    if (index === 0 && isDrawn) firstAt = start
     if (!isDrawn) return
     for (const part of parts) put(feet - part.up, start, part.text, part.color)
   })
 
-  const label = `+${count - MAX_FRIENDS}`
-  if (isLastDrawn && count > MAX_FRIENDS) {
-    const lastFriend = friends[friends.length - 1]
-    const lastStart = slotOf(friends.length - 1, lastFriend?.lag ?? 0)
-    const at = isLeft ? lastStart - FRIEND_GAP - label.length : lastStart + FRIEND_WIDTH + FRIEND_GAP
+  // The label sways with the friend beside it, so the gap stays the same.
+  if (firstAt !== undefined && count > MAX_FRIENDS) {
+    const at = firstAt + FRIEND_WIDTH + LABEL_GAP
     if (isFree(at, label.length, [feet])) put(feet, at, label, DEFAULT_COLOR)
   }
   return rows.map(spansOfCells)
