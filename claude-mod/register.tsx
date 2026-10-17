@@ -1,4 +1,4 @@
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderSurface } from 'claude-code'
 
 import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, clipped, heated, factory, friendsZone, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
@@ -12,9 +12,9 @@ import { ACTS, INITIAL, actOf, randomInt, step } from './robot'
 import type { ActName, RobotState } from './robot'
 import { isQuestion } from './ask'
 import { isCompactingMessage, robotWord } from './spinner'
-import { accountNameOf, coldGroupOf, fitStatus, groupsOf, SHIMMER, wavedOf } from './statusline'
-import { MAX_AGENT_LINES, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf } from './agents'
-import type { AgentRow, StepUsage } from './agents'
+import { accountNameOf, coldGroupOf, fitStatus, groupsOf, modelNameOf, SHIMMER, wavedOf } from './statusline'
+import { MAX_AGENT_LINES, agentDefOf, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf, viewedStatusOf } from './agents'
+import type { AgentDef, AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
 import type { FileChange } from './changes'
@@ -88,6 +88,30 @@ async function accountOf($: EngineInterface): Promise<string | undefined> {
     return undefined
   }
 }
+/** What the agent's definition file says about its model and effort: the project's first, then the user's. `{}` when there is none. */
+async function agentDefFor($: EngineInterface, type: string): Promise<AgentDef> {
+  // The type goes into a path: a plugin's `a:b` type, or anything with a slash, has no file here.
+  if (!/^[\w.-]+$/.test(type)) return {}
+  try {
+    const home = await $.env.get('HOME')
+    const config = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home ? `${home}/.claude` : undefined)
+    const paths = [`${await $.session.cwd()}/.claude/agents/${type}.md`, ...(config ? [`${config}/agents/${type}.md`] : [])]
+    for (const path of paths) {
+      try {
+        const text = await $.fs.read(path)
+        if (typeof text !== 'string') continue
+        const def = agentDefOf(text)
+        // No model line, or `inherit`: the agent runs on the session's model.
+        return !def.model || def.model === 'inherit' ? { ...def, model: await $.session.model() } : def
+      } catch {
+        continue
+      }
+    }
+  } catch {
+    return {}
+  }
+  return {}
+}
 const NEEDS_YOU_SAY: Span[][] = [[{ text: 'need a human', color: COMMAND_COLOR }]]
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
@@ -104,6 +128,8 @@ const EFFORT = { plugin: 'robot', key: 'effort' } as const
 const BRANCH = { plugin: 'robot', key: 'branch' } as const
 const WAVE_AT = { plugin: 'robot', key: 'waveAt' } as const
 const AGENT_ROWS = { plugin: 'robot', key: 'agentRows' } as const
+/** The id of the agent whose transcript is in view; '' is the main view. Written by the clock from what AbovePrompt saw. */
+const VIEWED_AGENT = { plugin: 'robot', key: 'viewedAgent' } as const
 const CHANGES = { plugin: 'robot', key: 'changes' } as const
 /** ms: the start of the main loop's last model request; 0 or absent: none yet. */
 const CACHE_AT = { plugin: 'robot', key: 'cacheAt' } as const
@@ -573,6 +599,10 @@ export const register: Register = (on, options) => {
   let isSpinnerCompacting = false
   /** What the clock last wrote: it writes only a change, so the session.compact hook keeps its own writes. Unset after a reload, so the first tick clears a flag the last copy left on. */
   let wasSpinnerCompacting: boolean | undefined
+  /** The agent in view on each surface, as the last AbovePrompt render saw it ('' is the main view). A render hook may not write state, so the clock carries this to VIEWED_AGENT. Unset until the first render after a reload, so the clock cannot write 'main view' over a real id. */
+  let seenViewAgent: Partial<Record<RenderSurface, string>> | undefined
+  /** The JSON the clock last wrote to VIEWED_AGENT: it writes only a change. Unset after a reload, so the first real value is written. */
+  let wroteViewAgent: string | undefined
   const hotAt = typeof options.hotAt === 'number' && options.hotAt > 0 ? options.hotAt : HOT_AT
   // The `contextFire` option turns the whole context-on-fire act off; on unless set to false.
   const isFireOn = options.contextFire !== false
@@ -619,6 +649,11 @@ export const register: Register = (on, options) => {
         wasSpinnerCompacting = isSpinnerFactory
         await $.state.set(IS_COMPACTING, isSpinnerFactory)
       }
+      const seen = seenViewAgent && JSON.stringify(seenViewAgent)
+      if (isAgentLinesOn && seenViewAgent !== undefined && seen !== wroteViewAgent) {
+        wroteViewAgent = seen
+        await $.state.set(VIEWED_AGENT, { ...seenViewAgent } as Record<string, string>)
+      }
     })
 
     try {
@@ -650,14 +685,21 @@ export const register: Register = (on, options) => {
         const agents = await $.agent.list()
         const live = agents.filter(agent => ['pending', 'running', 'waiting'].includes(agent.status) && agent.type !== 'teammate')
         // An agent that ended without a turn.complete (stopped, failed) leaves its line here.
-        // One that started before a reload (/reload-plugins, an update) missed agent.spawn: it gets its line here.
+        // One that started before a reload (/reload-plugins, an update) missed agent.spawn: it gets its line here,
+        // with the model and effort its definition file names until its next step says the real ones. Files are read only for such new agents.
         if (isAgentLinesOn) {
+          const held = (await $.state.get(AGENT_ROWS)).value ?? []
+          const fresh = live.filter(agent => !held.some(row => row.id === agent.id))
+          const defs = fresh.length > 0 ? new Map(await Promise.all(fresh.map(async agent => [agent.id, await agentDefFor($, agent.type)] as const))) : new Map<string, AgentDef>()
           await updateAgentRows($, rows => {
             const kept = rows.filter(row => live.some(agent => agent.id === row.id))
             const missed = live.filter(agent => !rows.some(row => row.id === agent.id))
             if (kept.length === rows.length && missed.length === 0) return rows
             const now = Date.now()
-            return [...kept, ...missed.map(agent => ({ id: agent.id, type: agent.type, description: agent.description, model: '', startedAt: now, tokens: 0 }))]
+            return [...kept, ...missed.map(agent => {
+              const def = defs.get(agent.id)
+              return { id: agent.id, type: agent.type, description: agent.description, model: def?.model ?? '', ...(def?.effort ? { effort: def.effort } : {}), startedAt: now, tokens: 0 }
+            })]
           })
         }
         if (!isFriendsOn) return
@@ -712,6 +754,13 @@ export const register: Register = (on, options) => {
     if (isColdOn) {
       if (e.agentId) await $.state.set(AGENT_STEP_AT, startedAt)
       else cache = await warmCache($, startedAt)
+    }
+    // A subagent's step starts with the model and effort it runs on: a slow step shows them before it ends.
+    // The same array comes back when nothing differs, so most steps write nothing.
+    if (isAgentLinesOn && e.agentId) {
+      await updateAgentRows($, rows => (!rows.some(row => row.id === e.agentId && ((e.model && modelNameOf(row.model) !== modelNameOf(e.model)) || (typeof e.effort === 'string' && row.effort !== e.effort)))
+        ? rows
+        : rows.map(row => (row.id !== e.agentId ? row : { ...row, model: e.model || row.model, effort: typeof e.effort === 'string' ? e.effort : row.effort }))))
     }
     const stepped = yield* next(e)
     if (isColdOn && !e.agentId && stepped.usage) {
@@ -847,13 +896,23 @@ export const register: Register = (on, options) => {
     const { value: pr = NO_PR } = isLineOn ? await $.state.get(CHANGES_PR) : { value: undefined }
     const { value: prInfo = NO_PR_INFO } = isLineOn ? await $.state.get(PR) : { value: undefined }
     const { value: coldTokens = 0 } = isColdOn && isStatusOn ? await $.state.get(COLD_TOKENS) : { value: 0 }
+    // The agent whose transcript is in view, when it still has a row: a finished one has none, and line 1 is the main line.
+    const { value: viewedIds = {} } = isAgentLinesOn ? await $.state.get(VIEWED_AGENT) : { value: {} as Record<string, string> }
+    const viewedId = viewedIds[e.surface] ?? ''
+    const viewed = viewedId ? agentRows.find(row => row.id === viewedId) : undefined
     const theirs = await next(e)
     // A few cells of room for the line's indent and the right edge.
     const columns = (e.viewport?.columns ?? 80) - STATUS_MARGIN
     const lines: Span[][] = []
     const { value: waveAt = -1 } = await $.state.get(WAVE_AT)
-    if (isStatusOn && status.length > 0) {
+    const now = Date.now()
+    // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
+    if (agentRows.length > 0) await $.state.get(TICK)
+    const isLineOneDrawn = isStatusOn && status.length > 0
+    if (isLineOneDrawn) {
       let groups = status.filter(group => Array.isArray(group.spans))
+      // An agent in view: its model, tokens and time stand in for the session's model, cost and ctx. Before the wave and the cold part, so cold stays last.
+      if (viewed) groups = viewedStatusOf(groups, viewed, now)
       // The shimmer module runs its own fast clock, so the line itself does not redraw while the branch shimmers.
       if (isWaveOn && waveAt >= 0) groups = wavedOf(groups)
       if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
@@ -864,13 +923,15 @@ export const register: Register = (on, options) => {
     // The index of the `+N more` line, a button that opens the panel with all of them.
     let moreAt = -1
     if (agentRows.length > 0) {
-      // Reading the tick redraws the lines 4 times a second, so each agent's time runs; only while agents run.
-      await $.state.get(TICK)
-      const now = Date.now()
-      for (const row of agentRows.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
-      const more = moreOf(agentRows.length)
-      if (more.length > 0) agentLines.push([AGENT_MARK, ...more])
-      moreAt = more.length > 0 ? agentLines.length - 1 : -1
+      if (viewed) {
+        // An agent in view: line 1 tells about it, so no agent lines; without line 1, only its own line.
+        if (!isLineOneDrawn) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(viewed, now), columns - AGENT_MARK.text.length)])
+      } else {
+        for (const row of agentRows.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
+        const more = moreOf(agentRows.length)
+        if (more.length > 0) agentLines.push([AGENT_MARK, ...more])
+        moreAt = more.length > 0 ? agentLines.length - 1 : -1
+      }
     }
     // The open PR (a link to it, and what needs the person), then the changed files: one line.
     // The files are a button that opens the panel with the list.
@@ -1111,6 +1172,8 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    // First, before any early return: the clock carries it to VIEWED_AGENT (a render may not write state). Older engines have no `view`.
+    seenViewAgent = { ...seenViewAgent, [e.surface]: e.props.view?.agentId ?? '' }
     const columns = e.props.bodyColumns
     const { value: at = 0 } = await $.state.get(TICK)
     // An agent's transcript in view (opened from the tasks list): the robot steps aside.

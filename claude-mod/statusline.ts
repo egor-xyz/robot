@@ -56,10 +56,14 @@ export const modelColorOf = (model: string): string =>
 const EFFORT_COLORS: Record<string, string> = { high: WARN, xhigh: WARN, max: ALARM }
 export const effortColorOf = (effort: string): string => EFFORT_COLORS[effort] ?? DIM
 
-/** `claude-opus-5-5` as the person reads it, `Opus 5.5`; any other name as it is. */
+/** `claude-opus-5-5` as the person reads it, `Opus 5.5`; a bare alias as its family, `opus` as `Opus`; any other name as it is. */
 export function modelNameOf(model: string): string {
   const parts = /^claude-([a-z]+)-(\d+)-(\d+)/.exec(model)
-  if (!parts) return model
+  if (!parts) {
+    // A bare alias (`opus`, `sonnet[1m]`) reads as its family name.
+    const alias = /^([a-z]+)(\[\w+\])?$/.exec(model)?.[1]
+    return alias ? `${alias.charAt(0).toUpperCase()}${alias.slice(1)}` : model
+  }
   const [, family = '', major, minor] = parts
   return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}.${minor}`
 }
@@ -79,6 +83,7 @@ export type StatusGroup = { rank: number; spans: Span[] }
 
 // Who stays longest on a narrow screen: cache cold, then ctx, the model, the limits, the branch, cost, project, account.
 const RANK = { account: 1, project: 2, cost: 3, branch: 5, sevenDay: 6, fiveHour: 7, model: 8, ctx: 9, cold: 10 }
+export { RANK as STATUS_RANK }
 const SEPARATOR: Span = { text: ' | ', color: LINE }
 
 /** Tokens, short: `850`, `16k`, `1.2M`. */

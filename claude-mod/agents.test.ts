@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentGroupsOf, agentPaneLinesOf, elapsedOf, moreOf, stepTokensOf, tokensOf } from './agents'
-import { fitStatus, textOfStatus } from './statusline'
+import { agentDefOf, agentGroupsOf, agentPaneLinesOf, elapsedOf, moreOf, stepTokensOf, tokensOf, viewedRowGroupsOf, viewedStatusOf } from './agents'
+import { fitStatus, groupsOf, textOfStatus } from './statusline'
 
 const ROW = { id: 'a1', type: 'egor-xyz-scout', description: 'List mod settings', model: 'claude-haiku-5-5', effort: 'low', startedAt: 0, tokens: 16_400 }
 
@@ -51,4 +51,36 @@ test('the panel lists every agent, one line each, and says so when none run', ()
   expect(textOfStatus(lines[1].slice(1))).toBe('Second | egor-xyz-scout | Haiku 5.5 [low] | 16k tok | 0:06')
   expect(lines[0][0]).toBe(mark)
   expect(agentPaneLinesOf([], 0, 40, mark)).toEqual([[{ text: 'No subagents running.', color: 'inactive' }]])
+})
+
+const MAIN = groupsOf({ account: 'Tego', model: 'claude-opus-5-5', effort: 'xhigh', project: 'robot', branch: 'main', rateLimits: [], windows: [], limitsAt: 0, costUsd: 1.5, contextPercent: 40, hotAt: 80, now: 0 })
+const textOf = (groups: Parameters<typeof fitStatus>[0]): string => textOfStatus(fitStatus(groups, Number.POSITIVE_INFINITY))
+
+test('with an agent in view, line 1 shows its model, tokens and time instead of the main model, cost and ctx', () => {
+  expect(textOf(MAIN)).toBe('Tego | Opus 5.5 [xhigh] | robot | main | $1.50 | ctx 40%')
+  expect(textOf(viewedStatusOf(MAIN, ROW, 6_000))).toBe('Tego | Haiku 5.5 [low] | robot | main | 16k tok | 0:06')
+  expect(textOf(MAIN)).toBe('Tego | Opus 5.5 [xhigh] | robot | main | $1.50 | ctx 40%')
+})
+
+test('an agent in view with no model does not leave the main model on line 1', () => {
+  expect(textOf(viewedStatusOf(MAIN, { ...ROW, model: '', effort: undefined }, 6_000))).not.toContain('Opus')
+})
+
+test('the agent row under line 1 has only the task and the type', () => {
+  expect(textOf(viewedRowGroupsOf(ROW))).toBe('List mod settings | egor-xyz-scout')
+})
+
+test('an agent definition gives its model and effort from the frontmatter', () => {
+  const head = '---\nname: egor-xyz-security-advisor\ndescription: >-\n  Reviews a diff.\n  model: not-this\nmodel: claude-mythos-5-1\neffort: high\n---\n\nmodel: nope\n'
+  expect(agentDefOf(head)).toEqual({ model: 'claude-mythos-5-1', effort: 'high' })
+  expect(agentDefOf('---\nmodel: "haiku"\neffort: \'low\'\n---\n')).toEqual({ model: 'haiku', effort: 'low' })
+  expect(agentDefOf('# no frontmatter\nmodel: haiku\n')).toEqual({})
+  expect(agentDefOf('---\nname: x\n---\nmodel: haiku\n')).toEqual({})
+  expect(agentDefOf('---\n  model: x\n---\n')).toEqual({})
+  expect(agentDefOf('---\nmodel: haiku\n')).toEqual({})
+})
+
+test('with no model on the main line, the agent model goes after the account', () => {
+  const bare = groupsOf({ account: 'Tego', project: 'robot', branch: 'main', rateLimits: [], windows: [], limitsAt: 0, hotAt: 80, now: 0 })
+  expect(textOf(viewedStatusOf(bare, ROW, 6_000))).toBe('Tego | Haiku 5.5 [low] | robot | main | 16k tok | 0:06')
 })

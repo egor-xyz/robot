@@ -57,6 +57,10 @@ test('a model id reads as its name; other names stay as they are', () => {
   expect(modelNameOf('claude-opus-5-5')).toBe('Opus 5.5')
   expect(modelNameOf('claude-sonnet-5-5[1m]')).toBe('Sonnet 5.5')
   expect(modelNameOf('Opus 5.5')).toBe('Opus 5.5')
+  expect(modelNameOf('opus')).toBe('Opus')
+  expect(modelNameOf('sonnet[1m]')).toBe('Sonnet')
+  expect(modelNameOf('claude-mythos-5-1')).toBe('Mythos 5.1')
+  expect(modelNameOf('')).toBe('')
 })
 
 test('each part has its own colour, and a limit is coloured by how full it is', () => {
