@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentDefOf, agentGroupsOf, agentPaneLinesOf, elapsedOf, moreOf, stepTokensOf, tokensOf, viewedRowGroupsOf, viewedStatusOf } from './agents'
+import { agentDefOf, agentGroupsOf, agentPaneLinesOf, elapsedOf, moreOf, stepTokensOf, tokensOf, topRowsOf, viewedRowGroupsOf, viewedStatusOf } from './agents'
 import { fitStatus, groupsOf, textOfStatus } from './statusline'
 
 const ROW = { id: 'a1', type: 'egor-xyz-scout', description: 'List mod settings', model: 'claude-haiku-5-5', effort: 'low', startedAt: 0, tokens: 16_400 }
@@ -83,4 +83,16 @@ test('an agent definition gives its model and effort from the frontmatter', () =
 test('with no model on the main line, the agent model goes after the account', () => {
   const bare = groupsOf({ account: 'Tego', project: 'robot', branch: 'main', rateLimits: [], windows: [], limitsAt: 0, hotAt: 80, now: 0 })
   expect(textOf(viewedStatusOf(bare, ROW, 6_000))).toBe('Tego | Haiku 5.5 [low] | robot | main | 16k tok | 0:06')
+})
+
+test('agents spawned by agents count on the line of the agent the main loop spawned', () => {
+  const plan = { ...ROW, id: 'p', type: 'egor-xyz-architect' }
+  const scoutA = { ...ROW, id: 's1', parentId: 'p' }
+  const scoutB = { ...ROW, id: 's2', parentId: 'p' }
+  const deep = { ...ROW, id: 's3', parentId: 's1' }
+  const build = { ...ROW, id: 'b', type: 'egor-xyz-senior-developer' }
+  const orphan = { ...ROW, id: 'o', parentId: 'gone' }
+  const tops = topRowsOf([plan, scoutA, scoutB, deep, build, orphan])
+  expect(tops.map(top => [top.row.id, top.nested])).toEqual([['p', 3], ['b', 0], ['o', 0]])
+  expect(textOfStatus(fitStatus(agentGroupsOf(plan, 6_000, 3), Number.POSITIVE_INFINITY))).toContain('egor-xyz-architect (+3)')
 })

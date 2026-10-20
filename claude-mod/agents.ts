@@ -4,8 +4,8 @@ import type { StatusGroup } from './statusline'
 
 export { tokensOf } from './statusline'
 
-/** One running subagent, as its spawn and its model requests report it. */
-export type AgentRow = { id: string; type: string; description: string; model: string; effort?: string; startedAt: number; tokens: number }
+/** One running subagent, as its spawn and its model requests report it; `parentId` is the agent that spawned it, absent for the main loop. */
+export type AgentRow = { id: string; type: string; description: string; model: string; effort?: string; startedAt: number; tokens: number; parentId?: string }
 
 /** Usage of one model request, as `turn.step` reports it. */
 export type StepUsage = { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }
@@ -37,17 +37,17 @@ function modelGroupOf(row: AgentRow, rank: number): StatusGroup | undefined {
   }
 }
 
-/** The task and type parts of an agent's line. */
-export function viewedRowGroupsOf(row: AgentRow): StatusGroup[] {
+/** The task and type parts of an agent's line; `nested` agents it spawned show as `(+N)` after the type, as Claude Code's own list does. */
+export function viewedRowGroupsOf(row: AgentRow, nested = 0): StatusGroup[] {
   return [
     { rank: RANK.task, spans: [{ text: row.description || row.type, color: 'text' }] },
-    { rank: RANK.type, spans: [{ text: row.type, color: DIM }] },
+    { rank: RANK.type, spans: [{ text: nested > 0 ? `${row.type} (+${nested})` : row.type, color: DIM }] },
   ]
 }
 
 /** One agent's line, in parts: task, type, model and effort, tokens, time. */
-export function agentGroupsOf(row: AgentRow, now: number): StatusGroup[] {
-  const [task, type] = viewedRowGroupsOf(row)
+export function agentGroupsOf(row: AgentRow, now: number, nested = 0): StatusGroup[] {
+  const [task, type] = viewedRowGroupsOf(row, nested)
   const model = modelGroupOf(row, RANK.model)
   return [
     task,
@@ -100,6 +100,18 @@ export function agentDefOf(text: string): AgentDef {
   }
   const [model, effort] = [valueOf('model'), valueOf('effort')]
   return { ...(model ? { model } : {}), ...(effort ? { effort } : {}) }
+}
+
+/** The agents the lines show, as Claude Code's own list does: those the main loop spawned, each with how many agents run under it. An agent whose parent has no row stands on its own. */
+export function topRowsOf(rows: readonly AgentRow[]): { row: AgentRow; nested: number }[] {
+  const ids = new Set(rows.map(row => row.id))
+  const topOf = (row: AgentRow): string => {
+    let at = row
+    for (let hops = 0; at.parentId && ids.has(at.parentId) && hops < rows.length; hops++) at = rows.find(other => other.id === at.parentId) ?? at
+    return at.id
+  }
+  const tops = rows.filter(row => !row.parentId || !ids.has(row.parentId))
+  return tops.map(row => ({ row, nested: rows.filter(other => other.id !== row.id && topOf(other) === row.id).length }))
 }
 
 /** The line under the agent lines when more agents run than they show. */

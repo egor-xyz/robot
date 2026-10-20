@@ -15,7 +15,7 @@ import type { ActName, RobotState } from './robot'
 import { isQuestion } from './ask'
 import { isCompactingMessage, robotWord } from './spinner'
 import { accountNameOf, coldGroupOf, compactingOf, fitStatus, groupsOf, modelNameOf, SHIMMER, wavedOf } from './statusline'
-import { MAX_AGENT_LINES, agentDefOf, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf, viewedStatusOf } from './agents'
+import { MAX_AGENT_LINES, agentDefOf, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf, topRowsOf, viewedStatusOf } from './agents'
 import type { AgentDef, AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
 import { MAX_NEW_FILES, STATUS_COLORS, changesGroupsOf, countOf, groupOf, listRowsOf, numstatOf, statusesOf, totalsOf } from './changes'
@@ -707,7 +707,7 @@ export const register: Register = (on, options) => {
             const now = Date.now()
             return [...kept, ...missed.map(agent => {
               const def = defs.get(agent.id)
-              return { id: agent.id, type: agent.type, description: agent.description, model: def?.model ?? '', ...(def?.effort ? { effort: def.effort } : {}), startedAt: now, tokens: 0 }
+              return { id: agent.id, type: agent.type, description: agent.description, model: def?.model ?? '', ...(def?.effort ? { effort: def.effort } : {}), startedAt: now, tokens: 0, ...(agent.parentId ? { parentId: agent.parentId } : {}) }
             })]
           })
         }
@@ -794,7 +794,7 @@ export const register: Register = (on, options) => {
   on('agent.spawn', async ($, e, next) => {
     const started = await next(e)
     if (!isAgentLinesOn || started.deny !== undefined || !started.agentId || e.subagentType === 'teammate') return started
-    const row: AgentRow = { id: started.agentId, type: e.subagentType, description: e.description, model: started.model, startedAt: Date.now(), tokens: 0 }
+    const row: AgentRow = { id: started.agentId, type: e.subagentType, description: e.description, model: started.model, startedAt: Date.now(), tokens: 0, ...(e.parentAgentId ? { parentId: e.parentAgentId } : {}) }
     await updateAgentRows($, rows => [...rows.filter(other => other.id !== row.id), row])
     return started
   })
@@ -945,8 +945,10 @@ export const register: Register = (on, options) => {
         // An agent in view: line 1 tells about it, so no agent lines; without line 1, only its own line.
         if (!isLineOneDrawn) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(viewed, now), columns - AGENT_MARK.text.length)])
       } else {
-        for (const row of agentRows.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now), columns - AGENT_MARK.text.length)])
-        const more = moreOf(agentRows.length)
+        // Agents spawned by agents count on their parent's line, so the lines match Claude Code's own list.
+        const tops = topRowsOf(agentRows)
+        for (const { row, nested } of tops.slice(0, MAX_AGENT_LINES)) agentLines.push([AGENT_MARK, ...fitStatus(agentGroupsOf(row, now, nested), columns - AGENT_MARK.text.length)])
+        const more = moreOf(tops.length)
         if (more.length > 0) agentLines.push([AGENT_MARK, ...more])
         moreAt = more.length > 0 ? agentLines.length - 1 : -1
       }
