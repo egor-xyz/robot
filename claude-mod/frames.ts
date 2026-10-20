@@ -479,7 +479,7 @@ export function withFriends(frame: Frame, columns: number, friends: readonly Fri
   return rows.map(spansOfCells)
 }
 
-// The compaction factory line: one robot or WALL-E at a time walks up to the station in the middle, packs itself into a box, the box rides a short belt to its end and drops out of sight, and only then the next one walks in.
+// The compaction factory line: one robot or WALL-E at a time walks in from the left edge to the station near it, packs itself into a box, the box rides a short belt to its end and drops out of sight, and only then the next one walks in.
 /** Who rides the line: our robot or a WALL-E. */
 export type FactoryUnit = 'robot' | 'walle'
 type PackStep = { unit: string[]; box: string[] }
@@ -552,8 +552,8 @@ function walking(unit: FactoryUnit, tick: number): string[] {
 }
 
 /**
- * The compaction factory line, `steps` ticks into a compaction, sized to `columns`: one robot or WALL-E walks up to the
- * station in the middle, a box drops in, the unit packs itself part by part, the closed box shakes, then rides a short belt to its end and drops out of sight; then
+ * The compaction factory line, `steps` ticks into a compaction, sized to `columns`: one robot or WALL-E walks in from the
+ * left edge to the station near it, a box drops in, the unit packs itself part by part, the closed box shakes, then rides a short belt to its end and drops out of sight; then
  * the next unit walks in. Always four rows; never draws a cell outside 0..columns-1. Pure: the same (columns, steps) gives
  * the same frame. `seed` picks whether a robot or a WALL-E goes first; then they take turns.
  */
@@ -582,9 +582,9 @@ export function factory(columns: number, steps: number, seed = 0): Frame {
   const phase = tick % FACTORY_CYCLE
   const isWalking = phase < WALK_TICKS
   const unit = unitOf(cycle, seed)
-  // The box packs in the middle of the band, the unit to its left; the belt starts one cell right of the box.
+  // The box packs at the left of the band, under the spinner's "Compacting" text: the unit walks in from the left edge to just left of it; the belt starts one cell right of the box.
   const boxWidth = unit === 'robot' ? ROBOT_BOX : WALLE_BOX
-  const boxX = Math.max(BODY_END + 2, Math.floor((columns - boxWidth) / 2))
+  const boxX = MOVE * (WALK_TICKS - 1) + BODY_END + 2
   const stationX = boxX - BODY_END - 2
   const beltX = boxX + boxWidth + 1
   // The belt runs half the way from the station to the right edge; the box drops out of sight at its end.

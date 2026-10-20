@@ -182,22 +182,22 @@ test('the factory stays four rows inside the band', () => {
   }
 })
 
-test('one robot walks slowly up to the station in the middle, alone', () => {
+test('one robot walks slowly in from the left edge to the station at the left, alone', () => {
   const rows = (steps: number) => factory(60, steps, ROBOT).map(textOf)
 
-  expect(rows(0)[1]?.indexOf('[o   o]')).toBe(4)
-  expect(rows(6)[1]?.indexOf('[o   o]')).toBe(10)
-  expect(rows(12)[1]?.indexOf('[o   o]')).toBe(16)
+  expect(rows(0)[1]?.indexOf('[o   o]')).toBe(2)
+  expect(rows(6)[1]?.indexOf('[o   o]')).toBe(8)
+  expect(rows(12)[1]?.indexOf('[o   o]')).toBe(14)
   expect(rows(12).join('')).not.toContain('(o)(o)')
   expect(rows(12).join('')).not.toContain('│')
-  expect(factory(120, 12, ROBOT).map(textOf)[1]?.indexOf('[o   o]')).toBe(46)
+  expect(factory(120, 12, ROBOT).map(textOf)[1]?.indexOf('[o   o]')).toBe(14)
 })
 
 test('a box drops in and our robot packs itself part by part into its small box', () => {
   const rows = (steps: number) => factory(60, steps, ROBOT).map(textOf)
 
   expect(rows(13)[0]).toContain('└───────┘')
-  expect(rows(16)[3]?.indexOf('└───────┘')).toBe(25)
+  expect(rows(16)[3]?.indexOf('└───────┘')).toBe(23)
   expect(rows(17)[2]).toContain('│ o   o │')
   expect(rows(20)[2]).toContain('│o|━━━|o│')
   expect(rows(23)[0]).toContain('.-----.')
@@ -210,7 +210,7 @@ test('the closed box rides the half-length belt out of sight before the next uni
   const rows = (steps: number) => factory(60, steps, ROBOT).map(textOf)
   const lids = [31, 32, 33].map(steps => rows(steps)[0]?.indexOf('┌───────┐'))
 
-  expect(lids).toEqual([30, 35, 36])
+  expect(lids).toEqual([28, 33, 34])
   for (let steps = 31; steps < FACTORY_CYCLE; steps++) expect(rows(steps).join('')).not.toContain('[o   o]')
   expect(rows(FACTORY_CYCLE - 1).join('')).not.toContain('│')
   expect(rows(FACTORY_CYCLE).join('').trim().length).toBeGreaterThan(0)
