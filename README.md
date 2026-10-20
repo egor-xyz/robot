@@ -206,6 +206,8 @@ When Claude runs subagents, each one is a small WALL-E robot at the robot's back
 - 🛞 **They roll in** from the edge when an agent starts. Their wheels pulse, the same as the robot's.
 - 👀 **They are alive.** They blink, look around and stretch their necks up now and then.
 - 🎉 **They hop** when the robot cheers a git commit or push.
+- 🙌 **A high five.** Now and then, with the friends settled, the robot walks over to the nearest one. Both raise a hand, slap with a spark, and all the friends hop. Then the robot walks away.
+- 🚜 **An excavator.** Rarely, the friends creep toward the robot. It frowns, shakes its fists and turns into an excavator, part by part. It pushes them back to their slots, pops back into the robot with its arms up, and walks away.
 - 🔥 **They panic too.** When the context is on fire, their eyes go wide.
 - ➕ **Three at most.** With more agents, a `+1`, `+2`… shows how many more run.
 - 👋 **They roll away** when their agent ends.
@@ -344,7 +346,7 @@ The change applies at once; the plugin reloads by itself.
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Robot | `true` | `false` hides the robot above the prompt. Each `/robot` flips it. |
-| Calm | `false` | A calmer robot: half speed, only its quiet acts, no git cheer, compacting factory line or branch wave. Fire, ice, "need a human" and friends still show. Each `/robot calm` flips it. |
+| Calm | `false` | A calmer robot: half speed, only its quiet acts, no git cheer, compacting factory line, branch wave or friend visits. Fire, ice, "need a human" and friends still show. Each `/robot calm` flips it. |
 | Status line | `true` | `false` hides the [status line](#-status-line) under the prompt. Each `/robot status` flips it. |
 | Context on fire | `true` | `false` turns the [burning head](#-context-on-fire) off. |
 | Fire at (% context) | `25` | Context % where the head catches fire and `ctx` turns red. |

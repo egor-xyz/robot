@@ -4,6 +4,8 @@ import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chil
 import type { Frame, Span } from './frames'
 import { stepFriends } from './friends'
 import type { Friend } from './friends'
+import { MEET_WALK_AWAY, areSettled, isMeetOn, meetFrameOf, meetOf, meetXOf } from './meet'
+import type { Meet } from './meet'
 import { CALM_STATES, CALM_TICK_MS } from './calm'
 import { HELP_TEXT, actTextOf, commandOf, isOnOf, toggleDenyTextOf, toggleTextOf } from './command'
 import type { ToggleKey } from './command'
@@ -177,6 +179,9 @@ let friends: Friend[] = []
 let friendsAt = -1
 let lastFriendId = 0
 const nextFriendId = (): number => ++lastFriendId
+/** The visit in play (a high five or a dig), if any, and the tick the friends were last unsettled or a visit last ended. */
+let meet: Meet | undefined
+let meetSince = -1
 /** The tick the current compaction was first drawn at, or -1 when nothing compacts. */
 let packedFrom = -1
 // Picks at random who goes first on this compaction's line: a robot or a WALL-E.
@@ -1203,6 +1208,16 @@ export const register: Register = (on, options) => {
       packedSeed = randomInt()
     }
 
+    // A visit ends when its time is up, or when anything with a higher priority turns on or the friends change. The robot
+    // then walks out to the left from where it stands. This runs before the zone and act code, so both see that spot.
+    const isActAsked = actSeen !== undefined && act !== undefined && act.id !== actSeen
+    const isMeetFree = isFriendsOn && !isCalm && !isCompacting && !isNeeded && !isCelebrating && !isHot && !isCold && !isActAsked && !isInAct(shown.state)
+    if (meet && (!isMeetFree || !isMeetOn(meet, at, columns, friends, subagents))) {
+      shown.state = { ...shown.state, state: 'walk', t: 0, dur: MEET_WALK_AWAY, pos: meetXOf(meet, at), dir: -1 }
+      meet = undefined
+      meetSince = at
+    }
+
     // The subagent friends keep the right edge; the robot walks left of them. A robot already in their zone when they
     // come is not snapped out: it turns and walks out, and the friends show once their cells are free.
     const zone = friendsZone(subagents)
@@ -1217,7 +1232,7 @@ export const register: Register = (on, options) => {
       shown.state = actOf(shown.state, act.name, act.value, track)
     }
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
-    if (at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
+    if (!meet && at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       // Talking (asking for the person, or hot and talking) it dances in place, so its bubble stays put.
       // An act in play is not overridden.
@@ -1234,11 +1249,14 @@ export const register: Register = (on, options) => {
         shown.frame = drawn.frame
       }
       shown.at = at
+      // Now and then, between stories, the robot and the friends meet. Once per tick, never per render.
+      if (isMeetFree && shown.state.state === 'walk') meet = meetOf(at, meetSince, shown.state.pos, shown.state.dir, columns, friends, subagents, randomInt)
     }
     // The friends roll one cell per new tick, whatever the robot does.
     if (at !== friendsAt) {
       friends = stepFriends(friends, subagents, nextFriendId)
       friendsAt = at
+      if (!areSettled(friends)) meetSince = at
     }
     // Priority: compacting, then needs-you, then celebrating, then the robot as it walks (hot or not).
     // Cold ice, or fire; cold wins (isHot is already false then).
@@ -1264,6 +1282,8 @@ export const register: Register = (on, options) => {
       }
     } else if (isCelebrating && celebration) {
       frame = withFriends(celebrating(shown.state.pos, columns - zone, celebration.act, at - celebration.at), columns, friends, subagents, at, 'cheer')
+    } else if (meet) {
+      frame = meetFrameOf(meet, at, friends)
     } else if (!shown.frame) {
       return next(e)
     } else {

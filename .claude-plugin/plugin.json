@@ -1,6 +1,6 @@
 {
   "name": "robot",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "description": "A little ASCII robot that walks, dances and plays above your Claude Code prompt — and in your terminal",
   "author": {
     "name": "egor-xyz",
@@ -20,7 +20,7 @@
     "calm": {
       "type": "boolean",
       "title": "Calm",
-      "description": "A calmer robot: it moves at half speed, plays only its quiet acts (blink, wave, sleep, smile, coffee, fishing, garden), and skips the git cheer, the compacting factory line and the branch wave. Fire, ice, need-a-human and subagent friends still show. Each /robot calm flips it.",
+      "description": "A calmer robot: it moves at half speed, plays only its quiet acts (blink, wave, sleep, smile, coffee, fishing, garden), and skips the git cheer, the compacting factory line, the branch wave and the friend visits. Fire, ice, need-a-human and subagent friends still show. Each /robot calm flips it.",
       "default": false
     },
     "statusLine": {
@@ -75,7 +75,7 @@
     "subagentFriends": {
       "type": "boolean",
       "title": "Subagent friends",
-      "description": "A WALL-E friend rolls in for each running subagent, up to 3.",
+      "description": "A WALL-E friend rolls in for each running subagent, up to 3. Now and then the robot walks over for a high five, or the friends creep up and the robot turns into an excavator to push them back.",
       "default": true
     },
     "limitWindows": {
