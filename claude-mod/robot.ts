@@ -419,78 +419,75 @@ function balloonOf(s: RobotState, track: number): { raw: string; pad: number } {
   return { raw: raw.join('\n'), pad: s.pos }
 }
 
-/** UFO: abducts a cow on the robot's left; every row is in absolute columns. */
+type Piece = [col: number, text: string, cells: number]
+
+/** One row from pieces sorted by column. */
+function lay(...pieces: Piece[]): string {
+  let row = ''
+  let x = 0
+  for (const [col, text, cells] of pieces) {
+    row += sp(col - x) + text
+    x = col + cells
+  }
+  return row
+}
+
+/**
+ * UFO, a little movie on the robot's left: a cow walks into the woods (behind
+ * the trees) to a gap, the 🛸 races in (2 cells a tick to the cow's 1 per 2
+ * ticks), beams it up and zooms off while the robot panics. Every row is in
+ * absolute columns.
+ */
 function ufoOf(s: RobotState): { raw: string; pad: number } {
   const { t, pos } = s
-  const meet = Math.max(1, Math.trunc((pos + 6) / 2))
-  const arrive = Math.max(1, pos + 6 - meet)
+  // A tree every 7 cols up to the cow's start; the cow is taken in the gap
+  // left by tree `gap`, one tree short of the robot.
+  const count = Math.floor(pos / 7) + 1
+  const gap = count >= 3 ? count - 2 : -1
+  const meet = gap >= 0 ? 3 + 7 * gap : Math.max(2, pos - 4)
+  const arrive = Math.max(2 * (pos + 6 - meet), Math.ceil(meet / 2))
   const ut = t - arrive
-  const pre = sp(pos + 9)
-  const body = `${pre}/|━━━|\\`
-  const feet = `${pre} o   o`
+  const beat = ut < 0 ? -1 : Math.trunc(ut / 2)
+  const head = pos + 9
+  const tops: Piece[] = []
+  const trunks: Piece[] = []
+  for (let i = 0; gap >= 0 && i < count; i++) {
+    if (i === gap) continue
+    const c = 2 + 7 * i
+    if (i % 3 === 0) tops.push([c, '🌲', 2])
+    trunks.push([c, i % 3 === 2 ? '🌳' : '🌲', 2])
+  }
+  const top = (...p: Piece[]) => lay(...p, [head, '.-----.', 7])
+  const eyes = (e: string) => lay([head, `[${e}   ${e}]`, 7])
+  const body = (...p: Piece[]) => lay(...tops, ...p, [head, '/|━━━|\\', 7])
+  // The cow hides behind a tree it walks past.
+  const feet = (cow = -9) => {
+    const hid = trunks.some(([c]) => Math.abs(c - cow) <= 1)
+    const left = trunks.filter(([c]) => c < cow)
+    const ground: Piece[] = cow < 0 || hid ? trunks : [...left, [cow, '🐄', 2], ...trunks.slice(left.length)]
+    return lay(...ground, [head + 1, 'o   o', 5])
+  }
   const rows = (...r: string[]) => ({ raw: r.join('\n'), pad: 0 })
+  const ship: Piece = [meet, '🛸', 2]
   if (ut < 0) {
-    const ufo = Math.trunc((meet * t) / arrive)
-    const cow = pos + 6 - t
-    return rows(
-      `${sp(ufo)}🛸${sp(pos + 7 - ufo)}.-----.`,
-      `${pre}[o   o]`,
-      body,
-      `${sp(cow)}🐄${sp(pos + 8 - cow)}o   o`,
-    )
+    const ufo = meet - 2 * (arrive - t)
+    return rows(ufo < 0 ? top() : top([ufo, '🛸', 2]), eyes('o'), body(), feet(Math.max(meet, pos + 6 - Math.trunc(t / 2))))
   }
-  if (ut === 0) {
-    return rows(
-      `${sp(meet)}🛸${sp(pos + 7 - meet)}.-----.`,
-      `${pre}[o   o]`,
-      body,
-      `${sp(meet)}🐄${sp(pos + 8 - meet)}o   o`,
-    )
-  }
-  if (ut === 1) {
-    return rows(
-      `${sp(meet)}🛸${sp(pos + 7 - meet)}.-----.`,
-      `${sp(meet - 1)}/  \\${sp(pos + 6 - meet)}[O   O]`,
-      body,
-      `${sp(meet)}🐄${sp(pos + 8 - meet)}o   o`,
-    )
-  }
-  if (ut === 2) {
-    return rows(
-      `${sp(meet)}🛸${sp(pos + 7 - meet)}.-----.`,
-      `${sp(meet - 1)}/  \\${sp(pos + 6 - meet)}[O   O]`,
-      `${sp(meet)}🐄${sp(pos + 7 - meet)}/|━━━|\\`,
-      feet,
-    )
-  }
-  if (ut === 3) {
-    return rows(
-      `${sp(meet)}🛸${sp(pos + 7 - meet)}.-----.`,
-      `${sp(meet)}🐄${sp(pos + 7 - meet)}[O   O]`,
-      body,
-      feet,
-    )
-  }
-  const ufo = meet - (ut - 4) * 3
+  if (beat === 0) return rows(top(ship), eyes('O'), body(), feet(meet))
+  if (beat === 1) return rows(top(ship), lay([meet - 1, '/  \\', 4], [head, '[O   O]', 7]), body([meet - 2, '/    \\', 6]), feet(meet))
+  if (beat === 2) return rows(top(ship), lay([meet - 1, '/  \\', 4], [head, '[O   O]', 7]), body([meet - 2, '/ 🐄 \\', 6]), feet())
+  if (beat === 3) return rows(top(ship), lay([meet - 1, '/🐄\\', 4], [head, '[O   O]', 7]), body([meet - 2, '/    \\', 6]), feet())
+  if (beat === 4) return rows(top(ship, [meet + 2, '✨', 2]), eyes('O'), body(), feet())
+  const ufo = meet - 3 * (ut - 9)
   if (ufo < 0) {
-    // Shocked hold: a plain frame, so the normal pos padding applies.
+    // Shocked hold: arms up over the empty gap.
     if (s.dur > t + 3) s.dur = t + 3
-    return { raw: idle(74), pad: pos }
+    return rows(lay([pos + 8, '\\.-----./', 9]), eyes('O'), lay(...tops, [pos + 10, '|━━━|', 5]), feet())
   }
   if (t % 2) {
-    return rows(
-      `${sp(ufo)}🛸${sp(pos + 6 - ufo)}\\.-----./`,
-      `${pre}[O   O]`,
-      `${pre} |━━━|`,
-      feet,
-    )
+    return rows(lay([ufo, '🛸', 2], [pos + 8, '\\.-----./', 9]), eyes('O'), lay(...tops, [pos + 10, '|━━━|', 5]), feet())
   }
-  return rows(
-    `${sp(ufo)}🛸${sp(pos + 7 - ufo)}.-----.`,
-    `${pre}[O   O]`,
-    body,
-    feet,
-  )
+  return rows(top([ufo, '🛸', 2]), eyes('O'), body(), feet())
 }
 
 /** One tick of crazy-robot: the frame it prints and the state after. `random()` is like zsh $RANDOM (0..32767). */
