@@ -384,7 +384,7 @@ const BACK_GAP = 3
 const SHUFFLE = [0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0] as const
 const FRIEND_BODY_COLOR = hexOf(178)
 const FRIEND_TREADS_COLOR = hexOf(244)
-const FRIEND_EYES = { normal: '(o)(o)', blink: '(-)(-)', curious: '(O)(o)', wide: '(O)(O)' } as const
+const FRIEND_EYES = { normal: '(o)(o)', blink: '(-)(-)', curious: '(O)(o)', wide: '(O)(O)', happy: '(^)(^)' } as const
 const FRIEND_NECK = '  ||  '
 const FRIEND_BODY = '=[##]='
 const FRIEND_TREADS = ['(oooo)', '(OOOO)'] as const
@@ -392,10 +392,20 @@ const FRIEND_TREADS = ['(oooo)', '(OOOO)'] as const
 /** What the friends feel: `hot` when the context is on fire, `cheer` while the robot celebrates a git act. */
 export type FriendMood = 'normal' | 'hot' | 'cheer'
 
-type FriendPart = { up: number; text: string; color: string }
+/** How the waiting friends look in a scene: `FRIEND_EYES` key. */
+export type FriendEyes = keyof typeof FRIEND_EYES
+
+/**
+ * A scene the waiting friends play (never the ones rolling in or out): all `drift` cells left of their slots with no
+ * shuffle, wearing `eyes`, treads turning while `rolling`, and the friend with id `armUp` raising its left hand.
+ */
+export type FriendScene = { drift: number; eyes: FriendEyes; rolling: boolean; armUp?: number }
+
+/** `dx` moves the part that many cells from the friend's start (negative = left of it). */
+type FriendPart = { up: number; text: string; color: string; dx?: number }
 
 /** The parts of one friend, each `up` rows above the feet row. */
-function friendParts(friend: Friend, tick: number, mood: FriendMood, isShuffling: boolean): FriendPart[] {
+function friendParts(friend: Friend, tick: number, mood: FriendMood, isShuffling: boolean, scene?: FriendScene): FriendPart[] {
   const isMoving = friend.leaving || friend.lag > 0
   const isRolling = isMoving || isShuffling
   // A one-cell shuffle lasts one tick: its treads turn on that tick, whatever its parity.
@@ -403,6 +413,16 @@ function friendParts(friend: Friend, tick: number, mood: FriendMood, isShuffling
   const body = (up: number): FriendPart => ({ up, text: FRIEND_BODY, color: FRIEND_BODY_COLOR })
   const eyes = (up: number, text: string): FriendPart => ({ up, text, color: DEFAULT_COLOR })
 
+  if (scene) {
+    const sceneTreads = { ...treads, text: scene.rolling ? (FRIEND_TREADS[tick % 2] ?? FRIEND_TREADS[0]) : FRIEND_TREADS[0] }
+    const look = FRIEND_EYES[scene.eyes]
+    if (mood === 'cheer' && tick % 2 === 0) return [eyes(3, look), body(2), { ...sceneTreads, up: 1 }]
+    if (scene.armUp === friend.id) {
+      const arm = { color: FRIEND_BODY_COLOR }
+      return [{ up: 3, text: 'o', dx: -2, ...arm }, { up: 2, text: '\\', dx: -1, ...arm }, eyes(2, look), { ...body(1), text: ` ${FRIEND_BODY.slice(1)}` }, sceneTreads]
+    }
+    return [eyes(2, look), body(1), sceneTreads]
+  }
   if (mood === 'cheer' && tick % 2 === 0) return [eyes(3, FRIEND_EYES.normal), body(2), { ...treads, up: 1 }]
   if (mood === 'hot') return [eyes(2, FRIEND_EYES.wide), body(1), treads]
   const isBlinking = (tick + friend.id * 5) % 16 === 0
@@ -414,6 +434,24 @@ function friendParts(friend: Friend, tick: number, mood: FriendMood, isShuffling
 
 /** The cells the waiting friends shuffle away from their slots at `tick`: -1 left, 0, or 1 right. */
 const shuffleOf = (tick: number): number => SHUFFLE[((tick % SHUFFLE.length) + SHUFFLE.length) % SHUFFLE.length] ?? 0
+
+/** True when the friends rest in their slots at `tick`: no shuffle step is on. */
+export const isFriendsAtRest = (tick: number): boolean => shuffleOf(tick) === 0
+
+/** The first cell of the friend at `rank` (0 = rightmost) for `count` subagents in a band `columns` wide, at rest. */
+export function friendSlotOf(columns: number, rank: number, count: number): number {
+  const labelRoom = count > MAX_FRIENDS ? LABEL_ROOM : 0
+  return columns - EDGE_GAP - labelRoom - FRIEND_WIDTH - rank * (FRIEND_WIDTH + FRIEND_GAP)
+}
+
+/** Turns raw rows into a robot frame: `x` pad, orange body, the text inside each [...] in xterm colour `accent`. */
+export function robotAt(rows: readonly string[], x: number, accent: number): Frame {
+  const orange = `\x1b[38;5;${ORANGE_INDEX}m`
+  return rows.map(row => {
+    const lit = `${' '.repeat(Math.max(0, x))}${row}`.replace(/\[([^\]]*)\]/g, (_, inner: string) => `[\x1b[38;5;${accent}m${inner}${orange}]`)
+    return spansOf(`${orange}${lit}\x1b[39m`)
+  })
+}
 
 /**
  * Cells at the right edge of a band `columns` wide that the friends of `count` subagents keep for themselves: the robot
@@ -437,7 +475,7 @@ export function friendsZone(count: number): number {
  * overwritten: slot 0 rolls in from the edge and off it, the others show once they clear their right neighbour. The
  * robot walks left of friendsZone, so they do not meet. No friends, no change.
  */
-export function withFriends(frame: Frame, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood): Frame {
+export function withFriends(frame: Frame, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, scene?: FriendScene): Frame {
   if (friends.length === 0 || frame.length < 4) return frame
   // A wide char takes two cells: the char, then an empty continuation cell, so a cell index is a screen column.
   const rows = frame.map(row => row.flatMap(span => [...span.text].flatMap(char => (cellsOf(char) === 2 ? [{ char, color: span.color }, { char: '', color: span.color }] : [{ char, color: span.color }]))))
@@ -452,23 +490,21 @@ export function withFriends(frame: Frame, columns: number, friends: readonly Fri
     })
   }
   const label = `+${count - MAX_FRIENDS}`
-  const labelRoom = count > MAX_FRIENDS ? LABEL_ROOM : 0
-  const slotOf = (index: number): number => columns - EDGE_GAP - labelRoom - FRIEND_WIDTH - index * (FRIEND_WIDTH + FRIEND_GAP)
 
   let firstAt: number | undefined
   friends.forEach((friend, index) => {
     // A friend on its way in or out does not shuffle.
     const isWaiting = friend.lag === 0 && !friend.leaving
-    const shuffle = isWaiting ? shuffleOf(tick) : 0
-    const isShuffling = isWaiting && shuffle !== shuffleOf(tick - 1)
+    const play = isWaiting ? scene : undefined
+    const shuffle = isWaiting && !play ? shuffleOf(tick) : 0
+    const isShuffling = isWaiting && !play && shuffle !== shuffleOf(tick - 1)
     const rank = friends.slice(0, index).filter(other => !other.leaving).length
-    const start = slotOf(rank) + shuffle + friend.lag
-    const parts = friendParts(friend, tick, mood, isShuffling)
-    const used = parts.map(part => feet - part.up)
-    const isDrawn = used.every(row => row >= 0) && isFree(start, FRIEND_WIDTH, used)
+    const start = friendSlotOf(columns, rank, count) + shuffle + friend.lag - (play?.drift ?? 0)
+    const parts = friendParts(friend, tick, mood, isShuffling, play)
+    const isDrawn = parts.every(part => feet - part.up >= 0 && isFree(start + (part.dx ?? 0), part.text.length, [feet - part.up]))
     if (index === 0 && isDrawn) firstAt = start
     if (!isDrawn) return
-    for (const part of parts) put(feet - part.up, start, part.text, part.color)
+    for (const part of parts) put(feet - part.up, start + (part.dx ?? 0), part.text, part.color)
   })
 
   // The label sways with the friend beside it, so the gap stays the same.

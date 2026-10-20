@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
-import type { Frame, FriendMood, Span } from './frames'
+import type { Frame, FriendMood, FriendScene, Span } from './frames'
 import type { Friend } from './friends'
-import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, chilled, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, clipped, typedSoFar, withFriends, friendsZone, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
+import { FRAME_SEPARATOR, CELL_WIDTH, celebrating, cellsOf, framesOf, hexOf, chilled, heated, spansOf, factory, unitOf, FACTORY_CYCLE, speech, svgOf, clipped, typedSoFar, withFriends, friendsZone, friendSlotOf, isFriendsAtRest, robotAt, COMMAND_COLOR, DEFAULT_COLOR } from './frames'
 
 test('a row splits into coloured spans without escape codes', () => {
   const row = '\x1b[38;5;208m  [\x1b[38;5;213m^   ^\x1b[38;5;208m]\x1b[39m\x1b[K'
@@ -593,4 +593,103 @@ test('a row wider than the band is cut at its edge, by cells', () => {
   expect(cellsOf(out[0]!.map(span => span.text).join(''))).toBe(6)
   // A 2-cell char that would cross the edge is dropped whole.
   expect(clipped([[{ text: 'ab🔥', color: '' }]], 3)[0]!.map(span => span.text).join('')).toBe('ab')
+})
+
+const sceneRoll = (frame: Frame, friends: Friend[], tick: number, scene: FriendScene, mood: FriendMood = 'normal', count = friends.length, columns = 60) =>
+  rowsOf(withFriends(frame, columns, friends, count, tick, mood, scene))
+const PLAIN: FriendScene = { drift: 0, eyes: 'normal', rolling: false }
+
+test('friendSlotOf gives the slots the friends wait in, and keeps room for the label', () => {
+  expect(friendSlotOf(60, 0, 2)).toBe(60 - 1 - 6)
+  expect(friendSlotOf(60, 1, 2)).toBe(60 - 1 - 6 - 9)
+  expect(friendSlotOf(60, 0, 5)).toBe(60 - 1 - 6 - 6)
+})
+
+test('isFriendsAtRest is true while the friends stand still and false on a shuffle step', () => {
+  expect(isFriendsAtRest(0)).toBe(true)
+  expect(isFriendsAtRest(8)).toBe(false)
+})
+
+test('a scene with drift puts every waiting friend that many cells left of its slot, with no shuffle', () => {
+  const friends = [still(1), still(2)]
+  for (let tick = 0; tick < 30; tick++) {
+    const row = sceneRoll(standing(0), friends, tick, { ...PLAIN, drift: 5 })[3] ?? ''
+
+    expect(treadsOf(row)).toEqual([60 - 1 - 6 - 9 - 5, 60 - 1 - 6 - 5])
+  }
+})
+
+test('the label moves with drifting friends', () => {
+  const three = [still(1), still(2), still(3)]
+  const row = sceneRoll(standing(0), three, CALM, { ...PLAIN, drift: 4 }, 'normal', 7, 100)[3] ?? ''
+
+  expect(row.indexOf('+4')).toBe(Math.max(...treadsOf(row)) + 6 + 2)
+  expect(Math.max(...treadsOf(row))).toBe(friendSlotOf(100, 0, 7) - 4)
+})
+
+test('a scene gives the friends its eyes, and happy eyes exist', () => {
+  expect(sceneRoll(standing(0), [still(1)], 0, { ...PLAIN, eyes: 'happy' })[1]).toContain('(^)(^)')
+  expect(sceneRoll(standing(0), [still(1)], 0, { ...PLAIN, eyes: 'wide' })[1]).toContain('(O)(O)')
+  expect(sceneRoll(standing(0), [still(1)], 1, { ...PLAIN, eyes: 'curious' })[1]).toContain('(O)(o)')
+})
+
+test('rolling friends alternate their treads, and still ones keep them', () => {
+  const rolling = [0, 1, 2, 3].map(tick => sceneRoll(standing(0), [still(1)], tick, { ...PLAIN, rolling: true })[3]?.trim().slice(-6))
+  const idle = [0, 1, 2, 3].map(tick => sceneRoll(standing(0), [still(1)], tick, PLAIN)[3]?.trim().slice(-6))
+
+  expect(rolling).toEqual(['(oooo)', '(OOOO)', '(oooo)', '(OOOO)'])
+  expect(new Set(idle)).toEqual(new Set(['(oooo)']))
+})
+
+test('a raised arm draws o two cells left of the friend on the top row and a backslash one left on the eyes row', () => {
+  // Friend 2 is the second in line, so it stands at the left slot.
+  const rows = sceneRoll(standing(0), [still(1), still(2)], 1, { ...PLAIN, armUp: 2 })
+  const start = 60 - 1 - 6 - 9
+
+  expect(rows[0]?.[start - 2]).toBe('o')
+  expect(rows[1]?.[start - 1]).toBe('\\')
+  expect(rows[2]?.slice(start, start + 6)).toBe(' [##]=')
+  // The friend beside it keeps its arms down.
+  expect(rows[2]?.slice(start + 9, start + 15)).toBe('=[##]=')
+  expect(rows[0]?.[start + 9 - 2]).not.toBe('o')
+})
+
+test('a friend hops in a scene cheer, wearing the scene eyes, and the raised arm waits for the next tick', () => {
+  const scene: FriendScene = { ...PLAIN, eyes: 'happy', armUp: 1 }
+  const hop = sceneRoll(standing(0), [still(1)], 2, scene, 'cheer')
+  const flat = sceneRoll(standing(0), [still(1)], 3, scene, 'cheer')
+
+  expect(hop[0]).toContain('(^)(^)')
+  expect(hop[0]).not.toContain('o   ')
+  expect(flat[1]).toContain('\\(^)(^)')
+})
+
+test('an arm is not drawn over taken cells, and never off the left edge', () => {
+  const scene: FriendScene = { ...PLAIN, armUp: 1 }
+  const slot = 60 - 1 - 6
+
+  expect(treadsOf(sceneRoll(standing(slot - 3), [still(1)], 1, scene)[3] ?? '')).toEqual([])
+  const narrow = sceneRoll(['', '', '', ''].map(text => [{ text, color: DEFAULT_COLOR }]), [still(1)], 1, scene, 'normal', 1, 7)
+  expect(narrow.map(row => row.trim())).toEqual(['', '', '', ''])
+  // The arm would start at cell -1: the friend is not drawn. One cell further right it fits.
+  const blank = ['', '', '', ''].map(text => [{ text, color: DEFAULT_COLOR }])
+  expect(sceneRoll(blank, [still(1)], 1, scene, 'normal', 1, 8).join('')).toBe('')
+  expect(sceneRoll(blank, [still(1)], 1, scene, 'normal', 1, 9)[3]).toContain('(oooo)')
+})
+
+test('a scene leaves friends rolling in or out as they are', () => {
+  const friends = [still(1), { id: 2, lag: 3, leaving: false }, { id: 3, lag: 0, leaving: true }]
+  const scene: FriendScene = { drift: 6, eyes: 'happy', rolling: true, armUp: 2 }
+
+  expect(sceneRoll(standing(0), [still(1, 2)], 5, scene)).toEqual(roll(standing(0), [still(1, 2)], 5))
+  expect(sceneRoll(standing(0), [{ id: 3, lag: 0, leaving: true }], 5, scene)).toEqual(roll(standing(0), [{ id: 3, lag: 0, leaving: true }], 5))
+  expect(friends.length).toBe(3)
+})
+
+test('robotAt pads, keeps the body orange and puts the text inside the brackets in the accent', () => {
+  expect(robotAt(['  [o   o]'], 3, 196)[0]).toEqual([
+    { text: '     [', color: hexOf(208) },
+    { text: 'o   o', color: hexOf(196) },
+    { text: ']', color: hexOf(208) },
+  ])
 })
