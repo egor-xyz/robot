@@ -380,7 +380,7 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
       return { raw: idle(p <= 1 ? base : p <= 3 ? base + p - 1 : base + 3), pad: s.pos }
     }
     case 'concert': return { raw: idle(70 + (t % 4)), pad: s.pos }
-    case 'ufo': return ufoOf(s)
+    case 'ufo': return ufoOf(s, random)
     case 'stretch': return { raw: idle(91 + (t % 6)), pad: s.pos }
     case 'glitch': return { raw: idle(97 + (t % 12)), pad: s.pos }
     case 'spin': return { raw: idle(109 + (t % 12)), pad: s.pos }
@@ -433,19 +433,20 @@ function lay(...pieces: Piece[]): string {
 }
 
 /**
- * UFO, a little movie on the robot's left: a cow walks into the woods (behind
- * the trees) to a gap, the 🛸 races in (2 cells a tick to the cow's 1 per 2
- * ticks), beams it up and zooms off while the robot panics. Every row is in
+ * UFO, a little movie on the robot's left: a cow walks deep into the woods
+ * (behind the trees) to a random gap, the 🛸 races in (2 cells a tick to the
+ * cow's 1), beams it up and zooms off while the robot panics. Every row is in
  * absolute columns.
  */
-function ufoOf(s: RobotState): { raw: string; pad: number } {
+function ufoOf(s: RobotState, random: () => number): { raw: string; pad: number } {
+  if (s.t === 0) s.value = random()
   const { t, pos } = s
   // A tree every 7 cols up to the cow's start; the cow is taken in the gap
-  // left by tree `gap`, one tree short of the robot.
+  // left by a random tree `gap`, at least two trees short of the robot.
   const count = Math.floor(pos / 7) + 1
-  const gap = count >= 3 ? count - 2 : -1
+  const gap = count >= 3 ? (s.value ?? 0) % (count - 2) : -1
   const meet = gap >= 0 ? 3 + 7 * gap : Math.max(2, pos - 4)
-  const arrive = Math.max(2 * (pos + 6 - meet), Math.ceil(meet / 2))
+  const arrive = Math.max(pos + 6 - meet, Math.ceil(meet / 2))
   const ut = t - arrive
   const beat = ut < 0 ? -1 : Math.trunc(ut / 2)
   const head = pos + 9
@@ -459,7 +460,7 @@ function ufoOf(s: RobotState): { raw: string; pad: number } {
   }
   const top = (...p: Piece[]) => lay(...p, [head, '.-----.', 7])
   const eyes = (e: string) => lay([head, `[${e}   ${e}]`, 7])
-  const body = (...p: Piece[]) => lay(...tops, ...p, [head, '/|━━━|\\', 7])
+  const body = (...p: Piece[]) => lay(...[...tops, ...p].sort((x, y) => x[0] - y[0]), [head, '/|━━━|\\', 7])
   // The cow hides behind a tree it walks past.
   const feet = (cow = -9) => {
     const hid = trunks.some(([c]) => Math.abs(c - cow) <= 1)
@@ -471,7 +472,7 @@ function ufoOf(s: RobotState): { raw: string; pad: number } {
   const ship: Piece = [meet, '🛸', 2]
   if (ut < 0) {
     const ufo = meet - 2 * (arrive - t)
-    return rows(ufo < 0 ? top() : top([ufo, '🛸', 2]), eyes('o'), body(), feet(Math.max(meet, pos + 6 - Math.trunc(t / 2))))
+    return rows(ufo < 0 ? top() : top([ufo, '🛸', 2]), eyes('o'), body(), feet(Math.max(meet, pos + 6 - t)))
   }
   if (beat === 0) return rows(top(ship), eyes('O'), body(), feet(meet))
   if (beat === 1) return rows(top(ship), lay([meet - 1, '/  \\', 4], [head, '[O   O]', 7]), body([meet - 2, '/    \\', 6]), feet(meet))

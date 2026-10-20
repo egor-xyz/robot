@@ -2,7 +2,8 @@
 # crazy-robot — render one frame of the animated robot mascot.
 # Usage:   crazy-robot <track_width>
 # Reads/writes shared state vars (caller must declare local before loop):
-#   _robot_state, _robot_t, _robot_dur, _robot_pos, _robot_dir
+#   _robot_state, _robot_t, _robot_dur, _robot_pos, _robot_dir, _robot_mirror,
+#   _robot_val (the ufo scene's random gap)
 # Prints robot lines to stdout in orange ANSI; no trailing color reset issues.
 
 emulate -L zsh
@@ -487,24 +488,25 @@ case $_robot_state in
     raw=${idle_frames[$(( 70 + _robot_t % 4 ))]}
     ;;
   ufo)
-    # Left-only movie: a 🐄 walks into the woods (hiding behind the trees it
-    # passes) to a gap, the 🛸 races in from the left edge (2 cols/tick to the
-    # cow's 1 per 2 ticks), beams the cow up, sparkles, zooms off left (3 cols/tick) while
+    # Left-only movie: a 🐄 walks deep into the woods (hiding behind the trees
+    # it passes) to a random gap, the 🛸 races in from the left edge (2 cols/tick
+    # to the cow's 1), beams the cow up, sparkles, zooms off left (3 cols/tick) while
     # the robot panics, then a shocked hold for 3 ticks. Every row is in
     # absolute columns.
     # _wt_row col cells text ... → REPLY: one row from pieces sorted by column.
     _wt_row() { local _x=0 _i; REPLY=""; while (( $# >= 3 )); do for ((_i=_x; _i<$1; _i++)); do REPLY+=" "; done; REPLY+=$3; _x=$(( $1 + $2 )); shift 3; done; }
     # A tree every 7 cols up to the cow's start; the cow is taken in the gap
-    # left by tree _ug, one tree short of the robot.
+    # left by a random tree _ug, at least two trees short of the robot.
+    (( _robot_t == 0 )) && _robot_val=$RANDOM
     local _un=$(( _robot_pos / 7 + 1 )) _ug=-1 _um
-    (( _un >= 3 )) && _ug=$(( _un - 2 ))
+    (( _un >= 3 )) && _ug=$(( _robot_val % (_un - 2) ))
     if (( _ug >= 0 )); then
       _um=$(( 3 + 7 * _ug ))
     else
       _um=$(( _robot_pos - 4 ))
       (( _um < 2 )) && _um=2
     fi
-    local _ua=$(( 2 * (_robot_pos + 6 - _um) )) _ufly=$(( (_um + 1) / 2 ))
+    local _ua=$(( _robot_pos + 6 - _um )) _ufly=$(( (_um + 1) / 2 ))
     (( _ua < _ufly )) && _ua=$_ufly
     local _ut=$(( _robot_t - _ua )) _ub _uh=$(( _robot_pos + 9 ))
     local -a _tops _trunks
@@ -523,7 +525,7 @@ case $_robot_state in
       # Approach: cow walks left to the clearing, 🛸 flies in fast.
       _uabs=$(( _um - 2 * (_ua - _robot_t) ))
       (( _uabs >= 0 )) && _p1=($_uabs 2 🛸)
-      local _cabs=$(( _robot_pos + 6 - _robot_t / 2 ))
+      local _cabs=$(( _robot_pos + 6 - _robot_t ))
       (( _cabs < _um )) && _cabs=$_um
       _ucow=$_cabs
       _eyes='[o   o]'
@@ -557,7 +559,15 @@ case $_robot_state in
       _wt_row "${_tops[@]}" $(( _robot_pos + 10 )) 5 '|━━━|'; _r3=$REPLY
     else
       _wt_row "${_p1[@]}" $_uh 7 '.-----.'; _r1=$REPLY
-      _wt_row "${_tops[@]}" "${_p3[@]}" $_uh 7 '/|━━━|\'; _r3=$REPLY
+      # The beam slots in among the treetops, sorted by column.
+      local -a _row3=()
+      local _bin=$(( ! $#_p3 ))
+      for (( _i = 1; _i <= $#_tops; _i += 3 )); do
+        if (( !_bin && _tops[_i] > _p3[1] )); then _row3+=("${_p3[@]}"); _bin=1; fi
+        _row3+=("${(@)_tops[_i,_i+2]}")
+      done
+      (( _bin )) || _row3+=("${_p3[@]}")
+      _wt_row "${_row3[@]}" $_uh 7 '/|━━━|\'; _r3=$REPLY
     fi
     _wt_row "${_p2[@]}" $_uh 7 "$_eyes"; _r2=$REPLY
     # The cow hides behind a tree it walks past.

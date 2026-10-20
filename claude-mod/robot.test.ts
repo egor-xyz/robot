@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { CALM_STATES } from './calm'
 import { FRAME_SEPARATOR, cellsOf, framesOf } from './frames'
 import type { Frame } from './frames'
-import { CASES, POS, TRACK } from './parity.fixture'
+import { CASES, FOREST, FOREST_POS, FOREST_TRACK, POS, TRACK } from './parity.fixture'
 import { INITIAL, STATES, filmOf, step } from './robot'
 import type { RobotState } from './robot'
 
@@ -61,6 +61,17 @@ test('every state draws what the real zsh draws', () => {
     const { frame } = step(from, TRACK, replay)
 
     expect({ state, t, mirror, frame }).toEqual({ state, t, mirror, frame: framesOf(`${out}${FRAME_SEPARATOR}`)[0] })
+  }
+})
+
+test('the ufo cow walks deep into the forest like the real zsh', () => {
+  expect(FOREST.length).toBe(3 * 79)
+
+  for (const { t, value, out } of FOREST) {
+    const from: RobotState = { state: 'ufo', t, dur: 999, pos: FOREST_POS, dir: 1, mirror: 0, value }
+    const { frame } = step(from, FOREST_TRACK, () => 0)
+
+    expect({ t, value, frame }).toEqual({ t, value, frame: framesOf(`${out}${FRAME_SEPARATOR}`)[0] })
   }
 })
 
