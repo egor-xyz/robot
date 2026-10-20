@@ -376,14 +376,14 @@ footer nav { display: flex; gap: 20px; }
   │ ↑ ↑ ↑ │
   └───────┘</pre>
         <h3>Compacting?</h3>
-        <p>Robots and WALL-Es ride a factory line into boxes until it ends.</p>
+        <p>Robots and WALL-Es ride a factory line into boxes, under the spinner's "Compacting" text, until it ends.</p>
       </article></div>
       <div class="reveal"><article class="card panel tilt" style="--c:var(--ufo)">
         <pre class="art">(o)(o)    <span style="color:var(--walk)">.-----.</span>
 =[##]=    <span style="color:var(--walk)">[o   o]</span>
 (oooo)    <span style="color:var(--walk)">/|───|\</span></pre>
         <h3>Subagents running?</h3>
-        <p>A WALL-E friend rolls in for each agent. Past three, a <code>+N</code>.</p>
+        <p>A WALL-E friend rolls in for each agent. Past three, a <code>+N</code>. Open an agent's transcript and the robot steps aside.</p>
       </article></div>
       <div class="reveal"><article class="card panel tilt" style="--c:var(--goal)">
         <pre class="art">  git commit  ✓
@@ -403,7 +403,7 @@ footer nav { display: flex; gap: 20px; }
  /  \      <span style="color:var(--walk)">[O   O]</span>
   <i class="em">🐄</i>       <span style="color:var(--walk)">/|───|\</span></pre>
         <h3>Nothing going on?</h3>
-        <p>It plays: 25+ hand-drawn acts, like a UFO taking a cow.</p>
+        <p>It plays: 25+ hand-drawn acts, like a UFO taking a cow from a random gap in the woods, or a caped hero zapping targets with eye lasers.</p>
       </article></div>
     </div>
   </div>
@@ -654,6 +654,9 @@ footer nav { display: flex; gap: 20px; }
         <div class="fact panel reveal" style="--c:var(--ufo)"><h3>They roll in</h3><p>When an agent starts. Their wheels pulse.</p></div>
         <div class="fact panel reveal" style="--c:var(--smile)"><h3>They are alive</h3><p>They blink, look around and stretch up.</p></div>
         <div class="fact panel reveal" style="--c:var(--fire)"><h3>They panic too</h3><p>Context on fire? Their eyes go wide.</p></div>
+        <div class="fact panel reveal" style="--c:var(--goal)"><h3>They wait at the right edge</h3><p>They roll in from the right and wait in fixed slots. Now and then they all shuffle a cell together.</p></div>
+        <div class="fact panel reveal" style="--c:var(--concert)"><h3>A high five</h3><p>Now and then the robot walks over to the nearest friend. Both raise a hand, slap with a spark, and all the friends hop.</p></div>
+        <div class="fact panel reveal" style="--c:var(--moon)"><h3>An excavator</h3><p>Rarely, the friends creep toward the robot. It frowns, turns into an excavator part by part, pushes them home and pops back up.</p></div>
         <div class="fact panel reveal" style="--c:var(--wave)"><h3>Three at most</h3><p>More agents? A +1, +2… shows them.</p></div>
       </div>
     </div>
@@ -678,6 +681,7 @@ footer nav { display: flex; gap: 20px; }
       <div class="fact panel reveal" style="--c:var(--fire)"><h3>Grey until it matters</h3><p>Limits turn <span style="color:#ffd700">yellow</span> at 50% and <span style="color:#ff5f5f">red</span> at 80%. Cost turns <span style="color:#ffd700">yellow</span> above $100. ctx turns <span style="color:#ff5f5f">red</span> at the "Fire at" setting (default 25%). The exact shades come from your Claude Code theme: dark, light, color-blind or your terminal's own colors.</p></div>
       <div class="fact panel reveal" style="--c:var(--ufo)"><h3>The branch shimmers</h3><p>When the branch changes, or after a git commit or push, a bright band sweeps across the branch name for 3 seconds: <span style="color:#4782c8">fe</span><span style="color:#af87ff">a</span><span style="color:#ff87ff">t</span><span style="color:#ff8700">/</span><span style="color:#ffd700">l</span><span style="color:#ff8700">o</span><span style="color:#ff87ff">g</span><span style="color:#af87ff">i</span><span style="color:#4782c8">n</span>.</p></div>
       <div class="fact panel reveal" style="--c:var(--goal)"><h3>A line per subagent</h3><p>Each running subagent gets a <code>↳</code> line: task, type, model and effort, tokens and time. Up to 3 show, then <code>+N more</code>. After a plugin reload, running agents get their lines back.</p></div>
+      <div class="fact panel reveal" style="--c:var(--walk)"><h3>Follows the agent in view</h3><p>Open a subagent from the tasks list and the status line shows that agent's model, effort, tokens and time in place of the session's.</p></div>
     </div>
   </div>
 </section>

@@ -21,7 +21,7 @@
 
 A [Claude Code](https://claude.com/claude-code) mod with an ASCII robot mascot.
 It walks the full width of the band above your prompt, blinks, waves, naps under
-the moon, shoots hoops, goes fishing, plants a garden and gets abducted by a UFO.
+the moon, shoots hoops, goes fishing, plants a garden, puts on a cape to zap targets with eye lasers and gets abducted by a UFO.
 
 It also follows what Claude Code does:
 
@@ -72,15 +72,17 @@ Works on macOS, Linux and Windows — nothing else to install.
 ## ✨ What it does
 
 - 🤖 **25+ hand-drawn animations.** Walk, dance, jump, sleep, campfire, garden, concert, photoshoot…
+- 🦸 **A caped hero.** Now and then it powers up with an S on the chest, puts on a cape, flies and zaps three targets with slow eye lasers.
+- 🛸 **A UFO movie.** A 🐄 walks deep into the woods, hides behind the trees and stops in a random gap. The 🛸 glides in, beams it up and zooms off while the robot panics.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
-- 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something. `/robot calm` slows it down and keeps only its quiet acts.
+- 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something, and while a subagent's transcript is in view. `/robot calm` slows it down and keeps only its quiet acts.
 - 🎲 **Plays on command.** `/robot play` pulls the slot machine, `/robot dice` turns it into a die, `/robot coin` flips a coin. The reply tells you the result.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 🧊 **Freezes when the cache goes cold.** After a break, ice cubes gather around it and the status line says `❄ cache cold` — [see below](#-cache-cold).
-- 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt — [see below](#-compacting).
+- 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt, under the spinner's "Compacting" text — [see below](#-compacting).
 - 🚀 **Cheers your git.** A ✅ on every commit and a 🚀 on every push.
-- 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit. Past three, a `+1`, `+2`… shows how many more run.
+- 👯 **Brings friends.** Each running subagent is a small WALL-E robot that rolls in behind it, looks around, and rolls away when the agent ends. They hop when the robot cheers a commit, and now and then they high-five it or creep up and get dug back. Past three, a `+1`, `+2`… shows how many more run.
 - 📊 **Custom status line.** Under the prompt: account, model, effort, branch, usage limits, cost and context — [see below](#-status-line).
 - 📂 **Changed files and your PR.** One line counts the files you changed. Click it for a panel with each file and its diff; with a PR open, the files come in two groups, and the title links to the PR — [see below](#-status-line).
 - 🙋 **Needs you.** When Claude ends its turn with a question, the robot dances and says _"need a human"_ in a comic bubble.
@@ -185,7 +187,7 @@ auto-compact — the band turns into a factory line. No text, just the belt:
                      └───────┘====>=====>=====>=====>=====>===
 ```
 
-- 🤖 **One at a time, in the middle.** A unit walks up to the station in the middle of the band. A robot and a WALL-E take turns; who goes first is random.
+- 🤖 **One at a time, at the left.** A unit walks in from the left edge to the station, under the spinner's "Compacting" text. A robot and a WALL-E take turns; who goes first is random.
 - 📦 **A new box drops in**, and the unit packs itself part by part: legs or treads first, then the body, then the head or eyes. The lid closes and the box shakes.
 - ➡️ **The closed box hops onto a short belt** and rides to its end, where it drops out of sight. The belt shows only while a box is on it. Only then the next unit walks in — a loop for as long as the compaction runs.
 - When the compaction ends, the robot goes back to what it did before.
@@ -194,7 +196,7 @@ auto-compact — the band turns into a factory line. No text, just the belt:
 
 ## 👯 Subagent friends
 
-When Claude runs subagents, each one is a small WALL-E robot at the robot's back:
+When Claude runs subagents, each one is a small WALL-E robot at the right edge of the band:
 
 ```text
                            .-----.
@@ -203,7 +205,7 @@ When Claude runs subagents, each one is a small WALL-E robot at the robot's back
 +2 (oooo) (oooo) (oooo)     o   o
 ```
 
-- 🛞 **They roll in** from the edge when an agent starts. Their wheels pulse, the same as the robot's.
+- 🛞 **They roll in** from the right edge when an agent starts and wait there in fixed slots. Their wheels pulse, the same as the robot's. Now and then they all step one cell left or right together.
 - 👀 **They are alive.** They blink, look around and stretch their necks up now and then.
 - 🎉 **They hop** when the robot cheers a git commit or push.
 - 🙌 **A high five.** Now and then, with the friends settled, the robot walks over to the nearest one. Both raise a hand, slap with a spark, and all the friends hop. Then the robot walks away.
@@ -212,8 +214,8 @@ When Claude runs subagents, each one is a small WALL-E robot at the robot's back
 - ➕ **Three at most.** With more agents, a `+1`, `+2`… shows how many more run.
 - 👋 **They roll away** when their agent ends.
 
-They always stand on the side away from what the robot does, so they never block the fishing rod or the
-balloon. They sit out the cat act.
+The robot walks left of their zone, so they never block the fishing rod or the
+balloon. They sit out the cat act. In calm mode there are no visits.
 
 Under the status line, each running subagent also gets its own line: its task, type, model and effort,
 tokens and time. Up to 3 lines show, then `+N more`. They go away when the agents end.
@@ -268,13 +270,15 @@ The number links to the PR on GitHub. A part shows only when it applies. With no
 | `💬 4` | unresolved review threads | 🟡 yellow |
 | `auto merge` | auto-merge is on: GitHub merges the PR when it can | 🟢 green |
 
+A check from a run that a newer run cancelled is not counted as failed.
+
 A new problem pops up once as a toast, for about 8 seconds: a new conflict, a newly failed check, more unresolved threads, or auto-merge turned off (by GitHub or by you). For example `PR #7: failing: lint`. It does not fire when you reload. The **PR and files line** setting turns the line and the toast off.
 
 The line needs `gh`, signed in. It looks for the PR at once after `git push`, `gh pr …` or a branch switch. Then it looks every 15 seconds while checks run or in the minute after a push, and every 2 minutes when things are calm. A branch with no PR is checked every 5 minutes. It never looks on the default branch or a detached HEAD.
 
 **The branch shimmers.** When the branch changes, or after a git commit or push, a bright band sweeps across the branch name for 3 seconds: blue → purple → pink → orange → yellow.
 
-**Subagents get their own lines.** Each running subagent gets one line under the status line and the PR and files line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`. Agents that already run when you reload plugins or update get their lines back within a second. Tokens spent before the reload are not counted, and the model shows from the agent's definition file until its next request. Open an agent from the tasks list and the status line shows that agent's model, effort, tokens and time instead of the session's model, cost and ctx; the agent lines show only that agent. Click `+N more`, or run `/robot agents`, and a panel lists every running subagent.
+**Subagents get their own lines.** Each running subagent gets one line under the status line and the PR and files line: its task, type, model and effort, tokens and time. Up to 3 lines show, then `+N more`. Agents that already run when you reload plugins or update get their lines back within a second. Tokens spent before the reload are not counted, and the model shows from the agent's definition file until its next request. Open an agent from the tasks list and the status line shows that agent's model, effort, tokens and time instead of the session's model, cost and ctx; the agent lines hide, and the robot steps aside while the transcript is in view. Click `+N more`, or run `/robot agents`, and a panel lists every running subagent.
 
 ```text
 Acme Team | Opus 5.5 [high] | my-app | feat/login | 7d 25% (2d) | 5h 15% (4h) | $21.97 | ctx 12%
