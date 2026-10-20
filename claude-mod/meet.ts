@@ -49,15 +49,18 @@ export function isMeetOn(meet: Meet, at: number, columns: number, friends: reado
   return at - meet.from < durOf(meet) && columns === meet.columns && count === meet.count && areSettled(friends) && friends.at(-1)?.id === meet.friendId
 }
 
+// The visit's own tick at `at`, held inside its first and last tick.
+const tOf = (meet: Meet, at: number): number => Math.min(Math.max(at - meet.from, 0), durOf(meet) - 1)
+
 /** The robot's first cell at tick `at` of the visit; before the start it is `x`, after the end the last spot. */
 export function meetXOf(meet: Meet, at: number): number {
-  const t = Math.min(Math.max(at - meet.from, 0), durOf(meet) - 1)
+  const t = tOf(meet, at)
   return meet.kind === 'five' ? fiveXOf(meet.x, meet.left, t) : digXOf(meet.x, meet.left, meet.drift, t)
 }
 
 /** One frame of the visit at tick `at`, robot and friends. */
 export function meetFrameOf(meet: Meet, at: number, friends: readonly Friend[]): Frame {
-  const t = Math.min(Math.max(at - meet.from, 0), durOf(meet) - 1)
+  const t = tOf(meet, at)
   return meet.kind === 'five'
     ? fiveFrameOf(meet.x, meet.left, t, meet.columns, friends, meet.count, meet.friendId, at)
     : digFrameOf(meet.x, meet.left, meet.drift, t, meet.columns, friends, meet.count, at)

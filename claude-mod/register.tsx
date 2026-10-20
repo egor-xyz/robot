@@ -2,7 +2,7 @@ import type { EngineInterface, Register, RenderSurface } from 'claude-code'
 
 import { CELL_WIDTH, COMMAND_COLOR, DEFAULT_COLOR, ROW_HEIGHT, celebrating, chilled, clipped, heated, factory, friendsZone, speech, svgOf, typedSoFar, withFriends } from './frames'
 import type { Frame, Span } from './frames'
-import { stepFriends } from './friends'
+import { MAX_FRIENDS, stepFriends } from './friends'
 import type { Friend } from './friends'
 import { MEET_WALK_AWAY, areSettled, isMeetOn, meetFrameOf, meetOf, meetXOf } from './meet'
 import type { Meet } from './meet'
@@ -1214,6 +1214,8 @@ export const register: Register = (on, options) => {
     const isMeetFree = isFriendsOn && !isCalm && !isCompacting && !isNeeded && !isCelebrating && !isHot && !isCold && !isActAsked && !isInAct(shown.state)
     if (meet && (!isMeetFree || !isMeetOn(meet, at, columns, friends, subagents))) {
       shown.state = { ...shown.state, state: 'walk', t: 0, dur: MEET_WALK_AWAY, pos: meetXOf(meet, at), dir: -1 }
+      // The old frame is at the meet's start spot: drop it so the next draw steps afresh from the hand-off spot.
+      shown.frame = undefined
       meet = undefined
       meetSince = at
     }
@@ -1250,7 +1252,8 @@ export const register: Register = (on, options) => {
       }
       shown.at = at
       // Now and then, between stories, the robot and the friends meet. Once per tick, never per render.
-      if (isMeetFree && shown.state.state === 'walk') meet = meetOf(at, meetSince, shown.state.pos, shown.state.dir, columns, friends, subagents, randomInt)
+      // Only once the friends list matches the subagent count: this tick's stepFriends runs after.
+      if (isMeetFree && shown.state.state === 'walk' && friends.length === Math.min(subagents, MAX_FRIENDS)) meet = meetOf(at, meetSince, shown.state.pos, shown.state.dir, columns, friends, subagents, randomInt)
     }
     // The friends roll one cell per new tick, whatever the robot does.
     if (at !== friendsAt) {

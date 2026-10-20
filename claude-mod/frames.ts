@@ -473,7 +473,8 @@ export function friendsZone(count: number): number {
  * frees and the slots never pass MAX_FRIENDS. A friend sits at its slot plus its `lag` cells further right and is drawn
  * only when it fits whole inside `columns` on empty cells, so speech, arms and the friend beside it are never
  * overwritten: slot 0 rolls in from the edge and off it, the others show once they clear their right neighbour. The
- * robot walks left of friendsZone, so they do not meet. No friends, no change.
+ * robot walks left of friendsZone, so they do not meet, except in a timed `scene` (a visit): it sets the drift, eyes, rolling and
+ * raised hand of the friends that wait. No friends, no change.
  */
 export function withFriends(frame: Frame, columns: number, friends: readonly Friend[], count: number, tick: number, mood: FriendMood, scene?: FriendScene): Frame {
   if (friends.length === 0 || frame.length < 4) return frame
