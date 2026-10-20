@@ -33,7 +33,7 @@ test('no meet before the gap, with unsettled friends, off rest, or when nothing 
   expect(meetOf(REST_AT, SINCE, 5, 1, COLUMNS, [{ id: 0, lag: 0, leaving: true }], 1, rolls(WIN, FIVE))).toBeUndefined()
   expect(meetOf(MOVING_AT, SINCE, 5, 1, COLUMNS, FRIENDS, COUNT, rolls(WIN, FIVE))).toBeUndefined()
   expect(meetOf(REST_AT, SINCE, 25, 1, COLUMNS, FRIENDS, COUNT, rolls(WIN, FIVE))).toBeUndefined()
-  expect(meetOf(REST_AT, SINCE, 0, 1, 100, FRIENDS, COUNT, rolls(WIN, FIVE))).toBeUndefined()
+  expect(meetOf(REST_AT, SINCE, 0, 1, 400, FRIENDS, COUNT, rolls(WIN, FIVE))).toBeUndefined()
 })
 
 test('only a draw of 0 in MEET_ODDS starts a meet', () => {

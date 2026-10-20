@@ -8,7 +8,7 @@ import type { Friend } from './friends'
 const textOf = (frame: Frame): string[] => frame.map(row => row.map(span => span.text).join(''))
 const friendsOf = (count: number): Friend[] => Array.from({ length: count }, (_, id) => ({ id, lag: 0, leaving: false }))
 
-// x = 2, three friends in 60 columns: left = 60 + 2 - 27 = 35, room = 35 - 2 - 15 = 18, drift 8, drive 10.
+// x = 2, three friends in 60 columns: left = 60 + 2 - 27 = 35, room = 35 - 2 - 15 = 18, drift 18 (all the room), drive 0.
 const COLUMNS = 60
 const COUNT = 3
 const X = 2
@@ -18,8 +18,8 @@ const DUR = digDurOf(X, LEFT, DRIFT)
 const FRIENDS = friendsOf(COUNT)
 const frameAt = (t: number): string[] => textOf(digFrameOf(X, LEFT, DRIFT, t, COLUMNS, FRIENDS, COUNT, t))
 const ticks = Array.from({ length: DUR }, (_, t) => t)
-// The first tick of each phase for this geometry: creep 2D, angry 4, morph 6, drive V, push D, pop 6.
-const ANGRY_AT = 2 * DRIFT
+// The first tick of each phase for this geometry: creep D, angry 4, morph 6, drive V, push D, pop 6.
+const ANGRY_AT = DRIFT
 const DRIVE_AT = ANGRY_AT + 4 + 6
 const PUSH_AT = DRIVE_AT + (LEFT - X - DIG_REACH - DRIFT)
 
@@ -27,7 +27,7 @@ test('the friends creep only as far as there is room, at most DIG_DRIFT', () => 
   expect(digDriftOf(0, 15 + DIG_MIN_DRIFT - 1)).toBe(0)
   expect(digDriftOf(0, 15 + DIG_MIN_DRIFT)).toBe(DIG_MIN_DRIFT)
   expect(digDriftOf(0, 15 + 5)).toBe(5)
-  expect(digDriftOf(0, 15 + 50)).toBe(DIG_DRIFT)
+  expect(digDriftOf(0, 15 + DIG_DRIFT + 50)).toBe(DIG_DRIFT)
   expect(digDriftOf(30, 40)).toBe(0)
 })
 
@@ -67,11 +67,11 @@ test('during the push the bucket wall touches the leftmost friend and the friend
 })
 
 test('the push frame matches the art', () => {
-  // x = 3, left = 28 (two friends in 44 columns): drift 8, drive 2; the first push tick (even, so the tracks read o=o=o=o).
+  // x = 3, left = 28 (two friends in 44 columns): drift 10 (all the room), drive 0; the first push tick.
   const columns = 44
   const left = friendSlotOf(columns, 1, 2)
   const drift = digDriftOf(3, left)
-  const at = 2 * drift + 4 + 6 + (left - 3 - DIG_REACH - drift)
+  const at = drift + 4 + 6 + (left - 3 - DIG_REACH - drift)
   const rows = textOf(digFrameOf(3, left, drift, at, columns, friendsOf(2), 2, 1))
   const ex = digXOf(3, left, drift, at)
 

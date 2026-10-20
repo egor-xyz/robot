@@ -4,13 +4,13 @@ import type { Friend } from './friends'
 
 /** Cells from the robot's first cell to its excavator's bucket wall, plus the cell before the leftmost friend. */
 export const DIG_REACH = 15
-/** Most cells the friends creep left out of their slots. */
-export const DIG_DRIFT = 8
+/** Most cells the friends creep left out of their slots: in practice all the room up to the robot. */
+export const DIG_DRIFT = 200
 /** Least creep worth a scene: less room than this and the robot stays out of it. */
 export const DIG_MIN_DRIFT = 3
 
-// Ticks per creep cell: the friends roll one cell, then wait one tick.
-const CREEP_TICKS = 2
+// Ticks per creep cell: the friends roll one cell each tick.
+const CREEP_TICKS = 1
 // Ticks the robot shakes its fists.
 const DIG_ANGRY = 4
 // Ticks per morph step: tracks, boom, bucket.

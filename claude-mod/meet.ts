@@ -13,8 +13,8 @@ export type Meet = { kind: MeetKind; from: number; x: number; left: number; drif
 export const MEET_GAP = 240
 /** One in this many eligible ticks starts a visit. */
 export const MEET_ODDS = 160
-/** The most cells of walking or driving a visit may need. */
-export const MEET_REACH = 32
+/** The most cells of walking or creeping a visit may need: from the middle of a wide band. */
+export const MEET_REACH = 200
 /** Ticks of the walk that takes the robot out after a visit. */
 export const MEET_WALK_AWAY = 16
 // One in this many visits is the dig: half as likely as the five.
