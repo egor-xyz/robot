@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { cellsOf } from './frames'
 import type { Span } from './frames'
-import { accountNameOf, coldGroupOf, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, textOfStatus, wavedOf } from './statusline'
+import { accountNameOf, coldGroupOf, compactingOf, COMPACTING_COLOR, effortColorOf, fitStatus, groupsOf, isSameName, modelColorOf, leftOf, modelNameOf, SHIMMER, statusOf, textOfStatus, wavedOf } from './statusline'
 import { shadeOf } from './shimmer'
 
 const plain = (spans: Span[]) => textOfStatus(spans)
@@ -148,6 +148,15 @@ test('only the branch waves', () => {
   expect(textOfStatus(fitStatus(waved, Number.POSITIVE_INFINITY))).toBe('robot | main')
   expect(waved.find(group => group.spans[0]?.text === 'robot')?.spans[0]?.color).toBe('planMode')
   expect(waved.find(group => group.spans[0]?.text === 'main')?.spans[0]?.color).toBe(SHIMMER)
+})
+
+test('compacting squeezes the ctx percent with arrows, in the command colour, at one width', () => {
+  const groups = groupsOf({ project: 'robot', contextPercent: 25, rateLimits: [], windows: [], limitsAt: 0, hotAt: 25, now: NOW })
+  const texts = [0, 1, 2, 3, 4].map(at => textOfStatus(fitStatus(compactingOf(groups, at), Number.POSITIVE_INFINITY)))
+  expect(texts).toEqual(['robot | ctx ▸  25%  ◂', 'robot | ctx  ▸ 25% ◂ ', 'robot | ctx   ▸25%◂  ', 'robot | ctx  ▸ 25% ◂ ', 'robot | ctx ▸  25%  ◂'])
+  const ctx = compactingOf(groups, 0).find(group => group.spans[0]?.text.startsWith('ctx'))
+  expect(ctx?.spans).toEqual([{ text: 'ctx ▸  25%  ◂', color: COMPACTING_COLOR }])
+  expect(compactingOf(groups, 0).find(group => group.spans[0]?.text === 'robot')).toEqual(groups.find(group => group.spans[0]?.text === 'robot'))
 })
 
 test('unpushed commits show after the branch in yellow, and only the name waves', () => {

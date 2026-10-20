@@ -190,6 +190,7 @@ auto-compact — the band turns into a factory line. No text, just the belt:
 - 🤖 **One at a time, at the left.** A unit walks in from the left edge to the station, under the spinner's "Compacting" text. A robot and a WALL-E take turns; who goes first is random.
 - 📦 **A new box drops in**, and the unit packs itself part by part: legs or treads first, then the body, then the head or eyes. The lid closes and the box shakes.
 - ➡️ **The closed box hops onto a short belt** and rides to its end, where it drops out of sight. The belt shows only while a box is on it. Only then the next unit walks in — a loop for as long as the compaction runs.
+- 🗜️ **The status line squeezes too.** Arrows push in on `ctx 25%` (`ctx ▸ 25% ◂`) until the compaction ends.
 - When the compaction ends, the robot goes back to what it did before.
 
 ---

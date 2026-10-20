@@ -165,6 +165,20 @@ export const wavedOf = (groups: readonly StatusGroup[]): StatusGroup[] =>
     return name ? { ...group, spans: [{ text: name.text, color: SHIMMER }, ...rest] } : group
   })
 
+/** The colour of the ctx part while compacting: the colour the robot says /compact in. */
+export const COMPACTING_COLOR = 'suggestion'
+/** The arrows that squeeze the ctx percent while compacting, one step a tick; every step is as wide, so the line stays put. */
+const SQUEEZE = [['▸  ', '  ◂'], [' ▸ ', ' ◂ '], ['  ▸', '◂  '], [' ▸ ', ' ◂ ']] as const
+
+/** The groups with the ctx percent squeezed by arrows: the context is being compacted. */
+export const compactingOf = (groups: readonly StatusGroup[], at: number): StatusGroup[] =>
+  groups.map(group => {
+    const [ctx] = group.spans
+    if (group.rank !== RANK.ctx || !ctx) return group
+    const [left, right] = SQUEEZE[at % SQUEEZE.length] ?? SQUEEZE[0]
+    return { ...group, spans: [{ text: ctx.text.replace(/^ctx /, `ctx ${left}`) + right, color: COMPACTING_COLOR }] }
+  })
+
 /** The line's text, colours left out. */
 export const textOfStatus = (spans: readonly Span[]): string => spans.map(span => span.text).join('')
 

@@ -14,7 +14,7 @@ import { ACTS, INITIAL, actOf, animationOf, randomInt, step } from './robot'
 import type { ActName, RobotState } from './robot'
 import { isQuestion } from './ask'
 import { isCompactingMessage, robotWord } from './spinner'
-import { accountNameOf, coldGroupOf, fitStatus, groupsOf, modelNameOf, SHIMMER, wavedOf } from './statusline'
+import { accountNameOf, coldGroupOf, compactingOf, fitStatus, groupsOf, modelNameOf, SHIMMER, wavedOf } from './statusline'
 import { MAX_AGENT_LINES, agentDefOf, agentGroupsOf, agentPaneLinesOf, moreOf, stepTokensOf, viewedStatusOf } from './agents'
 import type { AgentDef, AgentRow, StepUsage } from './agents'
 import { isColdAt, learnedTtlOf, storedTtlOf, ttlOf } from './cache'
@@ -930,6 +930,9 @@ export const register: Register = (on, options) => {
       if (viewed) groups = viewedStatusOf(groups, viewed, now)
       // The shimmer module runs its own fast clock, so the line itself does not redraw while the branch shimmers.
       if (isWaveOn && waveAt >= 0) groups = wavedOf(groups)
+      // Compacting: arrows squeeze the ctx percent. Reading the tick redraws the line 4 times a second, only while it runs.
+      const { value: isCompacting = false } = await $.state.get(IS_COMPACTING)
+      if (!isCalm && (isCompacting || isSpinnerCompacting)) groups = compactingOf(groups, (await $.state.get(TICK)).value ?? 0)
       if (coldTokens > 0) groups = [...groups, coldGroupOf(coldTokens)]
       lines.push(fitStatus(groups, columns))
     }
