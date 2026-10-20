@@ -488,103 +488,116 @@ case $_robot_state in
     raw=${idle_frames[$(( 70 + _robot_t % 4 ))]}
     ;;
   ufo)
-    # Left-only movie: a 🐄 walks deep into the woods (hiding behind the trees
+    # Left-only movie: the robot first walks right until the woods have room
+    # (5 trees), then a 🐄 walks deep into the woods (hiding behind the trees
     # it passes) to a random gap, the 🛸 races in from the left edge (2 cols/tick
     # to the cow's 1), beams the cow up, sparkles, zooms off left (3 cols/tick) while
     # the robot panics, then a shocked hold for 3 ticks. Every row is in
     # absolute columns.
     # _wt_row col cells text ... → REPLY: one row from pieces sorted by column.
     _wt_row() { local _x=0 _i; REPLY=""; while (( $# >= 3 )); do for ((_i=_x; _i<$1; _i++)); do REPLY+=" "; done; REPLY+=$3; _x=$(( $1 + $2 )); shift 3; done; }
-    # A tree every 7 cols up to the cow's start; the cow is taken in the gap
-    # left by a random tree _ug, at least two trees short of the robot.
     (( _robot_t == 0 )) && _robot_val=$RANDOM
-    local _un=$(( _robot_pos / 7 + 1 )) _ug=-1 _um
-    (( _un >= 3 )) && _ug=$(( _robot_val % (_un - 2) ))
-    if (( _ug >= 0 )); then
-      _um=$(( 3 + 7 * _ug ))
+    # Walk in: t stays at 0 until the robot has room. Drawn 7 cols right, where
+    # the scene draws it.
+    local _uroom=$(( track - 18 < 28 ? track - 18 : 28 ))
+    if (( _robot_t == 0 && _robot_pos < _uroom )); then
+      (( _robot_pos++ ))
+      _robot_t=-1
+      raw=${walk_frames[$(( _robot_pos % 2 + 1 ))]}
+      local _unl=$'\n'
+      raw="       ${raw//${_unl}/${_unl}       }"
     else
-      _um=$(( _robot_pos - 4 ))
-      (( _um < 2 )) && _um=2
-    fi
-    local _ua=$(( _robot_pos + 6 - _um )) _ufly=$(( (_um + 1) / 2 ))
-    (( _ua < _ufly )) && _ua=$_ufly
-    local _ut=$(( _robot_t - _ua )) _ub _uh=$(( _robot_pos + 9 ))
-    local -a _tops _trunks
-    local _i _c _tr
-    for (( _i = 0; _ug >= 0 && _i < _un; _i++ )); do
-      (( _i == _ug )) && continue
-      _c=$(( 2 + 7 * _i ))
-      (( _i % 3 == 2 )) && _tr=🌳 || _tr=🌲
-      (( _i % 3 == 0 )) && _tops+=($_c 2 🌲)
-      _trunks+=($_c 2 $_tr)
-    done
-    local _r1 _r2 _r3 _r4 _uabs _eyes='[O   O]' _ucow=-9
-    local -a _p1 _p2 _p3 _p4
-    (( _ub = _ut < 0 ? -1 : _ut / 2 ))
-    if (( _ut < 0 )); then
-      # Approach: cow walks left to the clearing, 🛸 flies in fast.
-      _uabs=$(( _um - 2 * (_ua - _robot_t) ))
-      (( _uabs >= 0 )) && _p1=($_uabs 2 🛸)
-      local _cabs=$(( _robot_pos + 6 - _robot_t ))
-      (( _cabs < _um )) && _cabs=$_um
-      _ucow=$_cabs
-      _eyes='[o   o]'
-    elif (( _ub == 0 )); then
-      # Met: 🛸 hovers right above the cow.
-      _p1=($_um 2 🛸); _ucow=$_um
-    elif (( _ub == 1 )); then
-      # Beam on.
-      _p1=($_um 2 🛸); _p2=($(( _um - 1 )) 4 '/  \'); _p3=($(( _um - 2 )) 6 '/    \'); _ucow=$_um
-    elif (( _ub == 2 )); then
-      # Cow halfway up.
-      _p1=($_um 2 🛸); _p2=($(( _um - 1 )) 4 '/  \'); _p3=($(( _um - 2 )) 6 '/ 🐄 \')
-    elif (( _ub == 3 )); then
-      # Cow at the ship.
-      _p1=($_um 2 🛸); _p2=($(( _um - 1 )) 4 '/🐄\'); _p3=($(( _um - 2 )) 6 '/    \')
-    elif (( _ub == 4 )); then
-      # Got it: the 🛸 sparkles.
-      _p1=($_um 2 🛸 $(( _um + 2 )) 2 ✨)
-    else
-      _uabs=$(( _um - 3 * (_ut - 9) ))
-      if (( _uabs < 0 )); then
-        # Shocked hold: arms up over the empty clearing.
-        (( _robot_dur > _robot_t + 3 )) && _robot_dur=$(( _robot_t + 3 ))
+      # A tree every 7 cols up to the cow's start; the cow is taken in the gap
+      # left by a random tree _ug, at least two trees short of the robot.
+      local _un=$(( _robot_pos / 7 + 1 )) _ug=-1 _um
+      (( _un >= 3 )) && _ug=$(( _robot_val % (_un - 2) ))
+      if (( _ug >= 0 )); then
+        _um=$(( 3 + 7 * _ug ))
       else
-        _p1=($_uabs 2 🛸)
+        _um=$(( _robot_pos - 4 ))
+        (( _um < 2 )) && _um=2
       fi
-    fi
-    if (( _ub > 4 && (_uabs < 0 || _robot_t % 2) )); then
-      # Panic: arms up.
-      _wt_row "${_p1[@]}" $(( _robot_pos + 8 )) 9 '\.-----./'; _r1=$REPLY
-      _wt_row "${_tops[@]}" $(( _robot_pos + 10 )) 5 '|━━━|'; _r3=$REPLY
-    else
-      _wt_row "${_p1[@]}" $_uh 7 '.-----.'; _r1=$REPLY
-      # The beam slots in among the treetops, sorted by column.
-      local -a _row3=()
-      local _bin=$(( ! $#_p3 ))
-      for (( _i = 1; _i <= $#_tops; _i += 3 )); do
-        if (( !_bin && _tops[_i] > _p3[1] )); then _row3+=("${_p3[@]}"); _bin=1; fi
-        _row3+=("${(@)_tops[_i,_i+2]}")
+      local _ua=$(( _robot_pos + 6 - _um )) _ufly=$(( (_um + 1) / 2 ))
+      (( _ua < _ufly )) && _ua=$_ufly
+      local _ut=$(( _robot_t - _ua )) _ub _uh=$(( _robot_pos + 9 ))
+      local -a _tops _trunks
+      local _i _c _tr
+      for (( _i = 0; _ug >= 0 && _i < _un; _i++ )); do
+        (( _i == _ug )) && continue
+        _c=$(( 2 + 7 * _i ))
+        (( _i % 3 == 2 )) && _tr=🌳 || _tr=🌲
+        (( _i % 3 == 0 )) && _tops+=($_c 2 🌲)
+        _trunks+=($_c 2 $_tr)
       done
-      (( _bin )) || _row3+=("${_p3[@]}")
-      _wt_row "${_row3[@]}" $_uh 7 '/|━━━|\'; _r3=$REPLY
+      local _r1 _r2 _r3 _r4 _uabs _eyes='[O   O]' _ucow=-9
+      local -a _p1 _p2 _p3 _p4
+      # Met 2 ticks, the beam 1 tick a step, the sparkle 2 ticks.
+      (( _ub = _ut < 0 ? -1 : _ut < 2 ? 0 : _ut < 5 ? _ut - 1 : _ut < 7 ? 4 : 5 ))
+      if (( _ut < 0 )); then
+        # Approach: cow walks left to the clearing, 🛸 flies in fast.
+        _uabs=$(( _um - 2 * (_ua - _robot_t) ))
+        (( _uabs >= 0 )) && _p1=($_uabs 2 🛸)
+        local _cabs=$(( _robot_pos + 6 - _robot_t ))
+        (( _cabs < _um )) && _cabs=$_um
+        _ucow=$_cabs
+        _eyes='[o   o]'
+      elif (( _ub == 0 )); then
+        # Met: 🛸 hovers right above the cow.
+        _p1=($_um 2 🛸); _ucow=$_um
+      elif (( _ub == 1 )); then
+        # Beam on.
+        _p1=($_um 2 🛸); _p2=($(( _um - 1 )) 4 '/  \'); _p3=($(( _um - 2 )) 6 '/    \'); _ucow=$_um
+      elif (( _ub == 2 )); then
+        # Cow halfway up.
+        _p1=($_um 2 🛸); _p2=($(( _um - 1 )) 4 '/  \'); _p3=($(( _um - 2 )) 6 '/ 🐄 \')
+      elif (( _ub == 3 )); then
+        # Cow at the ship.
+        _p1=($_um 2 🛸); _p2=($(( _um - 1 )) 4 '/🐄\'); _p3=($(( _um - 2 )) 6 '/    \')
+      elif (( _ub == 4 )); then
+        # Got it: the 🛸 sparkles.
+        _p1=($_um 2 🛸 $(( _um + 2 )) 2 ✨)
+      else
+        _uabs=$(( _um - 3 * (_ut - 6) ))
+        if (( _uabs < 0 )); then
+          # Shocked hold: arms up over the empty clearing.
+          (( _robot_dur > _robot_t + 3 )) && _robot_dur=$(( _robot_t + 3 ))
+        else
+          _p1=($_uabs 2 🛸)
+        fi
+      fi
+      if (( _ub > 4 && (_uabs < 0 || _robot_t % 2) )); then
+        # Panic: arms up.
+        _wt_row "${_p1[@]}" $(( _robot_pos + 8 )) 9 '\.-----./'; _r1=$REPLY
+        _wt_row "${_tops[@]}" $(( _robot_pos + 10 )) 5 '|━━━|'; _r3=$REPLY
+      else
+        _wt_row "${_p1[@]}" $_uh 7 '.-----.'; _r1=$REPLY
+        # The beam slots in among the treetops, sorted by column.
+        local -a _row3=()
+        local _bin=$(( ! $#_p3 ))
+        for (( _i = 1; _i <= $#_tops; _i += 3 )); do
+          if (( !_bin && _tops[_i] > _p3[1] )); then _row3+=("${_p3[@]}"); _bin=1; fi
+          _row3+=("${(@)_tops[_i,_i+2]}")
+        done
+        (( _bin )) || _row3+=("${_p3[@]}")
+        _wt_row "${_row3[@]}" $_uh 7 '/|━━━|\'; _r3=$REPLY
+      fi
+      _wt_row "${_p2[@]}" $_uh 7 "$_eyes"; _r2=$REPLY
+      # The cow hides behind a tree it walks past.
+      local _uhid=0
+      for (( _i = 1; _i <= $#_trunks; _i += 3 )); do
+        (( _trunks[_i] - _ucow <= 1 && _ucow - _trunks[_i] <= 1 )) && _uhid=1
+      done
+      local _uin=0
+      (( _ucow < 0 || _uhid )) && _uin=1
+      for (( _i = 1; _i <= $#_trunks; _i += 3 )); do
+        if (( !_uin && _trunks[_i] > _ucow )); then _p4+=($_ucow 2 🐄); _uin=1; fi
+        _p4+=("${(@)_trunks[_i,_i+2]}")
+      done
+      (( _uin )) || _p4+=($_ucow 2 🐄)
+      _wt_row "${_p4[@]}" $(( _uh + 1 )) 5 'o   o'; _r4=$REPLY
+      raw="$_r1"$'\n'"$_r2"$'\n'"$_r3"$'\n'"$_r4"
+      local _robot_pos=0
     fi
-    _wt_row "${_p2[@]}" $_uh 7 "$_eyes"; _r2=$REPLY
-    # The cow hides behind a tree it walks past.
-    local _uhid=0
-    for (( _i = 1; _i <= $#_trunks; _i += 3 )); do
-      (( _trunks[_i] - _ucow <= 1 && _ucow - _trunks[_i] <= 1 )) && _uhid=1
-    done
-    local _uin=0
-    (( _ucow < 0 || _uhid )) && _uin=1
-    for (( _i = 1; _i <= $#_trunks; _i += 3 )); do
-      if (( !_uin && _trunks[_i] > _ucow )); then _p4+=($_ucow 2 🐄); _uin=1; fi
-      _p4+=("${(@)_trunks[_i,_i+2]}")
-    done
-    (( _uin )) || _p4+=($_ucow 2 🐄)
-    _wt_row "${_p4[@]}" $(( _uh + 1 )) 5 'o   o'; _r4=$REPLY
-    raw="$_r1"$'\n'"$_r2"$'\n'"$_r3"$'\n'"$_r4"
-    local _robot_pos=0
     ;;
   photo)
     # 8-tick photoshoot: 4 poses, each held (📷) then a flash (📸 + ✨, eyes O O).

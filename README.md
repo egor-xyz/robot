@@ -77,7 +77,7 @@ Works on macOS, Linux and Windows — nothing else to install.
 - ↔️ **Full width.** The robot walks from edge to edge and follows you when you resize the window.
 - 🎨 **Colour per mood.** Each animation has its own colour; dance and jump cycle a rainbow.
 - 🙈 **Out of the way.** `/robot` hides it; it steps aside by itself when Claude asks you something, and while a subagent's transcript is in view. `/robot calm` slows it down and keeps only its quiet acts.
-- 🎲 **Plays on command.** `/robot play` pulls the slot machine, `/robot dice` turns it into a die, `/robot coin` flips a coin. The reply tells you the result.
+- 🎲 **Plays on command.** `/robot play` pulls the slot machine, `/robot dice` turns it into a die, `/robot coin` flips a coin. The reply tells you the result. `/robot animate ufo` plays any animation by name.
 - 🔥 **Feels the heat.** Past 25% context its head catches fire — [see below](#-context-on-fire).
 - 🧊 **Freezes when the cache goes cold.** After a break, ice cubes gather around it and the status line says `❄ cache cold` — [see below](#-cache-cold).
 - 📦 **Runs a factory line while compacting.** During `/compact`, robots and WALL-Es pack themselves into boxes on a conveyor belt, under the spinner's "Compacting" text — [see below](#-compacting).
@@ -332,10 +332,11 @@ Turn them off with the **Branch wave**, **Subagent lines** and **PR and files li
 | `/robot play` | The robot plays the slot machine |
 | `/robot dice` | The robot turns into a die, rolls from the left to the middle, and lands on 1–6. With the robot hidden, the reply says the number, e.g. `🎲 You rolled 4.` |
 | `/robot coin` | The robot flips a coin that lands on YES or NO. With the robot hidden, the reply says `🪙 Yes.` or `🪙 No.` |
+| `/robot animate <name>` | The robot plays that animation now, e.g. `/robot animate ufo`. `/robot animate` alone lists the names. |
 | `/robot files` | Open the changed-files panel |
 | `/robot agents` | Open the panel with every running subagent |
 
-Each toggle flips its setting on every run, and the setting is saved, so it lasts across sessions. Play, dice and coin also work in calm mode.
+Each toggle flips its setting on every run, and the setting is saved, so it lasts across sessions. Play, dice, coin and animate also work in calm mode.
 
 ### Settings
 

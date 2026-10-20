@@ -1,4 +1,5 @@
 import { CALM_OFF_TEXT, CALM_ON_TEXT } from './calm'
+import { STATES } from './robot'
 import type { ActName } from './robot'
 
 /** The settings `/robot` flips and saves. */
@@ -8,9 +9,12 @@ export type RobotCommand =
   | { kind: 'files' }
   | { kind: 'agents' }
   | { kind: 'act'; act: ActName }
+  | { kind: 'animate'; name: string }
+  | { kind: 'animations' }
   | { kind: 'help' }
 
-export const HELP_TEXT = 'Use /robot (hide or show), /robot status, /robot changes, /robot calm, /robot files, /robot agents, /robot play, /robot dice or /robot coin.'
+export const HELP_TEXT = 'Use /robot (hide or show), /robot status, /robot changes, /robot calm, /robot files, /robot agents, /robot play, /robot dice, /robot coin or /robot animate <name>.'
+export const ANIMATIONS_TEXT = `Use /robot animate <name>: ${STATES.join(', ')}.`
 
 const WORDS: Record<string, RobotCommand> = {
   '': { kind: 'toggle', key: 'robot' },
@@ -24,10 +28,11 @@ const WORDS: Record<string, RobotCommand> = {
   coin: { kind: 'act', act: 'coin' },
 }
 
-/** What `/robot <args>` means, in any letter case; a typo or a second word gets the help. */
+/** What `/robot <args>` means, in any letter case; a typo or a second word gets the help. `animate` takes an animation's name. */
 export function commandOf(args: string): RobotCommand {
-  const word = args.trim().toLowerCase()
-  return Object.hasOwn(WORDS, word) ? WORDS[word] : { kind: 'help' }
+  const [word = '', name, ...rest] = args.trim().toLowerCase().split(/\s+/)
+  if (word === 'animate') return name && !rest.length && STATES.includes(name) ? { kind: 'animate', name } : { kind: 'animations' }
+  return name === undefined && Object.hasOwn(WORDS, word) ? WORDS[word] : { kind: 'help' }
 }
 
 const DEFAULT_ON: Record<ToggleKey, boolean> = { robot: true, statusLine: true, changesLine: true, calm: false }

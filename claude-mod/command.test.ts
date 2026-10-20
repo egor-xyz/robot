@@ -1,8 +1,9 @@
 import { expect, test } from 'claude-code/testing'
 
 import { CALM_OFF_TEXT, CALM_ON_TEXT } from './calm'
-import { HELP_TEXT, actTextOf, commandOf, isOnOf, toggleDenyTextOf, toggleTextOf } from './command'
+import { ANIMATIONS_TEXT, HELP_TEXT, actTextOf, commandOf, isOnOf, toggleDenyTextOf, toggleTextOf } from './command'
 import type { RobotCommand } from './command'
+import { STATES } from './robot'
 
 const CASES: [string, RobotCommand][] = [
   ['', { kind: 'toggle', key: 'robot' }],
@@ -27,8 +28,20 @@ test('a typo, an extra word or a prototype name gets the help', () => {
   for (const args of ['calm on', 'xyz', 'files x', 'options', 'constructor', 'toString']) expect(commandOf(args)).toEqual({ kind: 'help' })
 })
 
+test('animate takes any animation by name, in any case and spacing', () => {
+  for (const name of STATES) {
+    expect(commandOf(`animate ${name}`)).toEqual({ kind: 'animate', name })
+    expect(commandOf(`  ANIMATE   ${name.toUpperCase()} `)).toEqual({ kind: 'animate', name })
+  }
+})
+
+test('animate with no name, an unknown name or an extra word lists the animations', () => {
+  for (const args of ['animate', 'animate xyz', 'animate walk', 'animate slot', 'animate ufo now', 'animate constructor']) expect(commandOf(args)).toEqual({ kind: 'animations' })
+  for (const name of STATES) expect(ANIMATIONS_TEXT).toContain(name)
+})
+
 test('the help names every command word', () => {
-  for (const word of ['status', 'changes', 'calm', 'files', 'agents', 'play', 'dice', 'coin']) expect(HELP_TEXT).toContain(`/robot ${word}`)
+  for (const word of ['status', 'changes', 'calm', 'files', 'agents', 'play', 'dice', 'coin', 'animate']) expect(HELP_TEXT).toContain(`/robot ${word}`)
 })
 
 test('isOnOf: a boolean wins, anything else is the default', () => {

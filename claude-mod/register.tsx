@@ -7,10 +7,10 @@ import type { Friend } from './friends'
 import { MEET_WALK_AWAY, areSettled, isMeetOn, meetFrameOf, meetOf, meetXOf } from './meet'
 import type { Meet } from './meet'
 import { CALM_STATES, CALM_TICK_MS } from './calm'
-import { HELP_TEXT, actTextOf, commandOf, isOnOf, toggleDenyTextOf, toggleTextOf } from './command'
+import { ANIMATIONS_TEXT, HELP_TEXT, actTextOf, commandOf, isOnOf, toggleDenyTextOf, toggleTextOf } from './command'
 import type { ToggleKey } from './command'
 import { gitActOf } from './git'
-import { ACTS, INITIAL, actOf, randomInt, step } from './robot'
+import { ACTS, INITIAL, actOf, animationOf, randomInt, step } from './robot'
 import type { ActName, RobotState } from './robot'
 import { isQuestion } from './ask'
 import { isCompactingMessage, robotWord } from './spinner'
@@ -118,7 +118,7 @@ const NEEDS_YOU_SAY: Span[][] = [[{ text: 'need a human', color: COMMAND_COLOR }
 
 // Plain $.state calls: older engines refuse $ passed into imported helpers.
 const TICK = { plugin: 'robot', key: 'tick' } as const
-/** The act `/robot play`, `dice` or `coin` asked for: its id and the value the robot lands on. */
+/** The act `/robot play`, `dice` or `coin` asked for, or the animation `/robot animate <name>` asked for: its id and the value the robot lands on. */
 const ACT = { plugin: 'robot', key: 'act' } as const
 const CONTEXT_PERCENT = { plugin: 'robot', key: 'contextPercent' } as const
 const IS_COMPACTING = { plugin: 'robot', key: 'isCompacting' } as const
@@ -174,6 +174,10 @@ const shown: { state: RobotState; at: number; frame: Frame | undefined } = { sta
 let actSeen: number | undefined
 /** True while the robot is in an act; the frame it shows then is the act's, with no fire, ice or bubble. */
 const isInAct = (s: RobotState): boolean => ACTS.includes(s.state as ActName)
+/** The animation `/robot animate` started, until the robot moves on from it. */
+let askedAnimation: string | undefined
+/** True while an act or an asked-for animation plays: nothing overrides it. */
+const isPlaying = (s: RobotState): boolean => isInAct(s) || s.state === askedAnimation
 /** The subagent friends as of the last tick they were stepped, and that tick. */
 let friends: Friend[] = []
 let friendsAt = -1
@@ -662,7 +666,7 @@ export const register: Register = (on, options) => {
     })
 
     try {
-      await $.command.register({ name: 'robot', description: 'Toggle the robot, `/robot status`, `/robot changes` or `/robot calm` (saved); `/robot files` and `/robot agents` open panels; `/robot play`, `/robot dice` and `/robot coin` play', argumentHint: '[status | changes | calm | files | agents | play | dice | coin]' })
+      await $.command.register({ name: 'robot', description: 'Toggle the robot, `/robot status`, `/robot changes` or `/robot calm` (saved); `/robot files` and `/robot agents` open panels; `/robot play`, `/robot dice` and `/robot coin` play; `/robot animate <name>` plays any animation', argumentHint: '[status | changes | calm | files | agents | play | dice | coin | animate <name>]' })
     } catch (error) {
       $.ui.log(`robot: /robot not registered: ${String(error)}`, { to: 'debug' })
     }
@@ -888,6 +892,12 @@ export const register: Register = (on, options) => {
       if (act === 'slot') return { text: 'The robot is hidden: /robot shows it.' }
       return { text: actTextOf(act, value) }
     }
+    if (command.kind === 'animate') {
+      if (!isRobotOn) return { text: 'The robot is hidden: /robot shows it.' }
+      await $.state.set(ACT, { id: Date.now(), name: command.name, value: 0 })
+      return {}
+    }
+    if (command.kind === 'animations') return { text: ANIMATIONS_TEXT }
     return { text: HELP_TEXT }
   })
 
@@ -1211,7 +1221,7 @@ export const register: Register = (on, options) => {
     // A visit ends when its time is up, or when anything with a higher priority turns on or the friends change. The robot
     // then walks out to the left from where it stands. This runs before the zone and act code, so both see that spot.
     const isActAsked = actSeen !== undefined && act !== undefined && act.id !== actSeen
-    const isMeetFree = isFriendsOn && !isCalm && !isCompacting && !isNeeded && !isCelebrating && !isHot && !isCold && !isActAsked && !isInAct(shown.state)
+    const isMeetFree = isFriendsOn && !isCalm && !isCompacting && !isNeeded && !isCelebrating && !isHot && !isCold && !isActAsked && !isPlaying(shown.state)
     if (meet && (!isMeetFree || !isMeetOn(meet, at, columns, friends, subagents))) {
       shown.state = { ...shown.state, state: 'walk', t: 0, dur: MEET_WALK_AWAY, pos: meetXOf(meet, at), dir: -1 }
       // The old frame is at the meet's start spot: drop it so the next draw steps afresh from the hand-off spot.
@@ -1231,24 +1241,27 @@ export const register: Register = (on, options) => {
     if (actSeen === undefined) actSeen = act?.id ?? 0
     else if (act && act.id !== actSeen) {
       actSeen = act.id
-      shown.state = actOf(shown.state, act.name, act.value, track)
+      const isAct = ACTS.includes(act.name as ActName)
+      shown.state = isAct ? actOf(shown.state, act.name as ActName, act.value, track) : animationOf(shown.state, act.name, track, randomInt)
+      askedAnimation = isAct ? undefined : act.name
     }
     // While compacting or celebrating the robot stands still: the factory line runs across the band.
     if (!meet && at !== shown.at && !isCompacting && (isNeeded || !isCelebrating)) {
       // Hot: drop everything; walk, then stop and wave its arms (dance), until it cools.
       // Talking (asking for the person, or hot and talking) it dances in place, so its bubble stays put.
-      // An act in play is not overridden.
-      const wanted = isInAct(shown.state) ? undefined : isNeeded || (isHot && talkAt(at) >= 0) ? 'dance' : isHot ? 'walk' : undefined
+      // An act or an asked-for animation in play is not overridden.
+      const wanted = isPlaying(shown.state) ? undefined : isNeeded || (isHot && talkAt(at) >= 0) ? 'dance' : isHot ? 'walk' : undefined
       if (wanted && !(shown.state.state === wanted && shown.state.dur === FOREVER)) {
         shown.state = { ...shown.state, state: wanted, t: 0, dur: FOREVER }
       } else if (!wanted && shown.state.dur === FOREVER) {
         shown.state = { ...shown.state, dur: shown.state.t }
       }
-      // Cold: the robot freezes where it stands. An act plays every tick, cold or hot.
-      if (!shown.frame || isInAct(shown.state) || (!isCold && (!isHot || isHotStep(at)))) {
+      // Cold: the robot freezes where it stands. An act or an asked-for animation plays every tick, cold or hot.
+      if (!shown.frame || isPlaying(shown.state) || (!isCold && (!isHot || isHotStep(at)))) {
         const drawn = step(shown.state, track, randomInt, isCalm ? CALM_STATES : undefined)
         shown.state = drawn.state
         shown.frame = drawn.frame
+        if (shown.state.state !== askedAnimation) askedAnimation = undefined
       }
       shown.at = at
       // Now and then, between stories, the robot and the friends meet. Once per tick, never per render.

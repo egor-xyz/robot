@@ -380,7 +380,7 @@ function drawOf(s: RobotState, track: number, random: () => number): { raw: stri
       return { raw: idle(p <= 1 ? base : p <= 3 ? base + p - 1 : base + 3), pad: s.pos }
     }
     case 'concert': return { raw: idle(70 + (t % 4)), pad: s.pos }
-    case 'ufo': return ufoOf(s, random)
+    case 'ufo': return ufoOf(s, track, random)
     case 'stretch': return { raw: idle(91 + (t % 6)), pad: s.pos }
     case 'glitch': return { raw: idle(97 + (t % 12)), pad: s.pos }
     case 'spin': return { raw: idle(109 + (t % 12)), pad: s.pos }
@@ -432,14 +432,25 @@ function lay(...pieces: Piece[]): string {
   return row
 }
 
+/** How far right the robot walks before the ufo scene, so the woods on its left hold 5 trees. */
+const UFO_ROOM = 28
+
 /**
- * UFO, a little movie on the robot's left: a cow walks deep into the woods
- * (behind the trees) to a random gap, the 🛸 races in (2 cells a tick to the
- * cow's 1), beams it up and zooms off while the robot panics. Every row is in
- * absolute columns.
+ * UFO, a little movie on the robot's left: first the robot walks right until
+ * the woods have room, then a cow walks deep into them (behind the trees) to a
+ * random gap, the 🛸 races in (2 cells a tick to the cow's 1), beams it up and
+ * zooms off while the robot panics. Every row is in absolute columns.
  */
-function ufoOf(s: RobotState, random: () => number): { raw: string; pad: number } {
-  if (s.t === 0) s.value = random()
+function ufoOf(s: RobotState, track: number, random: () => number): { raw: string; pad: number } {
+  if (s.t === 0) {
+    s.value = random()
+    // Walk in: t stays at 0 until the robot has room. Drawn 7 cells right, where the scene draws it.
+    if (s.pos < Math.min(UFO_ROOM, track - 18)) {
+      s.pos += 1
+      s.t = -1
+      return { raw: `       ${(WALK_FRAMES[s.pos % 2] ?? '').replaceAll('\n', '\n       ')}`, pad: s.pos }
+    }
+  }
   const { t, pos } = s
   // A tree every 7 cols up to the cow's start; the cow is taken in the gap
   // left by a random tree `gap`, at least two trees short of the robot.
@@ -448,7 +459,8 @@ function ufoOf(s: RobotState, random: () => number): { raw: string; pad: number 
   const meet = gap >= 0 ? 3 + 7 * gap : Math.max(2, pos - 4)
   const arrive = Math.max(pos + 6 - meet, Math.ceil(meet / 2))
   const ut = t - arrive
-  const beat = ut < 0 ? -1 : Math.trunc(ut / 2)
+  // Met 2 ticks, the beam 1 tick a step, the sparkle 2 ticks.
+  const beat = ut < 0 ? -1 : ut < 2 ? 0 : ut < 5 ? ut - 1 : ut < 7 ? 4 : 5
   const head = pos + 9
   const tops: Piece[] = []
   const trunks: Piece[] = []
@@ -458,37 +470,49 @@ function ufoOf(s: RobotState, random: () => number): { raw: string; pad: number 
     if (i % 3 === 0) tops.push([c, '🌲', 2])
     trunks.push([c, i % 3 === 2 ? '🌳' : '🌲', 2])
   }
-  const top = (...p: Piece[]) => lay(...p, [head, '.-----.', 7])
-  const eyes = (e: string) => lay([head, `[${e}   ${e}]`, 7])
-  const body = (...p: Piece[]) => lay(...[...tops, ...p].sort((x, y) => x[0] - y[0]), [head, '/|━━━|\\', 7])
+  const top = (...p: Piece[]): Piece[] => [...p, [head, '.-----.', 7]]
+  const eyes = (e: string, ...p: Piece[]): Piece[] => [...p, [head, `[${e}   ${e}]`, 7]]
+  const body = (...p: Piece[]): Piece[] => [...[...tops, ...p].sort((x, y) => x[0] - y[0]), [head, '/|━━━|\\', 7]]
   // The cow hides behind a tree it walks past.
-  const feet = (cow = -9) => {
+  const feet = (cow = -9): Piece[] => {
     const hid = trunks.some(([c]) => Math.abs(c - cow) <= 1)
     const left = trunks.filter(([c]) => c < cow)
     const ground: Piece[] = cow < 0 || hid ? trunks : [...left, [cow, '🐄', 2], ...trunks.slice(left.length)]
-    return lay(...ground, [head + 1, 'o   o', 5])
+    return [...ground, [head + 1, 'o   o', 5]]
   }
-  const rows = (...r: string[]) => ({ raw: r.join('\n'), pad: 0 })
+  const rows = (...r: Piece[][]) => ({ raw: r.map(p => lay(...p)).join('\n'), pad: 0 })
   const ship: Piece = [meet, '🛸', 2]
   if (ut < 0) {
     const ufo = meet - 2 * (arrive - t)
     return rows(ufo < 0 ? top() : top([ufo, '🛸', 2]), eyes('o'), body(), feet(Math.max(meet, pos + 6 - t)))
   }
   if (beat === 0) return rows(top(ship), eyes('O'), body(), feet(meet))
-  if (beat === 1) return rows(top(ship), lay([meet - 1, '/  \\', 4], [head, '[O   O]', 7]), body([meet - 2, '/    \\', 6]), feet(meet))
-  if (beat === 2) return rows(top(ship), lay([meet - 1, '/  \\', 4], [head, '[O   O]', 7]), body([meet - 2, '/ 🐄 \\', 6]), feet())
-  if (beat === 3) return rows(top(ship), lay([meet - 1, '/🐄\\', 4], [head, '[O   O]', 7]), body([meet - 2, '/    \\', 6]), feet())
+  if (beat === 1) return rows(top(ship), eyes('O', [meet - 1, '/  \\', 4]), body([meet - 2, '/    \\', 6]), feet(meet))
+  if (beat === 2) return rows(top(ship), eyes('O', [meet - 1, '/  \\', 4]), body([meet - 2, '/ 🐄 \\', 6]), feet())
+  if (beat === 3) return rows(top(ship), eyes('O', [meet - 1, '/🐄\\', 4]), body([meet - 2, '/    \\', 6]), feet())
   if (beat === 4) return rows(top(ship, [meet + 2, '✨', 2]), eyes('O'), body(), feet())
-  const ufo = meet - 3 * (ut - 9)
+  const ufo = meet - 3 * (ut - 6)
+  const panic = (...p: Piece[]): Piece[] => [...p, [pos + 8, '\\.-----./', 9]]
+  const arms = (): Piece[] => [...tops, [pos + 10, '|━━━|', 5]]
   if (ufo < 0) {
     // Shocked hold: arms up over the empty gap.
     if (s.dur > t + 3) s.dur = t + 3
-    return rows(lay([pos + 8, '\\.-----./', 9]), eyes('O'), lay(...tops, [pos + 10, '|━━━|', 5]), feet())
+    return rows(panic(), eyes('O'), arms(), feet())
   }
-  if (t % 2) {
-    return rows(lay([ufo, '🛸', 2], [pos + 8, '\\.-----./', 9]), eyes('O'), lay(...tops, [pos + 10, '|━━━|', 5]), feet())
-  }
+  if (t % 2) return rows(panic([ufo, '🛸', 2]), eyes('O'), arms(), feet())
   return rows(top([ufo, '🛸', 2]), eyes('O'), body(), feet())
+}
+
+/** Starts animation `name` now: t 0, its own dur, pos clamped so a wide prop fits. */
+export function animationOf(state: RobotState, name: string, track: number, random: () => number): RobotState {
+  const s: RobotState = { ...state, state: name, t: 0 }
+  const w = WIDTH[name] ?? 0
+  if (w) {
+    if (s.pos > track - w) s.pos = track - w
+    if (s.pos < 0) s.pos = 0
+  }
+  s.dur = durOf(name, random)
+  return s
 }
 
 /** One tick of crazy-robot: the frame it prints and the state after. `random()` is like zsh $RANDOM (0..32767). */
@@ -497,18 +521,8 @@ export function step(state: RobotState, track: number, random: () => number, poo
   const width = Math.max(1, track)
 
   if (s.t >= s.dur) {
-    if (s.state !== 'walk') {
-      s.state = 'walk'
-    } else {
-      s.state = pool[random() % pool.length] ?? 'static'
-    }
-    s.t = 0
-    const w = WIDTH[s.state] ?? 0
-    if (w) {
-      if (s.pos > width - w) s.pos = width - w
-      if (s.pos < 0) s.pos = 0
-    }
-    s.dur = durOf(s.state, random)
+    const next = s.state !== 'walk' ? 'walk' : (pool[random() % pool.length] ?? 'static')
+    Object.assign(s, animationOf(s, next, width, random))
   }
 
   if (ACTS.includes(s.state as ActName)) {
