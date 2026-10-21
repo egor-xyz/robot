@@ -107,7 +107,7 @@ test('a limit is grey below 50%, yellow below 80%, red from 80%', () => {
 })
 
 test('the model color follows its family, and the effort color its level', () => {
-  expect(modelColorOf('claude-opus-5-5')).toBe('bashBorder')
+  expect(modelColorOf('claude-opus-5-5')).toBe('warning')
   expect(modelColorOf('Sonnet 5.5')).toBe('suggestion')
   expect(modelColorOf('claude-haiku-5-5')).toBe('success')
   expect(modelColorOf('claude-fable-5-1')).toBe('planMode')

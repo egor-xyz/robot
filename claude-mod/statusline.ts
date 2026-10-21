@@ -47,8 +47,8 @@ export function isSameName(folder: string, branch: string): boolean {
   return short.length > 0 && (long === short || long.endsWith(`-${short}`))
 }
 
-/** Each model family keeps its own color: the theme's bashBorder (Opus, pink), suggestion (Sonnet), success (Haiku) and planMode (Fable) colors; any other grey. */
-const MODEL_COLORS: [string, string][] = [['opus', 'bashBorder'], ['sonnet', 'suggestion'], ['haiku', 'success'], ['fable', 'planMode']]
+/** Each model family keeps its own color: the theme's warning (Opus, yellow), suggestion (Sonnet), success (Haiku) and planMode (Fable) colors; any other grey. */
+const MODEL_COLORS: [string, string][] = [['opus', 'warning'], ['sonnet', 'suggestion'], ['haiku', 'success'], ['fable', 'planMode']]
 export const modelColorOf = (model: string): string =>
   MODEL_COLORS.find(([family]) => model.toLowerCase().includes(family))?.[1] ?? DIM
 
