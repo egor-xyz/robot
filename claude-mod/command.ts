@@ -3,7 +3,7 @@ import { STATES } from './robot'
 import type { ActName } from './robot'
 
 /** The settings `/robot` flips and saves. */
-export type ToggleKey = 'robot' | 'statusLine' | 'changesLine' | 'calm'
+export type ToggleKey = 'robot' | 'statusLine' | 'changesLine' | 'agentLines' | 'calm'
 export type RobotCommand =
   | { kind: 'toggle'; key: ToggleKey }
   | { kind: 'files' }
@@ -13,13 +13,14 @@ export type RobotCommand =
   | { kind: 'animations' }
   | { kind: 'help' }
 
-export const HELP_TEXT = 'Use /robot (hide or show), /robot status, /robot changes, /robot calm, /robot files, /robot agents, /robot play, /robot dice, /robot coin or /robot animate <name>.'
+export const HELP_TEXT = 'Use /robot (hide or show), /robot status, /robot changes, /robot subagents, /robot calm, /robot files, /robot agents, /robot play, /robot dice, /robot coin or /robot animate <name>.'
 export const ANIMATIONS_TEXT = `Use /robot animate <name>: ${STATES.join(', ')}.`
 
 const WORDS: Record<string, RobotCommand> = {
   '': { kind: 'toggle', key: 'robot' },
   status: { kind: 'toggle', key: 'statusLine' },
   changes: { kind: 'toggle', key: 'changesLine' },
+  subagents: { kind: 'toggle', key: 'agentLines' },
   calm: { kind: 'toggle', key: 'calm' },
   files: { kind: 'files' },
   agents: { kind: 'agents' },
@@ -35,12 +36,13 @@ export function commandOf(args: string): RobotCommand {
   return name === undefined && Object.hasOwn(WORDS, word) ? WORDS[word] : { kind: 'help' }
 }
 
-const DEFAULT_ON: Record<ToggleKey, boolean> = { robot: true, statusLine: true, changesLine: true, calm: false }
-const TITLE: Record<ToggleKey, string> = { robot: 'Robot', statusLine: 'Status line', changesLine: 'PR and files line', calm: 'Calm mode' }
+const DEFAULT_ON: Record<ToggleKey, boolean> = { robot: true, statusLine: true, changesLine: true, agentLines: true, calm: false }
+const TITLE: Record<ToggleKey, string> = { robot: 'Robot', statusLine: 'Status line', changesLine: 'PR and files line', agentLines: 'Subagent lines', calm: 'Calm mode' }
 const TEXT: Record<ToggleKey, readonly [string, string]> = {
   robot: ['Robot hidden.', 'Robot is back.'],
   statusLine: ['Status line hidden.', 'Status line is back.'],
   changesLine: ['PR and files line hidden.', 'PR and files line is back.'],
+  agentLines: ['Subagent lines hidden.', 'Subagent lines are back.'],
   calm: [CALM_OFF_TEXT, CALM_ON_TEXT],
 }
 

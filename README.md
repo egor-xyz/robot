@@ -329,6 +329,7 @@ Turn them off with the **Branch wave**, **Subagent lines** and **PR and files li
 | `/robot` | Hide or show the robot (saved) |
 | `/robot status` | Hide or show the status line (saved) |
 | `/robot changes` | Hide or show the PR and files line (saved) |
+| `/robot subagents` | Hide or show the subagent lines (saved) |
 | `/robot calm` | Turn calm mode on or off (saved) |
 | `/robot play` | The robot plays the slot machine |
 | `/robot dice` | The robot turns into a die, rolls from the left to the middle, and lands on 1–6. With the robot hidden, the reply says the number, e.g. `🎲 You rolled 4.` |
@@ -366,12 +367,12 @@ The change applies at once; the plugin reloads by itself.
 | Needs you | `true` | `false` stops the "need a human" bubble. |
 | Robot spinner words | `true` | `false` keeps Claude Code's own spinner words. |
 | Branch wave | `true` | A bright band shimmers across the branch name for 3 seconds when the branch changes, and after a git commit or push. `false` keeps it still. |
-| Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. `false` hides them. |
+| Subagent lines | `true` | One line for each running subagent under the status line: task, type, model, tokens and time. Each `/robot subagents` flips it. `false` hides them. |
 | PR and files line | `true` | One line under the status line: how many files git would commit (with a PR open, all the PR's files, with the lines added and removed), and the open PR's checks, conflicts, unresolved review threads and auto-merge. A toast says when something new needs you. Click it, or run `/robot files`, for the list. Uses `gh`. Each `/robot changes` flips it. `false` hides the line and the toast. |
 | Update toast | `true` | A toast when a new robot version is out, with the commands to update. Checks GitHub every 6 hours at most. `false` turns it off. |
 | Reset all settings to default | `false` | Set to `true` and save: every setting goes back to its default, and this switch goes back to `false`. |
 
-`/robot`, `/robot status`, `/robot changes` and `/robot calm` flip the Robot, Status line, PR and files line and Calm settings. They save, so they last across sessions.
+`/robot`, `/robot status`, `/robot changes`, `/robot subagents` and `/robot calm` flip the Robot, Status line, PR and files line, Subagent lines and Calm settings. They save, so they last across sessions.
 
 ### Update or remove
 

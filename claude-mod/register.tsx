@@ -666,7 +666,7 @@ export const register: Register = (on, options) => {
     })
 
     try {
-      await $.command.register({ name: 'robot', description: 'Toggle the robot, `/robot status`, `/robot changes` or `/robot calm` (saved); `/robot files` and `/robot agents` open panels; `/robot play`, `/robot dice` and `/robot coin` play; `/robot animate <name>` plays any animation', argumentHint: '[status | changes | calm | files | agents | play | dice | coin | animate <name>]' })
+      await $.command.register({ name: 'robot', description: 'Toggle the robot, `/robot status`, `/robot changes`, `/robot subagents` or `/robot calm` (saved); `/robot files` and `/robot agents` open panels; `/robot play`, `/robot dice` and `/robot coin` play; `/robot animate <name>` plays any animation', argumentHint: '[status | changes | subagents | calm | files | agents | play | dice | coin | animate <name>]' })
     } catch (error) {
       $.ui.log(`robot: /robot not registered: ${String(error)}`, { to: 'debug' })
     }

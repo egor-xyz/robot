@@ -9,6 +9,7 @@ const CASES: [string, RobotCommand][] = [
   ['', { kind: 'toggle', key: 'robot' }],
   ['status', { kind: 'toggle', key: 'statusLine' }],
   ['changes', { kind: 'toggle', key: 'changesLine' }],
+  ['subagents', { kind: 'toggle', key: 'agentLines' }],
   ['calm', { kind: 'toggle', key: 'calm' }],
   ['files', { kind: 'files' }],
   ['agents', { kind: 'agents' }],
@@ -41,14 +42,14 @@ test('animate with no name, an unknown name or an extra word lists the animation
 })
 
 test('the help names every command word', () => {
-  for (const word of ['status', 'changes', 'calm', 'files', 'agents', 'play', 'dice', 'coin', 'animate']) expect(HELP_TEXT).toContain(`/robot ${word}`)
+  for (const word of ['status', 'changes', 'subagents', 'calm', 'files', 'agents', 'play', 'dice', 'coin', 'animate']) expect(HELP_TEXT).toContain(`/robot ${word}`)
 })
 
 test('isOnOf: a boolean wins, anything else is the default', () => {
   expect(isOnOf('calm', undefined)).toBe(false)
   expect(isOnOf('calm', 'x')).toBe(false)
   expect(isOnOf('calm', true)).toBe(true)
-  for (const key of ['robot', 'statusLine', 'changesLine'] as const) {
+  for (const key of ['robot', 'statusLine', 'changesLine', 'agentLines'] as const) {
     expect(isOnOf(key, undefined)).toBe(true)
     expect(isOnOf(key, 'x')).toBe(true)
     expect(isOnOf(key, false)).toBe(false)
@@ -60,6 +61,8 @@ test('toggle texts follow the new value', () => {
   expect(toggleTextOf('robot', true)).toBe('Robot is back.')
   expect(toggleTextOf('statusLine', false)).toBe('Status line hidden.')
   expect(toggleTextOf('changesLine', true)).toBe('PR and files line is back.')
+  expect(toggleTextOf('agentLines', false)).toBe('Subagent lines hidden.')
+  expect(toggleTextOf('agentLines', true)).toBe('Subagent lines are back.')
   expect(toggleTextOf('calm', true)).toBe(CALM_ON_TEXT)
   expect(toggleTextOf('calm', false)).toBe(CALM_OFF_TEXT)
 })
