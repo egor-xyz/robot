@@ -729,7 +729,11 @@ export const register: Register = (on, options) => {
       // Ticks hourly: a tick right on the 6-hour mark can come in a few ms early and skip a whole round.
       $.clock.every(UPDATE_CHECK_MS / 6, () => checkUpdate($))
     }
-    if (isStatusOn) $.clock.every(STATUS_MS, () => refreshStatus($, { account, windows, limitsAt, hotAt }))
+    // The account is read again each tick: /login can switch it mid-session.
+    if (isStatusOn) $.clock.every(STATUS_MS, async () => {
+      account = (await accountOf($)) ?? account
+      return refreshStatus($, { account, windows, limitsAt, hotAt })
+    })
     if (isLineOn) $.clock.every(STATUS_MS, () => refreshChanges($))
     // The PR is looked up when its time is up: soon while checks run, rarely when calm.
     if (isLineOn) $.clock.every(PR_TICK_MS, () => { if (Date.now() >= prDueAt) pokePr($, 'due', isLineOn) })
